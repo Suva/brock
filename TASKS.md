@@ -9,7 +9,8 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 - Choose the name first: it is in the installers, the bundle identifier and
   the data folder.
 - A native menu bar (File, Edit, View) with the commands and their keys, for
-  finding them without knowing the keys.
+  finding them without knowing the keys. Undo and Redo have no buttons any
+  more; Edit > Undo and Redo is where they belong.
 
 ## Left from milestone 7
 

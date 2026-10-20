@@ -121,7 +121,7 @@
 <aside aria-label="Notes">
   <div class="head">
     <h2>{node?.title || "Untitled"}</h2>
-    <button class="close" onclick={onClose} title="Hide notes (⇧⌘N)" aria-label="Hide notes">×</button>
+    <button class="close" onclick={onClose} title="Hide notes (⇧⌘N)" aria-label="Hide notes">›</button>
   </div>
   {#if node}
     <div class="style">

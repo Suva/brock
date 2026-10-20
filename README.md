@@ -83,7 +83,8 @@ Escape leaves it where it was.
 Links between nodes are dashed arrows when both ends are on the open map; a
 link to somewhere else shows as ↗ on the node, which goes there.
 
-The notes panel (⇧⌘N) shows the selected node's notes, written in Markdown:
+The notes panel on the right, opened by the small tab on the right edge or
+⇧⌘N, shows the selected node's notes, written in Markdown:
 `# headings`, `**bold**`, `*italic*`, `` `code` ``, lists, `- [ ]` to-dos you
 can tick, `> quotes`. Click them, or press Enter on them, to write; Escape
 shows them formatted again. Web addresses in them open in your browser.

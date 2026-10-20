@@ -106,14 +106,6 @@
     }
     return vault.rootId;
   });
-  const canUndo = $derived.by(() => {
-    void version;
-    return vault.canUndo;
-  });
-  const canRedo = $derived.by(() => {
-    void version;
-    return vault.canRedo;
-  });
   const breadcrumbs = $derived.by(() => {
     void version;
     return vault.mapPath(mapId);
@@ -264,10 +256,12 @@
         <button class:on={view === "map"} onclick={() => (view = "map")} title="Map (⌘1)">Map</button>
         <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌘2)">Outline</button>
       </div>
-      <button onclick={() => (searching = "go")} title="Search everything (⌘K)">Search</button>
-      <button class:on={notesOpen} onclick={() => (notesOpen = !notesOpen)} title="Notes (⇧⌘N)">Notes</button>
-      <button onclick={() => undo()} disabled={!canUndo} title="Undo (⌘Z)">Undo</button>
-      <button onclick={() => undo(true)} disabled={!canRedo} title="Redo (⇧⌘Z)">Redo</button>
+      <button class="icon-button" onclick={() => (searching = "go")} title="Search everything (⌘K)" aria-label="Search">
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M10.4 10.4 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      </button>
       <div class="more">
         <button class:on={moreOpen} onclick={() => (moreOpen = !moreOpen)} title="Export, import, trash, settings" aria-label="More">⋯</button>
         {#if moreOpen}
@@ -279,7 +273,7 @@
 
   <div class="body">
     {#if !sidebarOpen}
-      <!-- A tab on the edge: the sidebar's way in, out of the way of the map. -->
+      <!-- Tabs on the edges: the ways into the panels, out of the way of the map. -->
       <button
         class="knob"
         onmousedown={(e) => e.preventDefault()}
@@ -308,6 +302,17 @@
         <OutlineView {live} {mapId} bind:selected onOpen={open} onUp={up} />
       {/if}
     </main>
+    {#if !notesOpen}
+      <button
+        class="knob right"
+        onmousedown={(e) => e.preventDefault()}
+        onclick={() => (notesOpen = true)}
+        title="Notes (⇧⌘N)"
+        aria-label="Show the notes"
+      >
+        ‹
+      </button>
+    {/if}
     {#if notesOpen}
       <NotesPanel
         {live}
@@ -391,6 +396,20 @@
     color: var(--muted);
     font-size: 0.9rem;
     line-height: 1;
+  }
+
+  .knob.right {
+    left: auto;
+    right: 0;
+    border-left: 1px solid var(--line);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+  }
+
+  .icon-button {
+    display: grid;
+    place-items: center;
+    padding: 0.3rem 0.45rem;
   }
 
   .knob:hover {
