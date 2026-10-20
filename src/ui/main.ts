@@ -21,6 +21,25 @@ async function start(target: HTMLElement) {
   });
   mount(App, { target, props: { live: new Live(vault, saver) } });
   keepUntilSaved(saver);
+  fitTitleBar();
+}
+
+/**
+ * On a Mac the window has no title bar of its own: the header takes its
+ * place, with the window's buttons over its left end (`titleBarStyle` in
+ * tauri.conf.json). The header leaves room for them, except in full screen,
+ * where macOS hides them.
+ */
+function fitTitleBar() {
+  if (!inTauri() || !navigator.platform.startsWith("Mac")) return;
+  const root = document.documentElement;
+  root.classList.add("mac-titlebar");
+  import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+    const win = getCurrentWindow();
+    const check = async () => root.classList.toggle("fullscreen", await win.isFullscreen());
+    check();
+    win.onResized(check);
+  });
 }
 
 /** How long closing waits for a save that is failing, before it closes anyway. */

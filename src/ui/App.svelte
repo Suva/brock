@@ -236,9 +236,10 @@
 <svelte:window onkeydown={onWindowKey} />
 
 <div class="app">
-  <!-- Clicking a button here leaves the focus where it was, so the map keeps the keyboard. -->
+  <!-- Clicking a button here leaves the focus where it was, so the map keeps the keyboard.
+       On a Mac the header is the title bar: it moves the window, its buttons apart. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <header onmousedown={(e) => (e.target as Element).closest("button") && e.preventDefault()}>
+  <header data-tauri-drag-region="deep" onmousedown={(e) => (e.target as Element).closest("button") && e.preventDefault()}>
     <div class="history">
       <button onclick={() => step("back")} disabled={!canGoBack} title="Back (⌘←)" aria-label="Back">‹</button>
       <button onclick={() => step("forward")} disabled={!canGoForward} title="Forward (⌘→)" aria-label="Forward">›</button>
@@ -372,6 +373,18 @@
     gap: 1rem;
     padding: 0.5rem 1rem;
     border-bottom: 1px solid var(--line);
+  }
+
+  /* On a Mac the header is the title bar, with the window's buttons at its left. */
+  :global(.mac-titlebar) header {
+    min-height: 46px;
+    padding-left: 96px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  :global(.mac-titlebar.fullscreen) header {
+    padding-left: 1rem;
   }
 
   .history {

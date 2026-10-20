@@ -12,6 +12,14 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   finding them without knowing the keys. Undo and Redo have no buttons any
   more; Edit > Undo and Redo is where they belong.
 
+## The window
+
+- A title bar of our own on Windows (and Linux), as on the Mac: the
+  minimise, maximise and close buttons drawn by the app, with Windows 11's
+  snap layouts and resizing at the edges.
+- Full screen on the Mac (where the window's buttons hide and the header
+  takes back their room) was not tried.
+
 ## Left from milestone 7
 
 - Export and import were not clicked through while checking: the formats

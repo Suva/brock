@@ -8,6 +8,8 @@
   "permissions": [
     "core:default",
     "core:window:allow-destroy",
+    "core:window:allow-internal-toggle-maximize",
+    "core:window:allow-start-dragging",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

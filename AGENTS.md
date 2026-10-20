@@ -174,6 +174,14 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **Every change of map goes through `moveTo`** in `App.svelte`, which
   remembers where it was for back and forward. Setting the open map any
   other way leaves a gap in the history.
+- **On a Mac the header is the title bar.** The window has none of its own
+  (`titleBarStyle: Overlay` in `tauri.conf.json`); its buttons sit over the
+  header's left end, placed by `trafficLightPosition` to line up with the
+  header's middle, and the header leaves room for them (`.mac-titlebar` in
+  `App.svelte`) except in full screen. The header moves the window
+  (`data-tauri-drag-region="deep"`); its buttons stay buttons. Change the
+  header's height and the buttons' position has to follow. Windows and
+  Linux keep their own title bars.
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.
