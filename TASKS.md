@@ -1,15 +1,20 @@
 # Tasks
 
-The milestones are in [PLAN.md](PLAN.md). Milestones 1 (core and storage) and
-2 (one map) are done; these are what is next, and what was left on the way.
+The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 3 (core and storage,
+one map, maps inside maps) are done; these are what is next, and what was left on the way.
 
-## Milestone 3: maps inside maps
+## Milestone 4: search
 
-- A transition when opening a map and coming back: zoom into the portal
-  node, and out of it.
-- The shortcut back to the parent map (not Escape). Until then, only the
-  breadcrumbs lead back.
-- Coming back selects the portal of the map just left.
+- A palette (⌘K) that matches titles as they are typed, from the vault in
+  memory, and bodies through the FTS5 index (the `search` command in Rust
+  is there already).
+- Each result shows its path; choosing one opens its map and selects it.
+- Filters: only this map, only maps.
+
+## Left from milestone 3
+
+- Watch the zoom into and out of maps in the app: the browser preview's
+  pictures could not show it moving. Check its speed and easing feel right.
 
 ## Left from milestone 2
 

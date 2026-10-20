@@ -16,7 +16,7 @@ The name is still to be chosen (see "Open questions").
 | Node content | A title and longer text. Links (web addresses and links to other nodes) early. Markdown and images later |
 | Vaults | One for now. More vaults later |
 | Saving | No Save command: every change is written to the database at once |
-| Back to the parent map | Not Escape, which is needed for other things. Shortcut still open |
+| Back to the parent map | ⌘↑, with ⌘↓ to open a map (not Escape, which is needed for other things) |
 | UI framework | Svelte 5 with Vite (not SvelteKit: one window needs no routing) |
 
 ## The model
@@ -143,7 +143,7 @@ elements. Try it there early, not at the end.
 | Arrow keys | Move between nodes |
 | Typing, or F2 | Edit the title |
 | ⌘↵, or a double click on a portal | Open that map |
-| *open* | Back to the parent map (⌘↑, as for Finder's enclosing folder, is one idea) |
+| ⌘↑ | Back to the parent map, as Finder goes to the enclosing folder; ⌘↓ opens a map |
 | ⌘K | Search everything |
 | ⌘⇧M | Make into map, or back into an ordinary node |
 | ⌘Z, ⌘⇧Z | Undo, redo |
@@ -157,7 +157,7 @@ Ctrl in place of ⌘ on Windows and Linux.
    the SQLite schema and Tauri commands; a Tauri + Svelte project that starts.
 2. **One map** (done): adding, editing, deleting and moving nodes from the keyboard;
    automatic layout; saved as you go; the body panel.
-3. **Maps inside maps**: make into map, opening and going back, breadcrumbs,
+3. **Maps inside maps** (done): make into map, opening and going back, breadcrumbs,
    transitions.
 4. **Search**: the palette, FTS.
 5. **Overview**: minimap, outline view, map of maps, zooming out.
@@ -176,5 +176,4 @@ Later: Markdown in bodies, images, more vaults, syncing and a web version, phone
   existing apps, domains and trademarks. Ideas to start from, none checked yet,
   most of them about digging into nested maps: Warren, Burrow, Delve, Thicket,
   Canopy, Sprig, Nook, Loam.
-- **The shortcut back to the parent map.**
 - Whether the top of the vault is a map like any other, or a special home view.

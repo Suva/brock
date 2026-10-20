@@ -40,3 +40,28 @@ test("up and down go to the next node on screen, across branches", () => {
   assert.equal(go(s1.id, "up"), r3.id);
   assert.equal(go(s.id, "down"), null);
 });
+
+test("up and down go to a sibling before a deeper node that sits nearer", () => {
+  // The map of the screenshot this was reported with: the last branch's
+  // first child sits a little above the branch, and its branch above is
+  // further away.
+  const vault = new Vault([]);
+  const add = (parent: string, title: string) => vault.addChild(parent, { title, side: "right" });
+  add(vault.rootId, "Something is wrong?");
+  add(vault.rootId, "Something");
+  const third = add(vault.rootId, "Test node 3");
+  const thirdChild = add(third.id, "Something third");
+  const last = add(vault.rootId, "Something else");
+  const ohNo = add(last.id, "Oh no");
+  for (const t of ["Add", "That's cool", "nodes", "Something something", "Oh that's beautiful", "Something else"]) {
+    add(ohNo.id, t);
+  }
+  const more = add(last.id, "more");
+  const layout = layoutMap(vault, vault.rootId, (n) => ({ width: 120, height: n.parentId === vault.rootId ? 40 : 24 }));
+
+  assert.equal(neighbour(layout, last.id, "up"), third.id);
+  assert.equal(neighbour(layout, more.id, "up"), ohNo.id, "a sibling");
+  assert.equal(neighbour(layout, ohNo.id, "up"), thirdChild.id, "past the first sibling, the same depth");
+  assert.equal(neighbour(layout, thirdChild.id, "down"), ohNo.id);
+  assert.equal(neighbour(layout, last.id, "down"), null, "the last on its side");
+});

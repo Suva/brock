@@ -127,6 +127,27 @@ test("undo and redo step through edits, and are saved too", () => {
   assert.equal(vault.canRedo, false, "a new edit ends what could be redone");
 });
 
+test("a node just made can be taken back, leaving nothing to redo", () => {
+  const { vault, saved } = open();
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const parent = vault.addChild(a.id);
+  vault.update(a.id, { collapsed: true });
+  const fresh = vault.transact(() => {
+    vault.update(a.id, { collapsed: false });
+    return vault.addChild(a.id);
+  });
+  vault.update(fresh.id, { title: "x" }, `title:${fresh.id}`);
+  vault.update(fresh.id, { title: "" }, `title:${fresh.id}`);
+  saved.length = 0;
+
+  assert.equal(vault.cancelCreation(fresh.id), true, "typing that ended empty left no step of its own");
+  assert.equal(vault.isLive(fresh.id), false);
+  assert.equal(vault.get(a.id)!.collapsed, true, "what the step did besides is undone too");
+  assert.equal(vault.canRedo, false);
+  assert.equal(saved.length, 1, "and saved");
+  assert.equal(vault.cancelCreation(parent.id), false, "only the last step");
+});
+
 test("a transaction is one step", () => {
   const { vault, saved } = open();
   saved.length = 0;
@@ -182,6 +203,12 @@ test("maps: making, finding and leaving them", () => {
   assert.deepEqual(titles(vault.mapPath(project.id)), [ROOT_TITLE, "Project"]);
   assert.deepEqual(titles(vault.mapNodes(vault.rootId)), [ROOT_TITLE, "Work", "Project", "Home life"]);
   assert.deepEqual(titles(vault.mapNodes(project.id)), ["Project", "Task"]);
+
+  vault.setMap(task.id, true);
+  assert.equal(vault.portalToward(vault.rootId, task.id), project.id, "the next map on the way in");
+  assert.equal(vault.portalToward(project.id, task.id), task.id);
+  assert.equal(vault.portalToward(task.id, project.id), null, "not inside");
+  vault.setMap(task.id, false);
 
   vault.setMap(project.id, false);
   assert.deepEqual(titles(vault.mapNodes(vault.rootId)), [ROOT_TITLE, "Work", "Project", "Task", "Home life"]);

@@ -128,6 +128,16 @@ export class Vault {
   }
 
   /**
+   * The portal in map `mapId` that leads towards `insideId`, a map somewhere
+   * inside it: the next map on the way down. Null if `insideId` is not inside.
+   */
+  portalToward(mapId: string, insideId: string): string | null {
+    const path = this.mapPath(insideId);
+    const i = path.findIndex((n) => n.id === mapId);
+    return i >= 0 && i + 1 < path.length ? path[i + 1].id : null;
+  }
+
+  /**
    * Every node shown in a map, the centre first and then depth first. A map
    * inside it is included, as a portal, but nothing under it.
    */
@@ -284,6 +294,18 @@ export class Vault {
     );
     this.#redo.push(step);
     return changes;
+  }
+
+  /**
+   * Takes back the making of node `id`, if that was the last step, as if it
+   * had not been made: nothing is left to redo. For a new node left empty.
+   */
+  cancelCreation(id: string): boolean {
+    const step = this.#undo.at(-1);
+    if (!step?.changes.some((c) => c.before === null && c.after.id === id)) return false;
+    this.undo();
+    this.#redo.pop();
+    return true;
   }
 
   redo(): Change[] | null {
@@ -495,6 +517,7 @@ function joinChanges(changes: Change[]): Change[] {
   return [...byId.values()].filter((c) => c.before === null || !sameNode(c.before, c.after));
 }
 
+/** The same node with the same content; when it last changed does not count. */
 function sameNode(a: Node, b: Node): boolean {
-  return (Object.keys(a) as (keyof Node)[]).every((k) => a[k] === b[k]);
+  return (Object.keys(a) as (keyof Node)[]).every((k) => k === "updatedAt" || a[k] === b[k]);
 }

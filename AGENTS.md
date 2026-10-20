@@ -50,6 +50,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/ids.ts` | Node ids (ULIDs) |
 | `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures |
 | `src/core/navigate.ts` | Which node an arrow key moves to |
+| `src/core/branches.ts` | The side and colour a new branch of a map's centre is given, and the palette |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -103,7 +104,14 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **The centre's children keep their sides when moved.** Their sides are
   balanced by order when not set, so a move that changes the order fixes all
   their sides first (`pinSides` in `moves.ts`). A new branch is given its
-  side and its colour when it is made, for the same reason.
+  side and its colour when it is made, for the same reason: make branches
+  with `newBranch` or `branchBeside` from `branches.ts`, in every view.
+- **Going into a map animates a copy.** When the open map changes, the map
+  view copies its layer as it is (`$effect.pre`, before the page changes),
+  zooms the copy into the portal or away and removes it, and grows the new
+  map in once its camera is set. Anything drawn on the layer is copied with
+  it; nothing on it may rely on scripts or ids staying unique while the copy
+  lives (about a third of a second).
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

@@ -6,8 +6,8 @@ A desktop mind-mapping app. It starts with a single node; any node can become
 a map of its own, which you open and come back out of. Everything is saved as
 you go, to a database on your computer. There is no Save command.
 
-It is at an early stage: maps can be made, drawn, edited from the keyboard and
-opened, with notes, undo and saving. Search and an overview of the whole vault
+It is at an early stage: maps can be made, drawn, edited from the keyboard,
+opened and left again, with notes, undo and saving. Search and an overview of the whole vault
 are next. See
 [PLAN.md](PLAN.md) for where it is going and [TASKS.md](TASKS.md) for what is
 next.
@@ -36,17 +36,20 @@ the arrow keys, then:
 
 | Key | Does |
 |---|---|
-| Tab | A new node under this one |
+| Tab | A new node under this one; on a map, it opens the map and starts a new node in it |
 | Enter | A new node after this one (under the centre, when on the centre) |
 | Shift+Enter | A new node before this one |
 | Typing, Space or F2 | Edits the title; typing replaces it, Space and F2 keep it |
 | Enter or Escape while editing | Finishes editing; Tab adds a node under it |
-| ← → ↑ ↓ | Moves to the parent, a child, or the next node on screen |
+| Escape on a new node left empty | Takes it away again and goes back to the node you started from |
+| ← → | Moves to the parent, or the child level with the node |
+| ↑ ↓ | Moves to the sibling above or below, then on to the same level of the next branch |
 | ⌥↑ ⌥↓ | Moves the node up or down among its siblings |
 | ⌥ with ← or → | Moves the node outwards, under the sibling above it, or inwards, beside its parent; a branch of the centre moved inwards crosses to the other side |
 | Delete or Backspace | Deletes the node and what is under it |
 | ⇧⌘M | Makes the node a map of its own, or an ordinary node again |
-| ⌘↵ or a double click | Opens a map |
+| ⌘↓, ⌘↵ or a double click | Opens a map |
+| ⌘↑ | Back out to the map this one is in, with the map you left selected |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
 | ⌘1, ⌘2 | The map, or the same map as an outline |

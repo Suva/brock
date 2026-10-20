@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import { tick } from "svelte";
+  import { branchBeside, newBranch } from "../core/branches.ts";
   import { indent, outdent, reorder } from "../core/moves.ts";
   import type { Node } from "../core/node.ts";
   import { typingIn } from "./keys.ts";
@@ -14,7 +15,15 @@
     mapId,
     selected = $bindable(),
     onOpen,
-  }: { live: Live; mapId: string; selected: string | null; onOpen: (id: string) => void } = $props();
+    onUp,
+  }: {
+    live: Live;
+    mapId: string;
+    selected: string | null;
+    onOpen: (id: string) => void;
+    /** Back out to the map this one is in. */
+    onUp: () => void;
+  } = $props();
 
   const vault = $derived(live.vault);
   const centre = $derived.by(() => {
@@ -37,6 +46,17 @@
     return [...document.querySelectorAll<HTMLInputElement>(".outline input")];
   }
 
+  /**
+   * The row just made, and where it was made from: the row then, in the map
+   * open then. Escape while it is still empty takes it back and returns there.
+   */
+  let fresh: { id: string; from: string; fromMap: string } | null = null;
+
+  function made(added: Node, from: string, fromMap: string) {
+    fresh = { id: added.id, from, fromMap };
+    focusNode(added.id);
+  }
+
   function onKey(event: KeyboardEvent, node: Node) {
     const isCentre = node.id === mapId;
     const mod = event.metaKey || event.ctrlKey;
@@ -51,17 +71,36 @@
       event.preventDefault();
       // The row is moved in the page, which can take the focus from it.
       if (moves[event.key]()) focusNode(node.id);
-    } else if (event.key === "Enter" && mod) {
+    } else if ((event.key === "Enter" || event.key === "ArrowDown") && mod) {
       event.preventDefault();
       if (node.isMap && !isCentre) onOpen(node.id);
+    } else if (event.key === "ArrowUp" && mod) {
+      event.preventDefault();
+      onUp();
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const added = isCentre ? vault.addChild(node.id) : vault.addSibling(node.id, {}, event.shiftKey);
-      focusNode(added.id);
+      const added = isCentre
+        ? vault.addChild(node.id, newBranch(vault.children(node.id)))
+        : vault.addSibling(node.id, node.parentId === mapId ? branchBeside(vault.children(mapId), node) : {}, event.shiftKey);
+      made(added, node.id, mapId);
     } else if (event.key === "Tab" && !event.shiftKey) {
       event.preventDefault();
-      if (node.isMap && !isCentre) return;
-      focusNode(vault.addChild(node.id).id);
+      if (node.isMap && !isCentre) {
+        // A new node under a map goes into it: open the map and add it there.
+        const from = mapId;
+        onOpen(node.id);
+        made(vault.addChild(node.id, newBranch(vault.children(node.id))), node.id, from);
+        return;
+      }
+      made(vault.addChild(node.id, isCentre ? newBranch(vault.children(node.id)) : {}), node.id, mapId);
+    } else if (event.key === "Escape" && fresh?.id === node.id && node.title === "") {
+      event.preventDefault();
+      const { from, fromMap } = fresh;
+      fresh = null;
+      if (!vault.cancelCreation(node.id)) return;
+      // Made by going into a map: come back out, to the map gone into.
+      if (fromMap !== mapId && vault.isLive(fromMap)) onOpen(fromMap);
+      else focusNode(vault.isLive(from) ? from : mapId);
     } else if (event.key === "Backspace" && node.title === "" && !isCentre) {
       event.preventDefault();
       const list = rows();
@@ -117,7 +156,7 @@
         onfocus={() => (selected = node.id)}
       />
       {#if portal}
-        <button class="open" onclick={() => onOpen(node.id)} title="Open this map (⌘↵)">Open map ›</button>
+        <button class="open" onclick={() => onOpen(node.id)} title="Open this map (⌘↓)">Open map ›</button>
       {/if}
     </div>
     {#if !portal}

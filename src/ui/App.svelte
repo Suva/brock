@@ -3,6 +3,7 @@
   outline, the selected node's notes, and whether everything is saved.
 -->
 <script lang="ts">
+  import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
   import MapView from "./MapView.svelte";
   import NotesPanel from "./NotesPanel.svelte";
@@ -45,8 +46,15 @@
 
   function open(id: string) {
     editing = null;
+    // Coming back out selects the portal that was gone in by.
+    selected = vault.portalToward(id, mapId) ?? id;
     openedMap = id;
-    selected = id;
+  }
+
+  /** Back out to the map this one is in. */
+  function up() {
+    const parent = vault.mapOf(mapId);
+    if (parent) open(parent);
   }
 
   function undo(redo = false) {
@@ -64,6 +72,8 @@
     if (key === "z") {
       // The vault's undo, not a text field's own.
       undo(event.shiftKey);
+    } else if (event.key === "ArrowUp" && !event.shiftKey && !event.altKey && !typingIn(event.target)) {
+      up();
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "1" && !event.shiftKey) {
@@ -107,7 +117,7 @@
       {#if view === "map"}
         <MapView {live} {mapId} bind:selected bind:editing onOpen={open} />
       {:else}
-        <OutlineView {live} {mapId} bind:selected onOpen={open} />
+        <OutlineView {live} {mapId} bind:selected onOpen={open} onUp={up} />
       {/if}
     </main>
     {#if notesOpen}

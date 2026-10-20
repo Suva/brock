@@ -3,13 +3,22 @@
   them, panning and zooming, and editing from the keyboard. Each node's size
   is measured in the page and handed to the layout, which places it.
 -->
+<script lang="ts" module>
+  import type { Camera } from "./camera.ts";
+
+  // Each map keeps where it was looked at, for coming back to it, also after
+  // a turn in the outline.
+  const cameras = new Map<string, Camera>();
+</script>
+
 <script lang="ts">
   import { tick, untrack } from "svelte";
-  import { layoutMap, sideForNewChild } from "../core/layout.ts";
+  import { branchBeside, branchColour, newBranch } from "../core/branches.ts";
+  import { layoutMap, type Layout } from "../core/layout.ts";
   import type { Node, NodeFields } from "../core/node.ts";
   import { indent, outdent, reorder, setSide } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
-  import { centreOn, fit, reveal, zoomAt, type Camera } from "./camera.ts";
+  import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
 
@@ -29,8 +38,6 @@
 
   const vault = $derived(live.vault);
 
-  /** Branch colours: a new branch takes one, an older one without its own goes by its place. */
-  const PALETTE = ["#e8590c", "#1c7ed6", "#2f9e44", "#ae3ec9", "#f08c00", "#0c8599", "#d6336c", "#5c7cfa"];
   /** Movement under this is a click, not a drag. */
   const DRAG_START_PX = 3;
 
@@ -75,7 +82,7 @@
   const colours = $derived.by(() => {
     const byBranch = new Map<number, string>();
     for (const p of layout.placed) {
-      if (p.depth === 1) byBranch.set(p.branch, p.node.color ?? PALETTE[p.branch % PALETTE.length]);
+      if (p.depth === 1) byBranch.set(p.branch, branchColour(vault.children(mapId), p.branch));
     }
     return byBranch;
   });
@@ -118,8 +125,6 @@
     if (glide) glideTimer = setTimeout(() => (gliding = false), 260);
   }
 
-  // Each map keeps where it was looked at, for coming back to it.
-  const cameras = new Map<string, Camera>();
   let cameraOf: string | null = null;
   $effect(() => {
     const id = mapId;
@@ -129,8 +134,99 @@
       if (cameraOf !== null) cameras.set(cameraOf, camera);
       cameraOf = id;
       setCamera(cameras.get(id) ?? centreOn(0, 0, 1, width, height));
+      if (entering) enter(entering);
+      entering = null;
     });
   });
+
+  /** A map opened to add a node in it; the node is added once the map is open. */
+  let addOnOpen: { mapId: string; from: string; fromMap: string } | null = null;
+  $effect(() => {
+    const id = mapId;
+    untrack(() => {
+      if (addOnOpen?.mapId !== id) return;
+      const { from, fromMap } = addOnOpen;
+      addOnOpen = null;
+      const node = vault.transact(() => {
+        if (vault.get(id)!.collapsed) vault.update(id, { collapsed: false });
+        return vault.addChild(id, newBranch(vault.children(id)));
+      });
+      editFresh(node.id, { from, fromMap });
+    });
+  });
+
+  // Leaving for the outline keeps where this map was looked at.
+  $effect(() => () => {
+    if (cameraOf !== null) cameras.set(cameraOf, untrack(() => camera));
+  });
+
+  // ---- Going into a map and back out -----------------------------------------
+  //
+  // Opening a map zooms into its portal while the map it was in fades away,
+  // and the new map grows into view. Going back zooms out of the map left
+  // while the map around it settles in, from its portal outwards. The map
+  // left is a copy of its picture, taken just before the page changes.
+
+  const TRANSITION_MS = 320;
+  let layer: HTMLDivElement;
+  /** What is on screen, kept for the moment the map changes. */
+  let shown: { mapId: string; layout: Layout; camera: Camera } | null = null;
+  /** How the next map comes in: grown into from its portal, or out of one of its own. */
+  let entering: { kind: "in" } | { kind: "out"; portalId: string } | null = null;
+
+  $effect(() => {
+    shown = { mapId, layout, camera };
+  });
+
+  const transform = (c: Camera) => `translate(${c.x}px, ${c.y}px) scale(${c.zoom})`;
+  const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /** The middle of a node on screen. */
+  function screenMiddle(layout: Layout, id: string, c: Camera): [number, number] {
+    const p = layout.byId.get(id);
+    if (!p) return [width / 2, height / 2];
+    return [(p.x + p.width / 2) * c.zoom + c.x, (p.y + p.height / 2) * c.zoom + c.y];
+  }
+
+  $effect.pre(() => {
+    const next = mapId;
+    untrack(() => {
+      const from = shown;
+      if (!from || from.mapId === next || !layer || width === 0 || reducedMotion()) return;
+      const goingIn = vault.portalToward(from.mapId, next);
+      const goingOut = vault.portalToward(next, from.mapId);
+
+      // The map being left, as it looks now, zoomed into the portal or away.
+      const ghost = layer.cloneNode(true) as HTMLElement;
+      ghost.classList.remove("gliding");
+      ghost.classList.add("ghost");
+      viewport.appendChild(ghost);
+      const to = goingIn
+        ? zoomAt(from.camera, 3, ...screenMiddle(from.layout, goingIn, from.camera))
+        : zoomAt(from.camera, 0.4, width / 2, height / 2);
+      ghost
+        .animate([{ transform: transform(from.camera), opacity: 1 }, { transform: transform(to), opacity: 0 }], {
+          duration: TRANSITION_MS,
+          easing: "ease-in",
+        })
+        .finished.finally(() => ghost.remove());
+
+      entering = goingIn ? { kind: "in" } : goingOut ? { kind: "out", portalId: goingOut } : { kind: "in" };
+    });
+  });
+
+  /** Brings the new map in, once its camera is set. */
+  function enter(how: NonNullable<typeof entering>) {
+    const target = camera;
+    const start =
+      how.kind === "in"
+        ? zoomAt(target, 0.5, width / 2, height / 2)
+        : zoomAt(target, 3, ...screenMiddle(layout, how.portalId, target));
+    layer.animate([{ transform: transform(start), opacity: 0 }, { transform: transform(target), opacity: 1 }], {
+      duration: TRANSITION_MS,
+      easing: "ease-out",
+    });
+  }
 
   // Keep the selected node in view, as it changes and as the map moves around it.
   $effect(() => {
@@ -230,9 +326,17 @@
     selected = id;
   }
 
+  /**
+   * The node just made and being given its first title, and where the making
+   * started: the node selected then, in the map open then. Escape while it is
+   * still empty takes it back and returns there.
+   */
+  let fresh: { id: string; from: string; fromMap: string } | null = null;
+
   function startEdit(id: string, text: string) {
     const node = vault.get(id);
     if (!node) return;
+    if (fresh?.id !== id) fresh = null;
     if (text !== node.title) vault.update(id, { title: text }, `title:${id}`);
     editStart = text;
     selected = id;
@@ -242,6 +346,7 @@
   async function stopEditing() {
     if (editing === null) return;
     editing = null;
+    fresh = null;
     await tick();
     viewport?.focus();
   }
@@ -263,8 +368,26 @@
     vault.update(id, { title: text }, `title:${id}`);
   }
 
+  /** Takes back a new node left empty, and goes back to where it was started from. */
+  function cancelFresh(id: string): boolean {
+    const made = fresh;
+    if (made?.id !== id || vault.get(id)?.title !== "" || !vault.cancelCreation(id)) return false;
+    fresh = null;
+    if (made.fromMap !== mapId && vault.isLive(made.fromMap)) {
+      // Made by going into a map: come back out, to the map gone into.
+      editing = null;
+      onOpen(made.fromMap);
+    } else {
+      selected = vault.isLive(made.from) ? made.from : mapId;
+      stopEditing();
+    }
+    return true;
+  }
+
   function onEditKey(e: KeyboardEvent, node: Node) {
-    if (e.key === "Enter" || e.key === "Escape") {
+    if (e.key === "Escape" && cancelFresh(node.id)) {
+      e.preventDefault();
+    } else if (e.key === "Enter" || e.key === "Escape") {
       e.preventDefault();
       stopEditing();
     } else if (e.key === "Tab" && !e.shiftKey) {
@@ -275,32 +398,32 @@
 
   function addChild(parentId: string) {
     const parent = vault.get(parentId)!;
-    if (parent.isMap && parentId !== mapId) return;
-    const fields: Partial<NodeFields> =
-      parentId === mapId ? { side: sideForNewChild(vault.children(parentId)), color: newBranchColour() } : {};
+    if (parent.isMap && parentId !== mapId) {
+      // A new node under a map goes into it: open the map, then add it there.
+      addOnOpen = { mapId: parentId, from: selected ?? parentId, fromMap: mapId };
+      onOpen(parentId);
+      return;
+    }
+    const fields: Partial<NodeFields> = parentId === mapId ? newBranch(vault.children(parentId)) : {};
     const node = vault.transact(() => {
       if (parent.collapsed) vault.update(parentId, { collapsed: false });
       return vault.addChild(parentId, fields);
     });
-    startEdit(node.id, "");
+    editFresh(node.id, { from: selected ?? parentId, fromMap: mapId });
+  }
+
+  /** Starts the first title of a node just made. */
+  function editFresh(id: string, origin: { from: string; fromMap: string }) {
+    fresh = { id, ...origin };
+    startEdit(id, "");
   }
 
   function addSibling(id: string, before: boolean) {
     const node = vault.get(id)!;
     if (id === mapId) return addChild(id);
     // A sibling of a branch of the centre goes on the same side.
-    const side = node.parentId === mapId ? layout.byId.get(id)?.side ?? null : null;
-    startEdit(vault.addSibling(id, side ? { side, color: newBranchColour() } : {}, before).id, "");
-  }
-
-  /**
-   * A new branch of the centre keeps its colour from the start, the one its
-   * siblings use least, so that moving branches around never recolours them.
-   */
-  function newBranchColour(): string {
-    const used = new Map(PALETTE.map((c) => [c, 0]));
-    for (const c of colours.values()) used.set(c, (used.get(c) ?? 0) + 1);
-    return PALETTE.reduce((best, c) => (used.get(c)! < used.get(best)! ? c : best), PALETTE[0]);
+    const fields = node.parentId === mapId ? branchBeside(vault.children(mapId), node) : {};
+    editFresh(vault.addSibling(id, fields, before).id, { from: id, fromMap: mapId });
   }
 
   function remove(id: string) {
@@ -348,7 +471,7 @@
     } else if (arrows[e.key] && !mod) {
       const next = neighbour(layout, id, arrows[e.key]);
       if (next) selected = next;
-    } else if (e.key === "Enter" && mod) {
+    } else if ((e.key === "Enter" || e.key === "ArrowDown") && mod) {
       if (portal) onOpen(id);
     } else if (e.key === "Enter") {
       addSibling(id, e.shiftKey);
@@ -398,6 +521,7 @@
 >
   <div
     class="layer"
+    bind:this={layer}
     class:gliding
     style:transform="translate({camera.x}px, {camera.y}px) scale({camera.zoom})"
   >
@@ -501,6 +625,10 @@
     left: 0;
     top: 0;
     transform-origin: 0 0;
+  }
+
+  :global(.layer.ghost) {
+    pointer-events: none;
   }
 
   .layer.gliding {
