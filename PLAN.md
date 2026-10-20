@@ -124,7 +124,8 @@ elements. Try it there early, not at the end.
 1. **Minimap** in a corner of the canvas.
 2. **Outline view**: the same tree as an indented list, for reading through and
    restructuring quickly. A toggle, not a separate thing to keep in step.
-3. **Map of maps**: only the map roots, as a tree: what is in the vault at a glance.
+3. **Map of maps**: only the map roots, as a tree in a sidebar (⌘\), with how
+   much each holds: what is in the vault at a glance.
 4. **Zooming out hides detail**: deeper levels shrink to dots, and only the upper
    levels keep their labels.
 
@@ -164,7 +165,7 @@ Ctrl in place of ⌘ on Windows and Linux.
 3. **Maps inside maps** (done): make into map, opening and going back, breadcrumbs,
    transitions.
 4. **Search** (done): the palette, FTS.
-5. **Overview**: minimap, outline view, map of maps, zooming out.
+5. **Overview** (done): minimap, outline view, map of maps, zooming out.
 6. **Hints and links**: dragging to set side, order and parent; links between
    nodes; clickable web addresses.
 7. **Safety and finish**: trash, daily copies, export and import, colours and

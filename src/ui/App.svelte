@@ -5,6 +5,7 @@
 <script lang="ts">
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
+  import MapsSidebar from "./MapsSidebar.svelte";
   import MapView from "./MapView.svelte";
   import NotesPanel from "./NotesPanel.svelte";
   import Palette from "./Palette.svelte";
@@ -22,6 +23,7 @@
   let view = $state<"map" | "outline">("map");
   let notesOpen = $state(false);
   let searching = $state(false);
+  let sidebarOpen = $state(false);
 
   /** The map on screen: the one opened, or the nearest map above it if an edit took it away. */
   const mapId = $derived.by(() => {
@@ -94,6 +96,8 @@
       undo(event.shiftKey);
     } else if (event.key === "ArrowUp" && !event.shiftKey && !event.altKey && !typingIn(event.target)) {
       up();
+    } else if (event.key === "\\" && !event.shiftKey) {
+      sidebarOpen = !sidebarOpen;
     } else if (key === "k" && !event.shiftKey) {
       editing = null;
       searching = !searching;
@@ -116,7 +120,10 @@
   <!-- Clicking a button here leaves the focus where it was, so the map keeps the keyboard. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header onmousedown={(e) => (e.target as Element).closest("button") && e.preventDefault()}>
-    <nav aria-label="Maps">
+    <button class="sidebar-toggle" class:on={sidebarOpen} onclick={() => (sidebarOpen = !sidebarOpen)} title="All maps (⌘\)">
+      Maps
+    </button>
+    <nav aria-label="Breadcrumbs">
       {#each breadcrumbs as map, i (map.id)}
         {#if i > 0}<span class="sep">›</span>{/if}
         <button class="crumb" class:current={map.id === mapId} onclick={() => open(map.id)}>
@@ -137,6 +144,9 @@
   </header>
 
   <div class="body">
+    {#if sidebarOpen}
+      <MapsSidebar {live} {mapId} onOpen={open} />
+    {/if}
     <main>
       {#if view === "map"}
         <MapView {live} {mapId} bind:selected bind:editing onOpen={open} />
@@ -180,7 +190,12 @@
     border-bottom: 1px solid var(--line);
   }
 
+  .sidebar-toggle {
+    flex: none;
+  }
+
   nav {
+    flex: 1;
     display: flex;
     align-items: center;
     gap: 0.25rem;

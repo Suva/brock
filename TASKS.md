@@ -1,15 +1,25 @@
 # Tasks
 
-The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 4 (core and storage,
-one map, maps inside maps, search) are done; these are what is next, and what was left on the way.
+The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 5 (core and storage,
+one map, maps inside maps, search, overview) are done; these are what is next, and what was left on the way.
 
-## Milestone 5: overview
+## Milestone 6: hints and links
 
-- A minimap in a corner of the canvas.
-- The map of maps: only the maps of the vault, as a tree, to see and open
-  any of them.
-- Zooming out hides detail: deeper levels shrink to dots, the upper ones
-  keep their labels.
+- Dragging a node: across the centre sets its side, between siblings its
+  place, onto another node makes it that node's child. The keyboard moves
+  are done; this is the same with the mouse.
+- Links between nodes: a dashed curve when both ends are in the same map,
+  otherwise a sign on the node that goes to the other end.
+- Web addresses in notes can be clicked, opening in the browser (Tauri's
+  opener plugin; the privacy promise has to say so).
+
+## Left from milestone 5
+
+- The minimap of a very tall or wide map is a thin strip; give it a smallest
+  width or height if that turns out hard to use.
+- The sidebar is not reachable from the keyboard; ⌘K narrowed to maps is.
+  Revisit if it is missed.
+- Whether the sidebar is open is forgotten at each start.
 
 ## Left from milestone 4
 
@@ -54,3 +64,18 @@ one map, maps inside maps, search) are done; these are what is next, and what wa
 - Choose the name, then change `productName`, `identifier` (which moves the
   data folder), the window title and the README.
 - Try the app on Windows and Linux.
+
+## Later: a demo on the website
+
+The window already runs in a browser, keeping the vault in local storage
+(`npm run dev`), so the website can let people try it:
+
+- A demo build that starts from an example vault when storage is empty, with
+  a button to start over and a line saying nothing leaves the browser.
+- Embedded in an iframe: the app takes the keyboard of its whole window, so
+  mounted straight into a page it would take the page's arrows and Tab.
+  A "click to try" cover hands the keyboard over.
+- Other keys for what browsers keep for themselves: ⌘1 and ⌘2 switch tabs,
+  ⇧⌘N opens a private window.
+- Firefox edits titles in place only from version 136; phones and tablets
+  have no pinch or on-screen keyboard editing yet.

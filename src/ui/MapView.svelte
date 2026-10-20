@@ -285,7 +285,7 @@
   let drag: { x: number; y: number; from: Camera; moved: boolean } | null = null;
 
   function onPointerDown(e: PointerEvent) {
-    if (e.button !== 0 || (e.target as Element).closest(".node, .zoom")) return;
+    if (e.button !== 0 || (e.target as Element).closest(".node, .zoom, .minimap")) return;
     drag = { x: e.clientX, y: e.clientY, from: camera, moved: false };
   }
 
@@ -310,6 +310,58 @@
 
   function zoomBy(factor: number) {
     setCamera(zoomAt(camera, factor, width / 2, height / 2), true);
+  }
+
+  // ---- The minimap ---------------------------------------------------------
+  //
+  // The whole map small, in a corner, with the part on screen outlined. It is
+  // shown only when the map does not fit on screen. Clicking or dragging in
+  // it brings that part of the map to the middle.
+
+  const MINIMAP = { width: 180, height: 120, margin: 24 };
+
+  /**
+   * Below this zoom, nodes past the first level are drawn as bars in their
+   * branch's colour: their text is too small to read, and bars keep the
+   * shape of the map clear.
+   */
+  const FAR_ZOOM = 0.55;
+
+  /**
+   * Zoomed out, the centre and its branches are drawn larger, up to almost
+   * twice, so that their names can still be read. Only the drawing grows; the
+   * layout keeps their sizes, and nothing else moves.
+   */
+  const labelScale = $derived(camera.zoom < FAR_ZOOM ? Math.min(1.8, FAR_ZOOM / camera.zoom) : 1);
+
+  const minimap = $derived.by(() => {
+    const b = layout.bounds;
+    const m = MINIMAP.margin;
+    const box = { x: b.left - m, y: b.top - m, width: b.right - b.left + 2 * m, height: b.bottom - b.top + 2 * m };
+    const scale = Math.min(MINIMAP.width / box.width, MINIMAP.height / box.height);
+    const view = {
+      x: -camera.x / camera.zoom,
+      y: -camera.y / camera.zoom,
+      width: width / camera.zoom,
+      height: height / camera.zoom,
+    };
+    const fits =
+      b.left >= view.x && b.right <= view.x + view.width && b.top >= view.y && b.bottom <= view.y + view.height;
+    return { box, scale, view, shown: !fits && width > 0 };
+  });
+
+  function onMinimap(e: PointerEvent) {
+    if (e.type === "pointerdown") {
+      if (e.button !== 0) return;
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } else if (!(e.buttons & 1)) {
+      return;
+    }
+    const r = (e.currentTarget as Element).getBoundingClientRect();
+    const { box, scale } = minimap;
+    const mx = box.x + (e.clientX - r.left) / scale;
+    const my = box.y + (e.clientY - r.top) / scale;
+    setCamera(centreOn(mx, my, camera.zoom, width, height), e.type === "pointerdown");
   }
 
   function fitAll() {
@@ -523,6 +575,7 @@
     class="layer"
     bind:this={layer}
     class:gliding
+    class:far={camera.zoom < FAR_ZOOM}
     style:transform="translate({camera.x}px, {camera.y}px) scale({camera.zoom})"
   >
     <svg class="edges" aria-hidden="true">
@@ -546,7 +599,9 @@
         class:left={p.side === "left"}
         data-id={node.id}
         use:measure
-        style:transform="translate({Math.round(p.x)}px, {Math.round(p.y)}px)"
+        style:transform="translate({Math.round(p.x)}px, {Math.round(p.y)}px){p.depth <= 1 && labelScale > 1
+          ? ` scale(${labelScale})`
+          : ''}"
         style:--branch={colours.get(p.branch) ?? "var(--fg)"}
         onmousedown={() => select(node.id)}
         ondblclick={() => (portal ? onOpen(node.id) : startEdit(node.id, node.title))}
@@ -600,6 +655,40 @@
       </div>
     {/each}
   </div>
+
+  {#if minimap.shown}
+    {@const { box, scale, view } = minimap}
+    <svg
+      class="minimap"
+      width={box.width * scale}
+      height={box.height * scale}
+      viewBox="{box.x} {box.y} {box.width} {box.height}"
+      role="img"
+      aria-label="The whole map, with the part on screen outlined"
+      onpointerdown={onMinimap}
+      onpointermove={onMinimap}
+    >
+      {#each layout.placed as p (p.node.id)}
+        <rect
+          x={p.x}
+          y={p.y}
+          width={p.width}
+          height={p.height}
+          rx={p.height / 2}
+          fill={p.depth === 0 ? "var(--fg)" : (colours.get(p.branch) ?? "var(--muted)")}
+          opacity={p.depth === 0 ? 0.9 : p.depth === 1 ? 0.8 : 0.45}
+        />
+      {/each}
+      <rect
+        class="seen"
+        x={view.x}
+        y={view.y}
+        width={view.width}
+        height={view.height}
+        vector-effect="non-scaling-stroke"
+      />
+    </svg>
+  {/if}
 
   <div class="zoom">
     <button onclick={() => zoomBy(0.8)} title="Zoom out (⌘−)" aria-label="Zoom out">−</button>
@@ -705,6 +794,25 @@
     background: var(--accent-soft);
   }
 
+  /* Zoomed out: the text keeps its place, so sizes and the layout stay the same. */
+  .layer.far .node.leaf {
+    background: var(--branch);
+    opacity: 0.45;
+  }
+
+  .layer.far .node.leaf > :global(*) {
+    visibility: hidden;
+  }
+
+  .layer.far .node.centre,
+  .layer.far .node.branch {
+    z-index: 1;
+  }
+
+  .layer.far .node.leaf.selected {
+    opacity: 0.9;
+  }
+
   .text {
     min-width: 1ch;
     white-space: pre-wrap;
@@ -757,6 +865,25 @@
   .node.selected .fold,
   .fold.folded {
     opacity: 1;
+  }
+
+  .minimap {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  .minimap .seen {
+    fill: var(--accent);
+    fill-opacity: 0.08;
+    stroke: var(--accent);
+    stroke-width: 1.5;
   }
 
   .zoom {
