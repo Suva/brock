@@ -58,6 +58,18 @@
     focusNode(added.id);
   }
 
+  const mac = navigator.platform.startsWith("Mac");
+
+  /**
+   * The keys held to move a row with the arrows. Every row is a text field,
+   * and the keys text editing uses stay with it: on a Mac ⌥ with the arrows
+   * jumps by word, so moves take ⌃⌘; elsewhere Ctrl jumps by word and Alt
+   * is free.
+   */
+  function moveKeys(e: KeyboardEvent): boolean {
+    return mac ? e.ctrlKey && e.metaKey && !e.altKey : e.altKey && !e.ctrlKey && !e.metaKey;
+  }
+
   function onKey(event: KeyboardEvent, node: Node) {
     const isCentre = node.id === mapId;
     const mod = event.metaKey || event.ctrlKey;
@@ -68,10 +80,13 @@
       ArrowLeft: () => outdent(vault, node.id, where),
       ArrowRight: () => indent(vault, node.id, where),
     };
-    if (event.altKey && !mod && moves[event.key]) {
+    if (moveKeys(event) && moves[event.key]) {
       event.preventDefault();
       // The row is moved in the page, which can take the focus from it.
       if (moves[event.key]()) focusNode(node.id);
+    } else if (event.key === "Tab" && event.shiftKey) {
+      event.preventDefault();
+      if (outdent(vault, node.id, where)) focusNode(node.id);
     } else if (mod && !event.shiftKey && event.key.toLowerCase() === "t") {
       event.preventDefault();
       vault.toggleTask(node.id);
@@ -111,7 +126,8 @@
       const previous = list[list.indexOf(event.currentTarget as HTMLInputElement) - 1];
       vault.delete(node.id);
       previous?.focus();
-    } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+    } else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && !event.altKey && !event.shiftKey && !mod) {
+      // With ⌥ or Shift held they stay with the text: to the start or end, or selecting.
       event.preventDefault();
       const list = rows();
       const i = list.indexOf(event.currentTarget as HTMLInputElement);
