@@ -64,7 +64,7 @@
           <span class="twisty"></span>
         {/if}
         <button class="name" tabindex="-1" onclick={() => onOpen(entry.node.id)} title="Open this map">
-          {entry.node.title || "Untitled"}
+          {#if entry.node.icon}{entry.node.icon}&nbsp;{/if}{entry.node.title || "Untitled"}
         </button>
         <span class="size" title="{entry.size} {entry.size === 1 ? 'node' : 'nodes'}">{entry.size}</span>
       </li>

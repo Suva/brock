@@ -167,7 +167,7 @@ Ctrl in place of ⌘ on Windows and Linux.
 5. **Overview** (done): minimap, outline view, map of maps, zooming out.
 6. **Hints and links** (done): dragging to set side, order and parent; links between
    nodes; clickable web addresses.
-7. **Safety and finish**: trash, daily copies, export and import, colours and
+7. **Safety and finish** (done): trash, daily copies, export and import, colours and
    icons, settings.
 8. **Releases**: installers for macOS, Windows and Linux built by GitHub, and
    updates.

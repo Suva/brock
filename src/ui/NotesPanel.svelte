@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import { tick } from "svelte";
+  import { PALETTE } from "../core/branches.ts";
   import { nodeLink, parse, setChecked, type LinkTarget } from "../core/markdown.ts";
   import type { Node } from "../core/node.ts";
   import { findByTitle } from "../core/search.ts";
@@ -18,9 +19,21 @@
   let {
     live,
     nodeId,
+    centre,
     onClose,
     onGoTo,
-  }: { live: Live; nodeId: string; onClose: () => void; onGoTo: (id: string) => void } = $props();
+  }: {
+    live: Live;
+    nodeId: string;
+    /** Whether the node is the centre of the open map, which has no colour of its own. */
+    centre: boolean;
+    onClose: () => void;
+    onGoTo: (id: string) => void;
+  } = $props();
+
+  /** Icons to choose from: a short list that covers what notes usually mark. */
+  const ICONS = ["⭐", "✅", "❗", "❓", "💡", "📌", "🔥", "⚠️", "🎯", "📅", "⏳", "💰", "📚", "🧠", "🛠️", "🏠", "✈️", "❤️", "🚀", "🔒", "📝", "👍", "👎", "🎉"];
+  let choosingIcon = $state(false);
 
   const vault = $derived(live.vault);
   const node = $derived.by(() => {
@@ -111,6 +124,58 @@
     <button class="close" onclick={onClose} title="Hide notes (⇧⌘N)" aria-label="Hide notes">×</button>
   </div>
   {#if node}
+    <div class="style">
+      {#if !centre}
+        <div class="swatches" role="radiogroup" aria-label="Colour">
+          <button
+            class="swatch none"
+            role="radio"
+            aria-checked={node.color === null}
+            class:on={node.color === null}
+            title="No colour of its own"
+            aria-label="No colour of its own"
+            onclick={() => vault.update(nodeId, { color: null })}
+          ></button>
+          {#each PALETTE as colour (colour)}
+            <button
+              class="swatch"
+              role="radio"
+              aria-checked={node.color === colour}
+              class:on={node.color === colour}
+              style:background={colour}
+              title="This colour, for it and what is under it"
+              aria-label="Colour {colour}"
+              onclick={() => vault.update(nodeId, { color: colour })}
+            ></button>
+          {/each}
+        </div>
+      {/if}
+      <button class="icon-button" onclick={() => (choosingIcon = !choosingIcon)} title="Icon" aria-expanded={choosingIcon}>
+        {node.icon ?? "☺︎"}
+      </button>
+    </div>
+    {#if choosingIcon}
+      <div class="icons" role="radiogroup" aria-label="Icon">
+        {#each ICONS as icon (icon)}
+          <button
+            role="radio"
+            aria-checked={node.icon === icon}
+            class:on={node.icon === icon}
+            onclick={() => {
+              vault.update(nodeId, { icon });
+              choosingIcon = false;
+            }}>{icon}</button
+          >
+        {/each}
+        <button
+          class="clear"
+          onclick={() => {
+            vault.update(nodeId, { icon: null });
+            choosingIcon = false;
+          }}>None</button
+        >
+      </div>
+    {/if}
     {#if writing}
       <textarea
         bind:this={textarea}
@@ -263,6 +328,66 @@
     font-size: 1.1rem;
     color: var(--muted);
     padding: 0 0.4rem;
+  }
+
+  .style {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .swatch {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+  }
+
+  .swatch.on {
+    outline: 2px solid var(--fg);
+    outline-offset: 1px;
+  }
+
+  .swatch.none {
+    border-color: var(--line);
+    background: linear-gradient(135deg, transparent 45%, var(--muted) 45% 55%, transparent 55%);
+  }
+
+  .icon-button {
+    margin-left: auto;
+    min-width: 30px;
+    border: 1px solid var(--line);
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  .icons {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+  }
+
+  .icons button {
+    font-size: 1.05rem;
+    padding: 0.15rem;
+  }
+
+  .icons button.on {
+    background: var(--accent-soft);
+  }
+
+  .icons .clear {
+    grid-column: span 2;
+    font-size: 0.8rem;
+    color: var(--muted);
   }
 
   .read {

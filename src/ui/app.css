@@ -12,8 +12,9 @@
   line-height: 1.4;
 }
 
+/* Dark as the system asks, unless light was chosen in Settings; or dark when chosen. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1b1d21;
     --fg: #e6e6e3;
     --muted: #8b939c;
@@ -21,7 +22,23 @@
     --accent: #7aa2f7;
     --accent-soft: #252f45;
     --danger: #f2788b;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1d21;
+  --fg: #e6e6e3;
+  --muted: #8b939c;
+  --line: #2f3238;
+  --accent: #7aa2f7;
+  --accent-soft: #252f45;
+  --danger: #f2788b;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 * {

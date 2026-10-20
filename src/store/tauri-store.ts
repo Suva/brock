@@ -12,6 +12,10 @@ export class TauriStore implements Store {
   save(changes: Change[]): Promise<void> {
     return invoke("apply_changes", { changes });
   }
+
+  purge(ids: string[]): Promise<void> {
+    return invoke("purge_nodes", { ids });
+  }
 }
 
 /** Whether the window runs inside the app, rather than in a browser. */

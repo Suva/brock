@@ -2,6 +2,8 @@
 // write at a time. Changes that arrive during a write go together in the next
 // one. A write that fails is tried again, and nothing after it is written
 // first, so the database never holds a later edit without an earlier one.
+// Removing nodes for good, when the trash is emptied, takes its turn in the
+// same line.
 
 import type { Change } from "../core/node.ts";
 import type { Store } from "./store.ts";
@@ -15,7 +17,7 @@ export interface SaverOptions {
 
 export class Saver {
   #store: Store;
-  #queue: Change[][] = [];
+  #queue: (Change[] | { purge: string[] })[] = [];
   #running: Promise<void> | null = null;
   #retryMs: number;
   #listeners: (() => void)[] = [];
@@ -31,6 +33,13 @@ export class Saver {
   push(changes: Change[]): void {
     if (changes.length === 0) return;
     this.#queue.push(changes);
+    this.#running ??= this.#run();
+  }
+
+  /** Removes nodes for good, after everything handed in before. */
+  purge(ids: string[]): void {
+    if (ids.length === 0) return;
+    this.#queue.push({ purge: ids });
     this.#running ??= this.#run();
   }
 
@@ -50,10 +59,13 @@ export class Saver {
   async #run(): Promise<void> {
     this.#set("saving", null);
     while (this.#queue.length > 0) {
-      const batch = this.#queue.flat();
-      const count = this.#queue.length;
+      const first = this.#queue[0];
+      // Changes in a row go together; a removal goes on its own.
+      let count = 1;
+      if (Array.isArray(first)) while (count < this.#queue.length && Array.isArray(this.#queue[count])) count++;
       try {
-        await this.#store.save(batch);
+        if (Array.isArray(first)) await this.#store.save((this.#queue.slice(0, count) as Change[][]).flat());
+        else await this.#store.purge(first.purge);
         this.#queue.splice(0, count);
         if (this.status === "failed") this.#set("saving", null);
       } catch (error) {

@@ -1,15 +1,26 @@
 # Tasks
 
-The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 6 (core and storage,
-one map, maps inside maps, search, overview, hints and links) are done; these are what is next, and what was left on the way.
+The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are what is next, and what was left on the way.
 
-## Milestone 7: safety and finish
+## Milestone 8: releases
 
-- A trash: deleted nodes listed, to bring back or empty out.
-- A copy of the vault made daily, keeping the last few.
-- Export to JSON, Markdown and OPML; import from OPML.
-- Colours and icons for nodes, and settings.
-- Write what is still being saved before the window closes (see below).
+- Installers for macOS, Windows and Linux, built by GitHub on a version tag,
+  as for DJ Mix Master; the app's own updates (Tauri's updater).
+- Choose the name first: it is in the installers, the bundle identifier and
+  the data folder.
+- A native menu bar (File, Edit, View) with the commands and their keys, for
+  finding them without knowing the keys.
+
+## Left from milestone 7
+
+- Export and import were not clicked through while checking: the formats
+  are tested, the dialogs only built. Try both in the app.
+- Closing while a save is still under way was not tried; saves are too quick
+  to catch.
+- Copies are named by the date in UTC, so near midnight a day's copy can
+  carry the date before or after.
+- Settings holds little yet. Candidates: where the vault is, how many copies
+  to keep, a different font size.
 
 ## Notes
 
@@ -67,8 +78,6 @@ one map, maps inside maps, search, overview, hints and links) are done; these ar
 
 ## Left from milestone 1
 
-- Write what is still being saved before the window closes: listen for
-  Tauri's close request and wait for `saver.flush()`.
 - Undo lasts only until the app closes. Keep it across restarts, from the
   `ops` table, or decide it is not needed.
 - The `ops` log grows forever. Decide how long to keep it once syncing is

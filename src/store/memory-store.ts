@@ -37,4 +37,10 @@ export class MemoryStore implements Store {
     for (const { after } of changes) this.#nodes.set(after.id, { ...after });
     this.#storage?.setItem(this.#key, JSON.stringify([...this.#nodes.values()]));
   }
+
+  async purge(ids: string[]): Promise<void> {
+    if (this.failing) throw this.failing;
+    for (const id of ids) this.#nodes.delete(id);
+    this.#storage?.setItem(this.#key, JSON.stringify([...this.#nodes.values()]));
+  }
 }

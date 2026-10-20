@@ -146,6 +146,7 @@
   {@const portal = node.isMap && !isCentre}
   <li>
     <div class="row" class:centre={isCentre} class:portal style:padding-left="{depth * 22}px">
+      {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
       <input
         id="row-{node.id}"
         value={node.title}
@@ -189,6 +190,10 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+  }
+
+  .icon {
+    margin-left: 0.4rem;
   }
 
   .row input {

@@ -16,6 +16,15 @@ export interface VaultOptions {
    * empty and its first node was made.
    */
   onChange?: (changes: Change[]) => void;
+  /** Called with the ids of nodes removed for good, when the trash is emptied. */
+  onPurge?: (ids: string[]) => void;
+}
+
+/** A branch in the trash: the node deleted, and how much went with it. */
+export interface Trashed {
+  node: Node;
+  /** The nodes under it, which come back with it. */
+  under: number;
 }
 
 interface Step {
@@ -43,6 +52,7 @@ export class Vault {
   #rootId = "";
   #now: () => number;
   #listeners: ((changes: Change[]) => void)[] = [];
+  #onPurge: ((ids: string[]) => void) | undefined;
   #undo: Step[] = [];
   #redo: Step[] = [];
   /** The changes of the edit under way, or null outside an edit. */
@@ -52,6 +62,7 @@ export class Vault {
   constructor(nodes: Iterable<Node>, options: VaultOptions = {}) {
     this.#now = options.now ?? Date.now;
     if (options.onChange) this.#listeners.push(options.onChange);
+    this.#onPurge = options.onPurge;
     // Nodes saved before a field existed get its default.
     for (const node of nodes) this.#nodes.set(node.id, Array.isArray(node.links) ? node : { ...node, links: [] });
     for (const node of this.#nodes.values()) this.#index(node);
@@ -285,6 +296,54 @@ export class Vault {
     return [...this.#nodes.values()].filter(
       (n) => n.id !== id && (n.links.includes(id) || n.body.includes(written)) && n.deletedAt === null && this.isLive(n.id),
     );
+  }
+
+  // ---- The trash -----------------------------------------------------------
+
+  /**
+   * The branches deleted, the latest first: each node deleted whose parent is
+   * not. A node made and left empty at once, as when a new node is taken
+   * back, holds nothing worth bringing back and is left out.
+   */
+  trash(): Trashed[] {
+    const out: Trashed[] = [];
+    for (const node of this.#nodes.values()) {
+      if (node.deletedAt === null || node.parentId === null || !this.isLive(node.parentId)) continue;
+      const under = this.#countUnder(node.id);
+      if (!node.title && !node.body && under === 0) continue;
+      out.push({ node, under });
+    }
+    return out.sort((a, b) => b.node.deletedAt! - a.node.deletedAt!);
+  }
+
+  #countUnder(id: string): number {
+    return this.children(id).reduce((sum, child) => sum + 1 + this.#countUnder(child.id), 0);
+  }
+
+  /**
+   * Removes every deleted branch for good, the ones left out of `trash` too,
+   * and returns how many nodes went. It cannot be undone, and it clears what
+   * could be undone before, which could bring removed nodes back.
+   */
+  emptyTrash(): number {
+    const gone = new Set<string>();
+    const take = (id: string) => {
+      if (gone.has(id)) return;
+      gone.add(id);
+      // Every node under it, deleted or not: all of it goes.
+      for (const n of this.#nodes.values()) if (n.parentId === id) take(n.id);
+    };
+    for (const node of this.#nodes.values()) {
+      if (node.deletedAt !== null && node.parentId !== null && this.isLive(node.parentId)) take(node.id);
+    }
+    if (gone.size === 0) return 0;
+    for (const id of gone) this.#put(null, id);
+    this.#undo = [];
+    this.#redo = [];
+    this.#version++;
+    this.#onPurge?.([...gone]);
+    for (const listener of this.#listeners) listener([]);
+    return gone.size;
   }
 
   /** Makes a node a map of its own, or an ordinary node of its parent's map again. */

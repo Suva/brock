@@ -56,6 +56,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/drop.ts` | Where a node dragged on a map would land |
 | `src/core/urls.ts` | Web addresses in text, and trimming the sentence off them |
 | `src/core/markdown.ts` | Notes' Markdown read into blocks and spans, never HTML |
+| `src/core/exchange.ts` | Export to JSON, Markdown and OPML; reading OPML and JSON back in |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -66,6 +67,11 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/App.svelte` | The window: breadcrumbs, the view, notes, the undo keys |
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
+| `src/ui/files.ts` | Saving and opening files for export and import: native dialogs in the app, downloads in a browser |
+| `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
+| `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
+| `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |
+| `src/ui/theme.ts` | Light, dark or as the system, kept in the window's storage |
 | `src/ui/open-url.ts` | Opens a web address in the browser, never in the app |
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
@@ -74,7 +80,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/MapsSidebar.svelte` | Every map of the vault as a tree (⌘\), worked by mouse |
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
-| `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the opener for web addresses |
+| `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
+| `src-tauri/src/backups.rs` | Daily copies of the vault, the last seven kept |
 
 ## Rules that are easy to break
 
@@ -140,6 +147,17 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   https addresses and nothing else. The README promises that nothing leaves
   the computer otherwise; anything new that reaches the network has to be
   said there.
+- **The window never names a file.** Export and import open the system's
+  dialogs from Rust (`save_text`, `open_text` in `lib.rs`), which writes or
+  reads the file chosen; the window hands over text and gets text back. Keep
+  new file access that way rather than giving the window a file system.
+- **Emptying the trash is the only real deletion.** It removes nodes from
+  the database and their entries from the log, and clears the undo history,
+  which could otherwise bring them back. It goes through the saver
+  (`purge`), in order with the changes before it.
+- **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
+  anything inside `role="dialog"` like a text field, so the views leave it
+  alone. Give every new dialog that role.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

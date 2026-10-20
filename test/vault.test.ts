@@ -282,3 +282,34 @@ test("nodes saved before links existed get an empty list", () => {
   const { vault } = open([node("root", null), old as Node]);
   assert.deepEqual(vault.get("old")!.links, []);
 });
+
+test("the trash lists deleted branches, which come back or go for good", () => {
+  let gone: string[] = [];
+  let time = 1;
+  const vault = new Vault([], { now: () => time++, onPurge: (ids) => (gone = ids) });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const a1 = vault.addChild(a.id, { title: "a1" });
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  const empty = vault.addChild(vault.rootId);
+  vault.delete(a1.id);
+  vault.delete(a.id);
+  vault.delete(b.id);
+  vault.delete(empty.id);
+
+  assert.deepEqual(
+    vault.trash().map((t) => [t.node.title, t.under]),
+    [
+      ["b", 0],
+      ["a", 0],
+    ],
+    "the latest first; a1 is inside a, and the empty node is left out",
+  );
+  vault.restore(b.id);
+  assert.deepEqual(vault.trash().map((t) => t.node.title), ["a"]);
+
+  assert.equal(vault.emptyTrash(), 3, "a, a1 inside it, and the empty node");
+  assert.deepEqual(gone.sort(), [a.id, a1.id, empty.id].sort());
+  assert.equal(vault.get(a.id), undefined);
+  assert.equal(vault.canUndo, false, "nothing to undo that could bring them back");
+  assert.equal(vault.isLive(b.id), true);
+});

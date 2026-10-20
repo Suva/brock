@@ -198,6 +198,31 @@ impl Db {
         tx.commit().map_err(err)
     }
 
+    /// Removes nodes for good, with their entries in the log, all or none: for
+    /// emptying the trash. The search index follows by its trigger.
+    pub fn purge(&mut self, ids: &[String]) -> Result<(), String> {
+        let tx = self.conn.transaction().map_err(err)?;
+        {
+            let mut node = tx.prepare_cached("DELETE FROM nodes WHERE id = ?1").map_err(err)?;
+            let mut log = tx.prepare_cached("DELETE FROM ops WHERE node_id = ?1").map_err(err)?;
+            for id in ids {
+                node.execute([id]).map_err(err)?;
+                log.execute([id]).map_err(err)?;
+            }
+        }
+        tx.commit().map_err(err)
+    }
+
+    /// Makes today's copy of the vault into `dir` if there is none (see backups.rs).
+    pub fn back_up_if_due(&self, dir: &std::path::Path) -> Result<bool, String> {
+        crate::backups::make_if_due(&self.conn, dir)
+    }
+
+    /// Makes today's copy of the vault into `dir` now.
+    pub fn back_up(&self, dir: &std::path::Path) -> Result<(), String> {
+        crate::backups::make(&self.conn, dir)
+    }
+
     /// The ids of nodes whose title or text matches an FTS5 query, best first.
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<String>, String> {
         let mut stmt = self
@@ -354,6 +379,20 @@ mod tests {
         assert_eq!(db.get("root").unwrap().unwrap().title, "Home");
         drop(db);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn purged_nodes_are_gone_from_the_nodes_the_log_and_search() {
+        let mut db = Db::in_memory().unwrap();
+        db.apply(&[
+            Change { before: None, after: node("root", None, "Home") },
+            Change { before: None, after: node("gone", Some("root"), "Secret plans") },
+        ])
+        .unwrap();
+        db.purge(&["gone".into()]).unwrap();
+        assert!(db.get("gone").unwrap().is_none());
+        assert_eq!(db.log_length().unwrap(), 1, "only the root's entry is left");
+        assert!(db.search("secret", 10).unwrap().is_empty());
     }
 
     #[test]

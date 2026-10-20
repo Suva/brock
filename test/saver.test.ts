@@ -68,3 +68,14 @@ test("a failed write is tried again, in order, until it works", async () => {
   const saved = (await store.load()).find((n) => n.id === a.id)!;
   assert.equal(saved.title, "b");
 });
+
+test("removing for good takes its turn after the changes before it", async () => {
+  const store = new MemoryStore();
+  const saver = new Saver(store);
+  const vault = new Vault(await store.load(), { onChange: (c) => saver.push(c), onPurge: (ids) => saver.purge(ids) });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  vault.delete(a.id);
+  vault.emptyTrash();
+  await saver.flush();
+  assert.equal((await store.load()).some((n) => n.id === a.id), false);
+});

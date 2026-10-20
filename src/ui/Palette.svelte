@@ -135,6 +135,7 @@
         >
           <div class="title">
             {#if hit.node.isMap}<span class="map" title="A map">⧉</span>{/if}
+            {#if hit.node.icon}<span class="icon">{hit.node.icon}</span>{/if}
             {#each pieces(hit) as piece, k (k)}
               {#if piece.mark}<mark>{piece.text}</mark>{:else}{piece.text}{/if}
             {/each}
@@ -248,6 +249,10 @@
 
   .map {
     color: var(--accent);
+    margin-right: 0.3rem;
+  }
+
+  .icon {
     margin-right: 0.3rem;
   }
 

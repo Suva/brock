@@ -7,8 +7,9 @@ a map of its own, which you open and come back out of. Everything is saved as
 you go, to a database on your computer. There is no Save command.
 
 It is at an early stage: maps can be made, drawn, edited from the keyboard,
-opened and left again, searched, overseen and linked, with notes, undo and
-saving. See
+opened and left again, searched, overseen and linked, with notes, colours
+and icons, undo, a trash, daily copies, and export and import. Installers are
+next. See
 [PLAN.md](PLAN.md) for where it is going and [TASKS.md](TASKS.md) for what is
 next.
 
@@ -56,6 +57,7 @@ the arrow keys, then:
 | ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
 | ⌘1, ⌘2 | The map, or the same map as an outline |
+| ⌘, | Settings: light, dark or as the system; the daily copies |
 | ⇧⌘N | Shows the selected node's notes |
 | ⌘Z, ⇧⌘Z | Undo, redo |
 
@@ -84,6 +86,15 @@ and a map too big for the window gets a small picture of itself in a corner:
 click or drag in it to move there. The breadcrumbs at the top lead back to the
 maps above.
 
+The notes panel also sets a node's colour, which carries down everything
+under it, and an icon shown before its title.
+
+The ⋯ menu at the top right exports the open map, with everything under it,
+as Markdown, OPML (which other outliners and mind map apps read) or JSON
+(everything, to bring back into this app), and imports OPML or JSON under the
+selected node. It also opens the trash, where deleted branches wait to be put
+back until the trash is emptied, and Settings.
+
 ## Nothing leaves your computer
 
 The app works without a network. The only thing that reaches outside it is a
@@ -96,3 +107,8 @@ One SQLite file, `vault.sqlite`, in the app's data folder:
 `%APPDATA%\com.jaanpullerits.mindmap` on Windows and
 `~/.local/share/com.jaanpullerits.mindmap` on Linux. Set `MINDMAP_DATA` to a
 folder to use a vault there instead.
+
+Every day the app is used, a copy of the vault is made in the `Backups` folder
+beside it, and the last seven are kept. Settings shows them and makes one on
+request. To go back to a copy, quit the app and put the copy in place of
+`vault.sqlite`.

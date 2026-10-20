@@ -3,6 +3,8 @@
   outline, the selected node's notes, and whether everything is saved.
 -->
 <script lang="ts">
+  import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
+  import { openText, saveText, type FileKind } from "./files.ts";
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
   import MapsSidebar from "./MapsSidebar.svelte";
@@ -10,6 +12,9 @@
   import NotesPanel from "./NotesPanel.svelte";
   import Palette from "./Palette.svelte";
   import OutlineView from "./OutlineView.svelte";
+  import MoreMenu from "./MoreMenu.svelte";
+  import Settings from "./Settings.svelte";
+  import TrashDialog from "./TrashDialog.svelte";
 
   let { live }: { live: Live } = $props();
   const vault = $derived(live.vault);
@@ -25,6 +30,62 @@
   /** The search palette, open to go somewhere or to link the selected node. */
   let searching = $state<false | "go" | "link">(false);
   let sidebarOpen = $state(false);
+  let moreOpen = $state(false);
+  let trashOpen = $state(false);
+  let settingsOpen = $state(false);
+  /** A line in the footer for a few seconds: what an export or import did. */
+  let notice = $state<{ text: string; bad: boolean } | null>(null);
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function tell(text: string, bad = false) {
+    notice = { text, bad };
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice = null), bad ? 8000 : 4000);
+  }
+
+  const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+  /** Exports the open map, everything under it included. */
+  async function exportMap(kind: FileKind) {
+    const title = vault.get(mapId)?.title || "Mind map";
+    const content = kind === "json" ? toJSON(vault, mapId) : kind === "md" ? toMarkdown(vault, mapId) : toOPML(vault, mapId);
+    try {
+      const saved = await saveText(title, content, kind);
+      if (saved) tell(`Exported as ${saved}`);
+    } catch (error) {
+      tell(`Not exported: ${reason(error)}`, true);
+    }
+  }
+
+  /** Brings an OPML or JSON file in, under the selected node. */
+  async function importFile() {
+    try {
+      const text = await openText();
+      if (text === null) return;
+      const outlines = readOutlines(text);
+      if (outlines.length === 0) return tell("The file holds no outline to bring in.", true);
+      const parent = selected && vault.isLive(selected) ? selected : mapId;
+      const target = vault.get(parent)!;
+      // Under a map shown as a portal, it goes in, and the map opens.
+      const made = importInto(vault, parent, outlines, target.isMap ? parent : mapId);
+      if (target.isMap && parent !== mapId) open(parent);
+      selected = made[0].id;
+      tell(`Brought in ${made.length === 1 ? `“${made[0].title || "Untitled"}”` : `${made.length} branches`}. ⌘Z takes it out again.`);
+    } catch (error) {
+      tell(`Not brought in: ${reason(error)}`, true);
+    }
+  }
+
+  const moreItems = $derived([
+    { label: "Export this map as Markdown…", run: () => exportMap("md") },
+    { label: "Export this map as OPML…", run: () => exportMap("opml") },
+    { label: "Export this map as JSON…", run: () => exportMap("json"), hint: "everything" },
+    "line" as const,
+    { label: "Import OPML or JSON…", run: importFile, hint: "under the selected node" },
+    "line" as const,
+    { label: "Trash", run: () => (trashOpen = true) },
+    { label: "Settings", run: () => (settingsOpen = true), hint: "⌘," },
+  ]);
 
   /** The map on screen: the one opened, or the nearest map above it if an edit took it away. */
   const mapId = $derived.by(() => {
@@ -105,6 +166,8 @@
       up();
     } else if (event.key === "\\" && !event.shiftKey) {
       sidebarOpen = !sidebarOpen;
+    } else if (event.key === "," && !event.shiftKey) {
+      settingsOpen = !settingsOpen;
     } else if (key === "k" && !event.shiftKey) {
       editing = null;
       searching = searching ? false : "go";
@@ -137,7 +200,7 @@
       {#each breadcrumbs as map, i (map.id)}
         {#if i > 0}<span class="sep">›</span>{/if}
         <button class="crumb" class:current={map.id === mapId} onclick={() => open(map.id)}>
-          {map.title || "Untitled"}
+          {#if map.icon}{map.icon}&nbsp;{/if}{map.title || "Untitled"}
         </button>
       {/each}
     </nav>
@@ -150,6 +213,12 @@
       <button class:on={notesOpen} onclick={() => (notesOpen = !notesOpen)} title="Notes (⇧⌘N)">Notes</button>
       <button onclick={() => undo()} disabled={!canUndo} title="Undo (⌘Z)">Undo</button>
       <button onclick={() => undo(true)} disabled={!canRedo} title="Redo (⇧⌘Z)">Redo</button>
+      <div class="more">
+        <button class:on={moreOpen} onclick={() => (moreOpen = !moreOpen)} title="Export, import, trash, settings" aria-label="More">⋯</button>
+        {#if moreOpen}
+          <MoreMenu items={moreItems} onClose={() => (moreOpen = false)} />
+        {/if}
+      </div>
     </div>
   </header>
 
@@ -165,7 +234,13 @@
       {/if}
     </main>
     {#if notesOpen}
-      <NotesPanel {live} nodeId={selected ?? mapId} onClose={() => (notesOpen = false)} onGoTo={goTo} />
+      <NotesPanel
+        {live}
+        nodeId={selected ?? mapId}
+        centre={(selected ?? mapId) === mapId}
+        onClose={() => (notesOpen = false)}
+        onGoTo={goTo}
+      />
     {/if}
   </div>
 
@@ -180,8 +255,20 @@
     />
   {/if}
 
-  <footer class:failed={live.saveStatus === "failed"}>
-    {#if live.saveStatus === "failed"}
+  {#if trashOpen}
+    <TrashDialog {live} onClose={() => (trashOpen = false)} onGoTo={(id) => {
+        trashOpen = false;
+        goTo(id);
+      }} />
+  {/if}
+  {#if settingsOpen}
+    <Settings onClose={() => (settingsOpen = false)} />
+  {/if}
+
+  <footer class:failed={live.saveStatus === "failed" || notice?.bad}>
+    {#if notice}
+      {notice.text}
+    {:else if live.saveStatus === "failed"}
       Not saved: {live.saveError}. Trying again…
     {:else if live.saveStatus === "saving"}
       Saving…
@@ -262,6 +349,10 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
+  }
+
+  .more {
+    position: relative;
   }
 
   .switch {

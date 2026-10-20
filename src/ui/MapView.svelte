@@ -86,12 +86,21 @@
     return layoutMap(vault, mapId, (n) => sizes.get(n.id) ?? estimate(n));
   });
 
+  /**
+   * Each node's colour: its own, or else its parent's, down from the
+   * branches of the centre, which have one of their own or one by their
+   * place. The centre has none. Parents are placed before their children,
+   * so one pass over the layout is enough.
+   */
   const colours = $derived.by(() => {
-    const byBranch = new Map<number, string>();
+    const byNode = new Map<string, string>();
+    const branches = vault.children(mapId);
     for (const p of layout.placed) {
-      if (p.depth === 1) byBranch.set(p.branch, branchColour(vault.children(mapId), p.branch));
+      if (p.depth === 0) continue;
+      const inherited = p.depth === 1 ? branchColour(branches, p.branch) : byNode.get(p.node.parentId!);
+      byNode.set(p.node.id, p.node.color ?? inherited ?? "var(--fg)");
     }
-    return byBranch;
+    return byNode;
   });
 
   /** A curve from each parent's outer edge to its child's inner edge. */
@@ -109,7 +118,7 @@
         return {
           id: p.node.id,
           d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`,
-          colour: colours.get(p.branch),
+          colour: colours.get(p.node.id),
           width: p.depth === 1 ? 3 : 2,
         };
       }),
@@ -733,6 +742,7 @@
         class:branch={p.depth === 1}
         class:leaf={p.depth >= 2}
         class:portal
+        class:own-colour={node.color !== null}
         class:selected={selected === node.id}
         class:left={p.side === "left"}
         class:moving={movingBranch.has(node.id)}
@@ -742,7 +752,7 @@
         style:transform="translate({Math.round(p.x)}px, {Math.round(p.y)}px){p.depth <= 1 && labelScale > 1
           ? ` scale(${labelScale})`
           : ''}"
-        style:--branch={colours.get(p.branch) ?? "var(--fg)"}
+        style:--branch={colours.get(node.id) ?? "var(--fg)"}
         onmousedown={() => select(node.id)}
         onpointerdown={(e) => startMove(e, node)}
         ondblclick={() => (portal ? onOpen(node.id) : startEdit(node.id, node.title))}
@@ -750,6 +760,7 @@
         aria-selected={selected === node.id}
         tabindex="-1"
       >
+        {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
         {#if editing === node.id}
           <span
             class="text editing"
@@ -852,7 +863,7 @@
           width={p.width}
           height={p.height}
           rx={p.height / 2}
-          fill={p.depth === 0 ? "var(--fg)" : (colours.get(p.branch) ?? "var(--muted)")}
+          fill={p.depth === 0 ? "var(--fg)" : (colours.get(p.node.id) ?? "var(--muted)")}
           opacity={p.depth === 0 ? 0.9 : p.depth === 1 ? 0.8 : 0.45}
         />
       {/each}
@@ -960,6 +971,14 @@
 
   .node.leaf.portal {
     font-weight: 600;
+  }
+
+  .node.leaf.own-colour .text {
+    color: var(--branch);
+  }
+
+  .icon {
+    flex: none;
   }
 
   .node.selected {
