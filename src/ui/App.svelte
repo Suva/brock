@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
+  import { History, type Place } from "../core/history.ts";
   import { openText, saveText, type FileKind } from "./files.ts";
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
@@ -112,12 +113,46 @@
     return vault.mapPath(mapId);
   });
 
-  function open(id: string) {
+  // Back and forward (⌘← ⌘→, or ⌘[ ⌘]) go through the maps visited.
+  const history = new History();
+  /** Goes up with each step through the history, for the buttons to know. */
+  let historyVersion = $state(0);
+
+  /** Opens `map` with `node` selected, remembering where this was for going back. */
+  function moveTo(map: string, node: string) {
     editing = null;
-    // Coming back out selects the portal that was gone in by.
-    selected = vault.portalToward(id, mapId) ?? id;
-    openedMap = id;
+    if (map !== mapId) {
+      history.leave({ map: mapId, node: selected });
+      historyVersion++;
+    }
+    openedMap = map;
+    selected = node;
   }
+
+  function open(id: string) {
+    // Coming back out selects the portal that was gone in by.
+    moveTo(id, vault.portalToward(id, mapId) ?? id);
+  }
+
+  function step(direction: "back" | "forward") {
+    const here: Place = { map: mapId, node: selected };
+    const exists = (p: Place) => vault.isLive(p.map) && vault.get(p.map)!.isMap;
+    const to = direction === "back" ? history.back(here, exists) : history.forward(here, exists);
+    historyVersion++;
+    if (!to) return;
+    editing = null;
+    openedMap = to.map;
+    selected = to.node && vault.isLive(to.node) ? to.node : to.map;
+  }
+
+  const canGoBack = $derived.by(() => {
+    void historyVersion;
+    return history.canGoBack;
+  });
+  const canGoForward = $derived.by(() => {
+    void historyVersion;
+    return history.canGoForward;
+  });
 
   /**
    * Goes to a node found by searching: a map opens; any other node is
@@ -132,9 +167,7 @@
     const above = vault.ancestors(id);
     const folded = above.slice(above.findIndex((n) => n.id === map) + 1).filter((n) => n.collapsed);
     if (folded.length) vault.transact(() => folded.forEach((n) => vault.update(n.id, { collapsed: false })));
-    editing = null;
-    openedMap = map;
-    selected = id;
+    moveTo(map, id);
   }
 
   /** Links the selected node to `id`, chosen in the palette. */
@@ -166,6 +199,17 @@
       undo(event.shiftKey);
     } else if (event.key === "ArrowUp" && !event.shiftKey && !event.altKey && !typingIn(event.target)) {
       up();
+    } else if (
+      // ⌘[ and ⌘] work everywhere; ⌘← and ⌘→ only where they do not move a cursor.
+      (event.key === "[" && !event.shiftKey) ||
+      (event.key === "ArrowLeft" && !event.shiftKey && !event.altKey && !typingIn(event.target))
+    ) {
+      step("back");
+    } else if (
+      (event.key === "]" && !event.shiftKey) ||
+      (event.key === "ArrowRight" && !event.shiftKey && !event.altKey && !typingIn(event.target))
+    ) {
+      step("forward");
     } else if (event.key === "\\" && !event.shiftKey) {
       sidebarOpen = !sidebarOpen;
     } else if (event.key === "," && !event.shiftKey) {
@@ -200,6 +244,10 @@
     <button class="sidebar-toggle" class:on={sidebarOpen} onclick={() => (sidebarOpen = !sidebarOpen)} title="All maps (⌘\)">
       Maps
     </button>
+    <div class="history">
+      <button onclick={() => step("back")} disabled={!canGoBack} title="Back (⌘←)" aria-label="Back">‹</button>
+      <button onclick={() => step("forward")} disabled={!canGoForward} title="Forward (⌘→)" aria-label="Forward">›</button>
+    </div>
     <nav aria-label="Breadcrumbs">
       {#each breadcrumbs as map, i (map.id)}
         {#if i > 0}<span class="sep">›</span>{/if}
@@ -304,6 +352,18 @@
 
   .sidebar-toggle {
     flex: none;
+  }
+
+  .history {
+    display: flex;
+    flex: none;
+    margin-left: -0.5rem;
+  }
+
+  .history button {
+    font-size: 1.15rem;
+    line-height: 1;
+    padding: 0.1rem 0.45rem 0.2rem;
   }
 
   nav {

@@ -117,6 +117,7 @@ The window already runs in a browser, keeping the vault in local storage
   mounted straight into a page it would take the page's arrows and Tab.
   A "click to try" cover hands the keyboard over.
 - Other keys for what browsers keep for themselves: ⌘1 and ⌘2 switch tabs,
-  ⇧⌘N opens a private window.
+  ⇧⌘N opens a private window, and ⌘← ⌘→ may go back and forward in the
+  browser rather than the app (⌘[ ⌘] are the dependable ones there).
 - Firefox edits titles in place only from version 136; phones and tablets
   have no pinch or on-screen keyboard editing yet.

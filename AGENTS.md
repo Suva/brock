@@ -58,6 +58,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/markdown.ts` | Notes' Markdown read into blocks and spans, never HTML |
 | `src/core/exchange.ts` | Export to JSON, Markdown and OPML; reading OPML and JSON back in |
 | `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel |
+| `src/core/history.ts` | The maps visited, for back and forward |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -166,6 +167,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   with it. Commands that make sense for several act on `topmost` of them
   (from `moves.ts`), so a branch is moved or deleted with its top, and as
   one step; the rest act on `selected`. The outline has one selected row.
+- **Every change of map goes through `moveTo`** in `App.svelte`, which
+  remembers where it was for back and forward. Setting the open map any
+  other way leaves a gap in the history.
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.
