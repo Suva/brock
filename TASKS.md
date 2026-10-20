@@ -22,6 +22,13 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 - Settings holds little yet. Candidates: where the vault is, how many copies
   to keep, a different font size.
 
+## Choosing several
+
+- ⌥ with the arrows, making maps, colours and icons work on the selected
+  node only; extend them to all chosen if that is missed.
+- The outline chooses one row at a time.
+- Copy, cut and paste of chosen branches.
+
 ## Tasks
 
 - Due dates, and a view of what is due, once tasks have been used for a

@@ -66,3 +66,24 @@ export function tasksUnder(vault: Vault, topId: string): TaskList {
   done.sort((a, b) => (b.node.doneAt ?? 0) - (a.node.doneAt ?? 0));
   return { groups: [...groups.values()], done };
 }
+
+/**
+ * Makes several nodes tasks, or, if all of them are, ordinary nodes again:
+ * the way a toolbar button works on a mixed selection. One step.
+ */
+export function toggleTasks(vault: Vault, ids: string[]): void {
+  const nodes = ids.map((id) => vault.get(id)).filter((n): n is Node => !!n);
+  const make = nodes.some((n) => n.task === null);
+  vault.transact(() => {
+    for (const n of nodes) if ((n.task === null) === make) vault.toggleTask(n.id);
+  });
+}
+
+/** Ticks the tasks among several nodes done, or, if all of them are done, not done. One step. */
+export function tickAll(vault: Vault, ids: string[]): void {
+  const tasks = ids.map((id) => vault.get(id)).filter((n): n is Node => !!n && n.task !== null);
+  const done = tasks.some((n) => n.task === "open");
+  vault.transact(() => {
+    for (const n of tasks) vault.tick(n.id, done);
+  });
+}

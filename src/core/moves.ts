@@ -142,3 +142,55 @@ export function place(vault: Vault, id: string, to: Place, centreId: string): bo
   });
   return true;
 }
+
+/**
+ * The nodes of a selection that act on their own: those without a selected
+ * ancestor (a branch moves, or goes, with its top), in the order of the
+ * tree, leaving out the centre.
+ */
+export function topmost(vault: Vault, ids: Iterable<string>, centreId: string): string[] {
+  const chosen = new Set(ids);
+  const out: string[] = [];
+  const visit = (id: string) => {
+    for (const child of vault.children(id)) {
+      if (chosen.has(child.id)) out.push(child.id);
+      else visit(child.id);
+    }
+  };
+  visit(centreId);
+  return out;
+}
+
+/** Where several dragged nodes land: as `place`, with the node they go onto or beside. */
+export interface Landing extends Place {
+  beside: { id: string; after: boolean } | null;
+}
+
+/**
+ * Puts several nodes where they were dropped, one after another in the
+ * order given, as one step. Refused when the place is one of them or under
+ * one of them. Returns whether anything moved.
+ */
+export function placeAll(vault: Vault, ids: string[], to: Landing, centreId: string): boolean {
+  if (ids.length === 0) return false;
+  const moving = new Set(ids);
+  if (to.beside && moving.has(to.beside.id)) return false;
+  const inside = [to.parentId, ...vault.ancestors(to.parentId).map((n) => n.id)];
+  if (inside.some((id) => moving.has(id))) return false;
+  return vault.transact(() => {
+    let moved = false;
+    let previous: string | null = null;
+    for (const id of ids) {
+      const others = vault.children(to.parentId).filter((n) => n.id !== id);
+      // The first goes where it was dropped; each next one right after the one before.
+      const index = previous
+        ? others.findIndex((n) => n.id === previous) + 1
+        : to.beside
+          ? others.findIndex((n) => n.id === to.beside!.id) + (to.beside.after ? 1 : 0)
+          : others.length;
+      moved = place(vault, id, { parentId: to.parentId, index, side: to.side }, centreId) || moved;
+      previous = id;
+    }
+    return moved;
+  });
+}

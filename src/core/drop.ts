@@ -21,20 +21,22 @@ const REACH = 120;
 /** The share of a node's height at its top and bottom that means beside it, not onto it. */
 const EDGE = 0.25;
 
-export function dropAt(tree: Tree, layout: Layout, draggedId: string, x: number, y: number): Drop | null {
-  const dragged = layout.byId.get(draggedId);
-  if (!dragged) return null;
+/** `dragged`: the node dragged, or all the nodes dragged together. */
+export function dropAt(tree: Tree, layout: Layout, dragged: string | string[], x: number, y: number): Drop | null {
+  const ids = new Set(typeof dragged === "string" ? [dragged] : dragged);
+  const draggedId = typeof dragged === "string" ? dragged : dragged[0];
+  if (!layout.byId.has(draggedId)) return null;
   const inBranch = (p: Placed) => {
-    // Whether `p` is the dragged node or under it: it cannot go there.
+    // Whether `p` is a dragged node or under one: nothing can go there.
     for (let q: Placed | undefined = p; q; q = q.node.parentId ? layout.byId.get(q.node.parentId) : undefined) {
-      if (q.node.id === draggedId) return true;
+      if (ids.has(q.node.id)) return true;
     }
     return false;
   };
   const candidates = layout.placed.filter((p) => !inBranch(p));
   // Positions count among the children in the vault's order, all of them,
   // without the dragged node.
-  const others = (id: string) => tree.children(id).filter((n) => n.id !== draggedId);
+  const others = (id: string) => tree.children(id).filter((n) => !ids.has(n.id));
   const sideOfPoint: Side = x < 0 ? "left" : "right";
 
   const on = candidates.find((p) => x >= p.x && x <= p.x + p.width && y >= p.y && y <= p.y + p.height);

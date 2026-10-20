@@ -46,6 +46,10 @@ the arrow keys, then:
 | Escape on a new node left empty | Takes it away again and goes back to the node you started from |
 | ← → | Moves to the parent, or the child level with the node |
 | ↑ ↓ | Moves to the sibling above or below, then on to the same level of the next branch |
+| ⌘-click, Shift-click | Adds a node to those chosen, or the siblings between |
+| Shift with ← → ↑ ↓ | Adds the next node that way to those chosen |
+| ⌘A | Chooses everything in the map |
+| Escape | Back to one node chosen |
 | ⌥↑ ⌥↓ | Moves the node up or down among its siblings |
 | ⌥ with ← or → | Moves the node outwards, under the sibling above it, or inwards, beside its parent; a branch of the centre moved inwards crosses to the other side |
 | Delete or Backspace | Deletes the node and what is under it |
@@ -65,6 +69,10 @@ the arrow keys, then:
 
 The outline has the same ⌥ keys, ← for out and → for in. There they take the
 place of jumping a word at a time in a title.
+
+Several nodes can be chosen at once: ⌘-click, Shift-click, Shift with the
+arrows, ⌘A, or Shift and a drag on the background to draw a box. Deleting,
+⌘T, Space and dragging then act on all of them, as one step to undo.
 
 Drag a node to move it: onto another node to put it under that one (into it,
 if it is a map), or between two to put it there; near a branch on the other

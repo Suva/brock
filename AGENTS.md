@@ -161,6 +161,11 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   the database and their entries from the log, and clears the undo history,
   which could otherwise bring them back. It goes through the saver
   (`purge`), in order with the changes before it.
+- **One node selected, others chosen with it.** The map keeps `selected`,
+  the node the keyboard, the notes and editing work on, and `others`, chosen
+  with it. Commands that make sense for several act on `topmost` of them
+  (from `moves.ts`), so a branch is moved or deleted with its top, and as
+  one step; the rest act on `selected`. The outline has one selected row.
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.

@@ -17,9 +17,9 @@
   import { dropAt, type Drop } from "../core/drop.ts";
   import { layoutMap, SPACING, type Layout, type Placed } from "../core/layout.ts";
   import type { Node, NodeFields } from "../core/node.ts";
-  import { indent, outdent, place, reorder, setSide } from "../core/moves.ts";
+  import { indent, outdent, place, placeAll, reorder, setSide, topmost } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
-  import { progressUnder } from "../core/tasks.ts";
+  import { progressUnder, tickAll, toggleTasks } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
@@ -109,6 +109,108 @@
     void live.version;
     return progressUnder(vault, mapId);
   });
+
+  // ---- Selecting several -----------------------------------------------------
+  //
+  // `selected` is the node the keyboard and the notes work on; `others` are
+  // the nodes chosen with it. Deleting, ⌘T, Space and dragging act on all of
+  // them; editing a title, the notes panel and ⌥ with the arrows on
+  // `selected` alone.
+
+  let others = $state(new Set<string>());
+
+  /** Every node chosen and drawn: `selected` and the others. */
+  const chosen = $derived.by(() => {
+    const out = new Set<string>();
+    for (const id of [selected, ...others]) if (id && layout.byId.has(id)) out.add(id);
+    return out;
+  });
+
+  /** The chosen nodes that act on their own: a branch goes with its top. */
+  const acting = () => topmost(vault, chosen, mapId);
+
+  const single = () => {
+    if (others.size) others = new Set();
+  };
+
+  // Another map starts with one node chosen; the selected node is never also an other.
+  $effect(() => {
+    void mapId;
+    untrack(single);
+  });
+  $effect(() => {
+    if (selected && untrack(() => others.has(selected!))) {
+      const next = new Set(untrack(() => others));
+      next.delete(selected);
+      others = next;
+    }
+  });
+
+  /** Adds to the chosen nodes and makes `id` the selected one. */
+  function choose(id: string, more: Iterable<string> = []) {
+    const next = new Set([...others, ...more]);
+    if (selected) next.add(selected);
+    next.delete(id);
+    others = next;
+    selected = id;
+  }
+
+  /** A click on a node: alone, or with ⌘ to add or take it out, or with Shift for the siblings between. */
+  function clickNode(e: MouseEvent, id: string) {
+    if (e.metaKey || e.ctrlKey) {
+      if (id === selected) {
+        // Taking out the selected node: the last chosen before it takes its place.
+        const rest = [...others];
+        if (rest.length) {
+          selected = rest.at(-1)!;
+          others = new Set(rest.slice(0, -1));
+        }
+      } else if (others.has(id)) {
+        const next = new Set(others);
+        next.delete(id);
+        others = next;
+      } else {
+        choose(id);
+      }
+    } else if (e.shiftKey && selected && selected !== id) {
+      choose(id, siblingsBetween(selected, id));
+    } else {
+      // A plain click on a node already chosen keeps the others, to drag
+      // them all; letting go without dragging leaves it alone.
+      if (!chosen.has(id)) single();
+      selected = id;
+    }
+  }
+
+  /** The siblings shown between two nodes, both included; just `b` if they are not siblings. */
+  function siblingsBetween(a: string, b: string): string[] {
+    const pa = layout.byId.get(a);
+    const pb = layout.byId.get(b);
+    if (!pa || !pb || pa.node.parentId !== pb.node.parentId || pa.side !== pb.side) return [b];
+    const row = layout.placed.filter((p) => p.node.parentId === pa.node.parentId && p.side === pa.side);
+    const [i, j] = [row.indexOf(pa), row.indexOf(pb)].sort((x, y) => x - y);
+    return row.slice(i, j + 1).map((p) => p.node.id);
+  }
+
+  // Shift and a drag on the background draws a box; what it touches is chosen.
+  let box = $state<{ x0: number; y0: number; x1: number; y1: number; before: Set<string> } | null>(null);
+
+  function boxChoose() {
+    const b = box!;
+    const toMap = (x: number, y: number) => [(x - camera.x) / camera.zoom, (y - camera.y) / camera.zoom];
+    const [l, t] = toMap(Math.min(b.x0, b.x1), Math.min(b.y0, b.y1));
+    const [r, btm] = toMap(Math.max(b.x0, b.x1), Math.max(b.y0, b.y1));
+    const hit = layout.placed
+      .filter((p) => p.depth > 0 && p.x < r && p.x + p.width > l && p.y < btm && p.y + p.height > t)
+      .map((p) => p.node.id);
+    const next = new Set([...b.before, ...hit]);
+    if (!selected || !next.has(selected)) {
+      const first = hit[0] ?? [...b.before][0];
+      if (first) selected = first;
+    }
+    if (selected) next.delete(selected);
+    others = next;
+  }
 
   /** A curve from each parent's outer edge to its child's inner edge. */
   const edges = $derived(
@@ -353,11 +455,24 @@
 
   function onPointerDown(e: PointerEvent) {
     if (e.button !== 0 || (e.target as Element).closest(".node, .zoom, .minimap")) return;
+    if (e.shiftKey) {
+      const r = viewport.getBoundingClientRect();
+      const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+      box = { x0: x, y0: y, x1: x, y1: y, before: new Set(chosen) };
+      viewport.setPointerCapture(e.pointerId);
+      return;
+    }
     drag = { x: e.clientX, y: e.clientY, from: camera, moved: false };
   }
 
   function onPointerMove(e: PointerEvent) {
     if (moving) return dragTo(e);
+    if (box) {
+      const r = viewport.getBoundingClientRect();
+      box.x1 = e.clientX - r.left;
+      box.y1 = e.clientY - r.top;
+      return boxChoose();
+    }
     if (!drag) return;
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
@@ -372,8 +487,15 @@
 
   function onPointerUp(e: PointerEvent) {
     if (moving) return dropNode(e);
+    if (box) {
+      box = null;
+      viewport.releasePointerCapture(e.pointerId);
+      return;
+    }
     if (!drag) return;
     if (drag.moved) viewport.releasePointerCapture(e.pointerId);
+    // A click on the background goes back to one node chosen.
+    else single();
     drag = null;
   }
 
@@ -386,6 +508,10 @@
 
   let moving = $state<{
     id: string;
+    /** All the nodes dragged: the one grabbed, or every chosen one with it. */
+    ids: string[];
+    /** Whether a plain click on a chosen node, if it ends without a drag, leaves it alone. */
+    alone: boolean;
     x: number;
     y: number;
     moved: boolean;
@@ -395,9 +521,22 @@
   } | null>(null);
 
   function startMove(e: PointerEvent, node: Node) {
-    if (e.button !== 0 || node.id === mapId || editing === node.id) return;
+    if (e.button !== 0 || editing === node.id || e.shiftKey || e.metaKey || e.ctrlKey) return;
     if ((e.target as Element).closest(".fold, .editing")) return;
-    moving = { id: node.id, x: e.clientX, y: e.clientY, moved: false, at: { x: 0, y: 0 }, drop: null };
+    const group = chosen.has(node.id) && chosen.size > 1;
+    // The centre stays; dragging it with others moves the others.
+    const ids = group ? acting() : [node.id];
+    if (ids.length === 0 || (!group && node.id === mapId)) return;
+    moving = {
+      id: ids.includes(node.id) ? node.id : ids[0],
+      ids,
+      alone: group,
+      x: e.clientX,
+      y: e.clientY,
+      moved: false,
+      at: { x: 0, y: 0 },
+      drop: null,
+    };
   }
 
   function dragTo(e: PointerEvent) {
@@ -410,15 +549,24 @@
     }
     const r = viewport.getBoundingClientRect();
     m.at = { x: e.clientX - r.left, y: e.clientY - r.top };
-    m.drop = dropAt(vault, layout, m.id, (m.at.x - camera.x) / camera.zoom, (m.at.y - camera.y) / camera.zoom);
+    m.drop = dropAt(vault, layout, m.ids, (m.at.x - camera.x) / camera.zoom, (m.at.y - camera.y) / camera.zoom);
   }
 
   function dropNode(e: PointerEvent) {
     const m = moving!;
     moving = null;
-    if (!m.moved) return;
+    if (!m.moved) {
+      // A click on one of several chosen: it alone is chosen now.
+      if (m.alone) single();
+      return;
+    }
     viewport.releasePointerCapture(e.pointerId);
-    if (m.drop && place(vault, m.id, m.drop, mapId)) selected = m.id;
+    if (!m.drop) return;
+    const moved = m.ids.length > 1 ? placeAll(vault, m.ids, m.drop, mapId) : place(vault, m.id, m.drop, mapId);
+    if (!moved) return;
+    // All that moved stay chosen, the one grabbed selected.
+    others = new Set(m.ids.filter((id) => id !== m.id));
+    selected = m.id;
   }
 
   /** The dragged node and everything under it, drawn faded while it moves. */
@@ -427,7 +575,7 @@
     if (!moving?.moved) return out;
     for (const p of layout.placed) {
       for (let q = p.node; ; ) {
-        if (q.id === moving.id) {
+        if (moving.ids.includes(q.id)) {
           out.add(p.node.id);
           break;
         }
@@ -618,6 +766,23 @@
     editFresh(vault.addSibling(id, fields, before).id, { from: id, fromMap: mapId });
   }
 
+  /** Deletes every chosen branch, as one step, and chooses what is left beside the first. */
+  function removeChosen() {
+    const ids = acting();
+    if (ids.length <= 1) return remove(ids[0] ?? selected ?? mapId);
+    const gone = new Set(ids);
+    const first = vault.get(ids[0])!;
+    const siblings = vault.children(first.parentId!);
+    const i = siblings.indexOf(first);
+    const next =
+      siblings.slice(i).find((n) => !gone.has(n.id)) ??
+      siblings.slice(0, i).reverse().find((n) => !gone.has(n.id)) ??
+      vault.get(first.parentId!)!;
+    vault.transact(() => ids.forEach((id) => vault.delete(id)));
+    others = new Set();
+    selected = next.id;
+  }
+
   function remove(id: string) {
     const node = vault.get(id)!;
     if (id === mapId || node.parentId === null) return;
@@ -655,6 +820,12 @@
       e.preventDefault();
       return;
     }
+    if (e.key === "Escape" && others.size && editing === null) {
+      // Back to one node chosen.
+      single();
+      e.preventDefault();
+      return;
+    }
     if (editing !== null || e.defaultPrevented || typingIn(e.target)) return;
     const id = selected ?? mapId;
     const node = vault.get(id);
@@ -664,9 +835,18 @@
     const portal = node.isMap && !isCentre;
     const arrows: Record<string, Direction> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
 
-    if (arrows[e.key] && e.altKey && !mod) {
+    if (arrows[e.key] && e.shiftKey && !e.altKey && !mod) {
+      // Shift with an arrow adds the next node that way to those chosen.
+      const next = neighbour(layout, id, arrows[e.key]);
+      if (next) choose(next);
+    } else if (mod && !e.shiftKey && e.key.toLowerCase() === "a") {
+      // Everything in the map but its centre.
+      const all = layout.placed.filter((p) => p.depth > 0).map((p) => p.node.id);
+      if (all.length) choose(id !== mapId && all.includes(id) ? id : all[0], all);
+    } else if (arrows[e.key] && e.altKey && !mod) {
       moveNode(id, arrows[e.key]);
     } else if (arrows[e.key] && !mod) {
+      single();
       const next = neighbour(layout, id, arrows[e.key]);
       if (next) selected = next;
     } else if ((e.key === "Enter" || e.key === "ArrowDown") && mod) {
@@ -676,14 +856,17 @@
     } else if (e.key === "Tab" && !e.shiftKey && !mod) {
       addChild(id);
     } else if ((e.key === "Backspace" || e.key === "Delete") && !mod) {
-      remove(id);
+      removeChosen();
+    } else if (e.key === " " && !mod && chosen.size > 1) {
+      tickAll(vault, [...chosen]);
     } else if (e.key === " " && !mod && node.task) {
       // Space ticks a task, as it ticks a checkbox; typing or F2 still edits it.
       vault.tick(id);
     } else if ((e.key === "F2" || e.key === " ") && !mod) {
       startEdit(id, node.title);
     } else if (mod && !e.shiftKey && e.key.toLowerCase() === "t") {
-      vault.toggleTask(id);
+      if (chosen.size > 1) toggleTasks(vault, [...chosen]);
+      else vault.toggleTask(id);
     } else if (mod && e.shiftKey && e.key.toLowerCase() === "m") {
       if (!isCentre) vault.setMap(id, !node.isMap);
     } else if (mod && e.key === "/") {
@@ -756,7 +939,8 @@
         class:portal
         class:own-colour={node.color !== null}
         class:done={node.task === "done"}
-        class:selected={selected === node.id}
+        class:selected={chosen.has(node.id)}
+        class:primary={selected === node.id && chosen.size > 1}
         class:left={p.side === "left"}
         class:moving={movingBranch.has(node.id)}
         class:drop-onto={moving?.drop?.onto === node.id}
@@ -766,7 +950,7 @@
           ? ` scale(${labelScale})`
           : ''}"
         style:--branch={colours.get(node.id) ?? "var(--fg)"}
-        onmousedown={() => select(node.id)}
+        onmousedown={(e) => clickNode(e, node.id)}
         onpointerdown={(e) => startMove(e, node)}
         ondblclick={() => (portal ? onOpen(node.id) : startEdit(node.id, node.title))}
         role="treeitem"
@@ -887,8 +1071,18 @@
 
   {#if moving?.moved}
     <div class="drag-label" style:transform="translate({moving.at.x + 12}px, {moving.at.y + 8}px)">
-      {vault.get(moving.id)?.title || "Idea"}
+      {vault.get(moving.id)?.title || "Idea"}{moving.ids.length > 1 ? ` and ${moving.ids.length - 1} more` : ""}
     </div>
+  {/if}
+
+  {#if box}
+    <div
+      class="box"
+      style:left="{Math.min(box.x0, box.x1)}px"
+      style:top="{Math.min(box.y0, box.y1)}px"
+      style:width="{Math.abs(box.x1 - box.x0)}px"
+      style:height="{Math.abs(box.y1 - box.y0)}px"
+    ></div>
   {/if}
 
   {#if minimap.shown}
@@ -1072,6 +1266,17 @@
     height: 3px;
     border-radius: 2px;
     background: var(--accent);
+    pointer-events: none;
+  }
+
+  .node.primary {
+    box-shadow: 0 0 0 5px var(--accent-soft);
+  }
+
+  .box {
+    position: absolute;
+    border: 1px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     pointer-events: none;
   }
 
