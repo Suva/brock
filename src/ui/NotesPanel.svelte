@@ -1,13 +1,19 @@
 <!--
-  The selected node beside the map: its longer text, saved as it is typed and
-  undone a run of typing at a time; the nodes it links to and those linking
-  to it, each a way there; and the web addresses in the text, to open.
+  The selected node beside the map: its notes, drawn from their Markdown and
+  edited as text on a click (saved as typed, undone a run of typing at a
+  time); and the nodes it links to and those linking to it, each a way there.
+  Links in the notes go to nodes or open web addresses; ⌘L while writing puts
+  in a link to a node chosen as in search.
 -->
 <script lang="ts">
+  import { tick } from "svelte";
+  import { nodeLink, parse, setChecked, type LinkTarget } from "../core/markdown.ts";
   import type { Node } from "../core/node.ts";
-  import { webAddresses } from "../core/urls.ts";
+  import { findByTitle } from "../core/search.ts";
   import type { Live } from "./live.svelte.ts";
+  import Markdown from "./Markdown.svelte";
   import { openUrl } from "./open-url.ts";
+  import Palette from "./Palette.svelte";
 
   let {
     live,
@@ -29,7 +35,68 @@
     void live.version;
     return vault.linksTo(nodeId);
   });
-  const addresses = $derived(webAddresses(node?.body ?? ""));
+  const blocks = $derived(parse(node?.body ?? ""));
+
+  /** Whether the notes are being written, as text, rather than read. */
+  let writing = $state(false);
+  /** Choosing a node to link to from the notes, and where the caret was. */
+  let picking = $state<{ start: number; end: number } | null>(null);
+  let textarea = $state<HTMLTextAreaElement>();
+
+  // Another node's notes start out read.
+  $effect(() => {
+    void nodeId;
+    writing = false;
+    picking = null;
+  });
+
+  async function write(caret?: number) {
+    writing = true;
+    await tick();
+    textarea?.focus();
+    if (textarea && caret !== undefined) textarea.setSelectionRange(caret, caret);
+  }
+
+  const save = (body: string) => vault.update(nodeId, { body }, `body:${nodeId}`);
+
+  /** The node a link in the notes leads to, if it is there. */
+  function nodeOf(to: LinkTarget): Node | null {
+    if (to.kind === "node") return vault.isLive(to.id) ? vault.get(to.id)! : null;
+    if (to.kind === "title") return findByTitle(vault, to.title, vault.mapOf(nodeId) ?? nodeId);
+    return null;
+  }
+
+  function follow(to: LinkTarget) {
+    if (to.kind === "web") openUrl(to.url);
+    else {
+      const target = nodeOf(to);
+      if (target) onGoTo(target.id);
+    }
+  }
+
+  function onWriteKey(e: KeyboardEvent) {
+    const mod = e.metaKey || e.ctrlKey;
+    if (e.key === "Escape") {
+      // Escape shows the notes read, and hands the keyboard back to the map.
+      e.currentTarget && (e.currentTarget as HTMLElement).blur();
+    } else if (mod && e.key.toLowerCase() === "l" && !e.shiftKey) {
+      // A link to a node, put in here: not the node's own link (⌘L elsewhere).
+      e.preventDefault();
+      e.stopPropagation();
+      const t = e.currentTarget as HTMLTextAreaElement;
+      picking = { start: t.selectionStart, end: t.selectionEnd };
+    }
+  }
+
+  function insertLink(id: string) {
+    const where = picking;
+    picking = null;
+    const target = vault.get(id);
+    if (!where || !target || !node) return write();
+    const link = nodeLink(target.title, id);
+    save(node.body.slice(0, where.start) + link + node.body.slice(where.end));
+    write(where.start + link.length);
+  }
 
   /** Where a node is, for telling apart nodes of the same name. */
   function where(n: Node): string {
@@ -44,28 +111,51 @@
     <button class="close" onclick={onClose} title="Hide notes (⇧⌘N)" aria-label="Hide notes">×</button>
   </div>
   {#if node}
-    <textarea
-      value={node.body}
-      placeholder="Notes"
-      aria-label="Notes"
-      oninput={(e) => vault.update(nodeId, { body: e.currentTarget.value }, `body:${nodeId}`)}
-      onkeydown={(e) => {
-        // Escape hands the keyboard back to the map.
-        if (e.key === "Escape") e.currentTarget.blur();
-      }}
-    ></textarea>
-
-    {#if addresses.length}
-      <section>
-        <h3>Web addresses</h3>
-        <ul>
-          {#each addresses as url (url)}
-            <li>
-              <button class="go url" onclick={() => openUrl(url)} title="Open in the browser">{url}</button>
-            </li>
-          {/each}
-        </ul>
-      </section>
+    {#if writing}
+      <textarea
+        bind:this={textarea}
+        value={node.body}
+        placeholder="Notes, in Markdown"
+        aria-label="Notes"
+        oninput={(e) => save(e.currentTarget.value)}
+        onkeydown={onWriteKey}
+        onblur={() => {
+          // Choosing a link takes the focus for a moment; that is not leaving.
+          if (!picking) writing = false;
+        }}
+      ></textarea>
+      <p class="hint">
+        **bold**, *italic*, # heading, - list, - [ ] to do, [[a node's title]].
+        ⌘L puts in a link to a node; Escape shows the notes.
+      </p>
+    {:else}
+      <!-- A click anywhere but on a link starts writing; Enter does from the keyboard. -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+      <div
+        class="read"
+        class:empty={!node.body.trim()}
+        role="document"
+        tabindex="0"
+        title="Click to write"
+        onclick={() => write(node!.body.length)}
+        onkeydown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            write(node!.body.length);
+          }
+        }}
+      >
+        {#if node.body.trim()}
+          <Markdown
+            {blocks}
+            found={(to) => to.kind === "web" || nodeOf(to) !== null}
+            onLink={follow}
+            onCheck={(line, checked) => save(setChecked(node!.body, line, checked))}
+          />
+        {:else}
+          Notes
+        {/if}
+      </div>
     {/if}
 
     <section>
@@ -111,6 +201,13 @@
     {/if}
   {/if}
 </aside>
+
+{#if picking}
+  <Palette {live} mapId={vault.mapOf(nodeId) ?? nodeId} purpose="link" exclude={nodeId} onChoose={insertLink} onClose={() => {
+      picking = null;
+      write();
+    }} />
+{/if}
 
 <style>
   aside {
@@ -168,6 +265,25 @@
     padding: 0 0.4rem;
   }
 
+  .read {
+    flex: 1;
+    min-height: 8rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: text;
+    outline: none;
+  }
+
+  .read:hover,
+  .read:focus-visible {
+    border-color: var(--line);
+  }
+
+  .read.empty {
+    color: var(--muted);
+  }
+
   textarea {
     flex: 1;
     min-height: 8rem;
@@ -205,10 +321,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .url {
-    color: var(--accent);
   }
 
   .where {

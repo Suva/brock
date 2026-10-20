@@ -68,9 +68,15 @@ side, it crosses the centre. A line or an outline shows where it will land;
 Escape leaves it where it was.
 
 Links between nodes are dashed arrows when both ends are on the open map; a
-link to somewhere else shows as ↗ on the node, which goes there. The notes
-panel (⇧⌘N) lists a node's links, the nodes linking to it, and the web
-addresses in its notes, which open in your browser.
+link to somewhere else shows as ↗ on the node, which goes there.
+
+The notes panel (⇧⌘N) shows the selected node's notes, written in Markdown:
+`# headings`, `**bold**`, `*italic*`, `` `code` ``, lists, `- [ ]` to-dos you
+can tick, `> quotes`. Click them, or press Enter on them, to write; Escape
+shows them formatted again. Web addresses in them open in your browser.
+Links to nodes and maps go there: press ⌘L while writing to choose a node, or
+type `[[a node's title]]`. Under the notes are the node's links and the nodes
+linking to it.
 
 Drag the background or scroll to move around; pinch, or scroll with ⌘ held,
 to zoom. Zoomed out, the deeper levels turn into bars in their branch's colour,

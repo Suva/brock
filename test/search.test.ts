@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fold, search } from "../src/core/search.ts";
+import { findByTitle, fold, search } from "../src/core/search.ts";
 import { Vault } from "../src/core/vault.ts";
 
 function vault() {
@@ -89,4 +89,14 @@ test("a large vault is searched quickly", () => {
   const ms = performance.now() - start;
   assert.equal(hits[0].node.title, "Idea 42-7");
   assert.ok(ms < 150, `${ms.toFixed(0)} ms for 100,000 nodes`);
+});
+
+test("a [[Title]] means the node of that title, in the same map first", () => {
+  const { v, project, garden } = vault();
+  const inside = v.addChild(project.id, { title: "garden" });
+  assert.equal(findByTitle(v, "Garden", v.rootId)?.id, garden.id, "nearest the top");
+  assert.equal(findByTitle(v, "GARDEN", project.id)?.id, inside.id, "in the map the note is in");
+  assert.equal(findByTitle(v, "Cafe menu", null)?.title, "Café menu");
+  assert.equal(findByTitle(v, "Nowhere", null), null);
+  assert.equal(findByTitle(v, "Old garden notes", null), null, "not deleted ones");
 });

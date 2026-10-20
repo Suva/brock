@@ -266,6 +266,9 @@ test("links go from node to node, once, and are undone like any edit", () => {
   vault.link(a.id, a.id);
   assert.deepEqual(vault.get(a.id)!.links, [b.id]);
   assert.deepEqual(vault.linksTo(b.id).map((n) => n.id), [a.id]);
+  const c = vault.addChild(vault.rootId, { title: "c", body: `See [b](node:${b.id}).` });
+  assert.deepEqual(vault.linksTo(b.id).map((n) => n.id), [a.id, c.id], "a link in notes counts too");
+  vault.delete(c.id);
   vault.unlink(a.id, b.id);
   assert.deepEqual(vault.get(a.id)!.links, []);
   vault.undo();

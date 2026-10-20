@@ -130,3 +130,24 @@ function snippetAt(text: string, at: number): string {
   const piece = text.slice(start, end).replace(/\s+/g, " ").trim();
   return (start > 0 ? "…" : "") + piece + (end < text.length ? "…" : "");
 }
+
+/**
+ * The node a [[Title]] in a note means: the one with that title, ignoring
+ * case and accents. Of several, one in the map `nearMap` first, then the one
+ * nearest the top of the vault, then the oldest.
+ */
+export function findByTitle(vault: Vault, title: string, nearMap: string | null): Node | null {
+  const wanted = fold(title.trim());
+  if (!wanted) return null;
+  let best: { node: Node; rank: number } | null = null;
+  const visit = (node: Node, depth: number) => {
+    if (foldedOf(node).title.trim() === wanted) {
+      const here = node.id === nearMap || vault.mapOf(node.id) === nearMap;
+      const rank = (here ? 0 : 1_000_000) + depth;
+      if (!best || rank < best.rank || (rank === best.rank && node.createdAt < best.node.createdAt)) best = { node, rank };
+    }
+    for (const child of vault.children(node.id)) visit(child, depth + 1);
+  };
+  visit(vault.get(vault.rootId)!, 0);
+  return (best as { node: Node } | null)?.node ?? null;
+}

@@ -275,9 +275,16 @@ export class Vault {
     if (node.links.includes(to)) this.update(from, { links: node.links.filter((id) => id !== to) });
   }
 
-  /** The live nodes that link to `id`. Reads the whole vault, so not for every frame. */
+  /**
+   * The live nodes that link to `id`: by a link of their own, or by one in
+   * their notes, written as node:id. Reads the whole vault, so not for every
+   * frame. A [[Title]] in notes is not counted: what it means can change.
+   */
   linksTo(id: string): Node[] {
-    return [...this.#nodes.values()].filter((n) => n.links.includes(id) && n.deletedAt === null && this.isLive(n.id));
+    const written = `(node:${id})`;
+    return [...this.#nodes.values()].filter(
+      (n) => n.id !== id && (n.links.includes(id) || n.body.includes(written)) && n.deletedAt === null && this.isLive(n.id),
+    );
   }
 
   /** Makes a node a map of its own, or an ordinary node of its parent's map again. */

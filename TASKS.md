@@ -11,6 +11,14 @@ one map, maps inside maps, search, overview, hints and links) are done; these ar
 - Colours and icons for nodes, and settings.
 - Write what is still being saved before the window closes (see below).
 
+## Notes
+
+- Typing `[[` could offer the titles that match, as ⌘L does.
+- The Markdown has no nested lists, tables, images or links in titles; add
+  what is missed.
+- A `[[Title]]` link does not appear under "Linked from" on its node, as what
+  it means can change; a `node:` link, put in with ⌘L, does.
+
 ## Left from milestone 6
 
 - Dragging near the edge of the window does not move the map; a node can be

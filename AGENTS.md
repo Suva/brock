@@ -54,7 +54,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/search.ts` | Searching titles and notes, in memory |
 | `src/core/overview.ts` | The vault's maps as a tree, with what each holds |
 | `src/core/drop.ts` | Where a node dragged on a map would land |
-| `src/core/urls.ts` | Web addresses in a node's notes |
+| `src/core/urls.ts` | Web addresses in text, and trimming the sentence off them |
+| `src/core/markdown.ts` | Notes' Markdown read into blocks and spans, never HTML |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -68,7 +69,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/open-url.ts` | Opens a web address in the browser, never in the app |
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
-| `src/ui/NotesPanel.svelte` | The selected node's longer text, its links and the nodes linking to it, and its web addresses |
+| `src/ui/NotesPanel.svelte` | The selected node's notes, read or written, its links and the nodes linking to it |
+| `src/ui/Markdown.svelte` | Draws notes from `markdown.ts`'s blocks; links are buttons |
 | `src/ui/MapsSidebar.svelte` | Every map of the vault as a tree (⌘\), worked by mouse |
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
@@ -127,6 +129,12 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **Links live on the node they start from** (`links`, a list of ids), so
   they are saved, undone and synced with it; there is no table of their own.
   A link to a deleted node is kept and ignored until the node comes back.
+- **Notes are never HTML.** `markdown.ts` reads them into a structure and
+  `Markdown.svelte` draws it with ordinary elements; nothing uses `{@html}`.
+  Only http, https and `node:` links become links; anything else stays text.
+- **Links in notes count as links.** `[text](node:id)` in a node's notes
+  makes it appear under "Linked from" on that node (`linksTo` in
+  `vault.ts`); `[[Title]]` does not, as what it means can change.
 - **Only web addresses may be opened, and only on a click.** The capability
   in `src-tauri/capabilities/default.json` lets the opener open http and
   https addresses and nothing else. The README promises that nothing leaves
