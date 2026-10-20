@@ -130,9 +130,13 @@ elements. Try it there early, not at the end.
 
 ## Search
 
-- A palette (⌘K) that matches titles as you type, from memory, and bodies through
-  FTS5. Each result shows its path; choosing one opens its map and centres it.
+- A palette (⌘K) that matches titles and bodies as you type. Each result shows
+  its path; choosing one opens its map and selects it.
 - Filters: only this map, only maps.
+- Search runs over the vault in memory, which is all loaded anyway: about
+  15–35 ms over 100,000 nodes. The SQLite full-text index is kept up to date
+  for when a vault is too big for that, or for a web version that does not
+  load everything.
 
 ## Keyboard
 
@@ -159,7 +163,7 @@ Ctrl in place of ⌘ on Windows and Linux.
    automatic layout; saved as you go; the body panel.
 3. **Maps inside maps** (done): make into map, opening and going back, breadcrumbs,
    transitions.
-4. **Search**: the palette, FTS.
+4. **Search** (done): the palette, FTS.
 5. **Overview**: minimap, outline view, map of maps, zooming out.
 6. **Hints and links**: dragging to set side, order and parent; links between
    nodes; clickable web addresses.

@@ -1,15 +1,22 @@
 # Tasks
 
-The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 3 (core and storage,
-one map, maps inside maps) are done; these are what is next, and what was left on the way.
+The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 4 (core and storage,
+one map, maps inside maps, search) are done; these are what is next, and what was left on the way.
 
-## Milestone 4: search
+## Milestone 5: overview
 
-- A palette (⌘K) that matches titles as they are typed, from the vault in
-  memory, and bodies through the FTS5 index (the `search` command in Rust
-  is there already).
-- Each result shows its path; choosing one opens its map and selects it.
-- Filters: only this map, only maps.
+- A minimap in a corner of the canvas.
+- The map of maps: only the maps of the vault, as a tree, to see and open
+  any of them.
+- Zooming out hides detail: deeper levels shrink to dots, the upper ones
+  keep their labels.
+
+## Left from milestone 4
+
+- Results are not grouped by map; with many hits from one big map, the
+  others are pushed down. See whether it matters in use.
+- Going to a result unfolds the branches above it as an edit, which can be
+  undone; decide whether that is right or whether it should not count.
 
 ## Left from milestone 3
 
@@ -42,7 +49,8 @@ one map, maps inside maps) are done; these are what is next, and what was left o
   planned.
 - Bodies are loaded with everything else. Measure a vault with long bodies;
   load them on demand if it is slow.
-- The search command in Rust exists but nothing calls it yet (milestone 4).
+- The search command in Rust exists but nothing calls it: search runs in
+  memory. Keep it for vaults too big for that, or for a web version.
 - Choose the name, then change `productName`, `identifier` (which moves the
   data folder), the window title and the README.
 - Try the app on Windows and Linux.

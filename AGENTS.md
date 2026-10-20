@@ -51,6 +51,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures |
 | `src/core/navigate.ts` | Which node an arrow key moves to |
 | `src/core/branches.ts` | The side and colour a new branch of a map's centre is given, and the palette |
+| `src/core/search.ts` | Searching titles and notes, in memory |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -64,7 +65,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
 | `src/ui/NotesPanel.svelte` | The selected node's longer text |
-| `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, search |
+| `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
+| `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls |
 
 ## Rules that are easy to break

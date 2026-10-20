@@ -7,6 +7,7 @@
   import type { Live } from "./live.svelte.ts";
   import MapView from "./MapView.svelte";
   import NotesPanel from "./NotesPanel.svelte";
+  import Palette from "./Palette.svelte";
   import OutlineView from "./OutlineView.svelte";
 
   let { live }: { live: Live } = $props();
@@ -20,6 +21,7 @@
   let editing = $state<string | null>(null);
   let view = $state<"map" | "outline">("map");
   let notesOpen = $state(false);
+  let searching = $state(false);
 
   /** The map on screen: the one opened, or the nearest map above it if an edit took it away. */
   const mapId = $derived.by(() => {
@@ -51,6 +53,24 @@
     openedMap = id;
   }
 
+  /**
+   * Goes to a node found by searching: a map opens; any other node is
+   * selected in the map it is in, with the branches above it unfolded.
+   */
+  function goTo(id: string) {
+    searching = false;
+    const node = vault.get(id);
+    if (!node || !vault.isLive(id)) return;
+    if (node.isMap) return open(id);
+    const map = vault.mapOf(id)!;
+    const above = vault.ancestors(id);
+    const folded = above.slice(above.findIndex((n) => n.id === map) + 1).filter((n) => n.collapsed);
+    if (folded.length) vault.transact(() => folded.forEach((n) => vault.update(n.id, { collapsed: false })));
+    editing = null;
+    openedMap = map;
+    selected = id;
+  }
+
   /** Back out to the map this one is in. */
   function up() {
     const parent = vault.mapOf(mapId);
@@ -74,6 +94,9 @@
       undo(event.shiftKey);
     } else if (event.key === "ArrowUp" && !event.shiftKey && !event.altKey && !typingIn(event.target)) {
       up();
+    } else if (key === "k" && !event.shiftKey) {
+      editing = null;
+      searching = !searching;
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "1" && !event.shiftKey) {
@@ -106,6 +129,7 @@
         <button class:on={view === "map"} onclick={() => (view = "map")} title="Map (⌘1)">Map</button>
         <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌘2)">Outline</button>
       </div>
+      <button onclick={() => (searching = true)} title="Search everything (⌘K)">Search</button>
       <button class:on={notesOpen} onclick={() => (notesOpen = !notesOpen)} title="Notes (⇧⌘N)">Notes</button>
       <button onclick={() => undo()} disabled={!canUndo} title="Undo (⌘Z)">Undo</button>
       <button onclick={() => undo(true)} disabled={!canRedo} title="Redo (⇧⌘Z)">Redo</button>
@@ -124,6 +148,10 @@
       <NotesPanel {live} nodeId={selected ?? mapId} onClose={() => (notesOpen = false)} />
     {/if}
   </div>
+
+  {#if searching}
+    <Palette {live} {mapId} onChoose={goTo} onClose={() => (searching = false)} />
+  {/if}
 
   <footer class:failed={live.saveStatus === "failed"}>
     {#if live.saveStatus === "failed"}

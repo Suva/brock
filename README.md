@@ -7,8 +7,8 @@ a map of its own, which you open and come back out of. Everything is saved as
 you go, to a database on your computer. There is no Save command.
 
 It is at an early stage: maps can be made, drawn, edited from the keyboard,
-opened and left again, with notes, undo and saving. Search and an overview of the whole vault
-are next. See
+opened and left again, searched, with notes, undo and saving. An overview of
+the whole vault is next. See
 [PLAN.md](PLAN.md) for where it is going and [TASKS.md](TASKS.md) for what is
 next.
 
@@ -52,6 +52,7 @@ the arrow keys, then:
 | ⌘↑ | Back out to the map this one is in, with the map you left selected |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
+| ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
 | ⌘1, ⌘2 | The map, or the same map as an outline |
 | ⇧⌘N | Shows the selected node's notes |
 | ⌘Z, ⇧⌘Z | Undo, redo |
