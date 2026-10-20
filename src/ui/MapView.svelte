@@ -781,7 +781,19 @@
           <span class="text" class:placeholder={!node.title}>{node.title || (isCentre ? "Main idea" : "Idea")}</span>
         {/if}
         {#if node.body.trim()}
-          <span class="note" title="Has notes">≡</span>
+          <button
+            class="note"
+            tabindex="-1"
+            title="Show its notes (⇧⌘N)"
+            aria-label="Show its notes"
+            onmousedown={(e) => e.preventDefault()}
+            onpointerdown={(e) => e.stopPropagation()}
+            onclick={(e) => {
+              e.stopPropagation();
+              selected = node.id;
+              onShowNotes();
+            }}>≡</button
+          >
         {/if}
         {#if links.away.has(node.id)}
           {@const targets = links.away.get(node.id)!}
@@ -1089,11 +1101,27 @@
     background: var(--accent-soft);
   }
 
-  .note,
   .inside {
     font-size: 0.8em;
     opacity: 0.6;
     white-space: nowrap;
+  }
+
+  .note {
+    font: inherit;
+    font-size: 0.8em;
+    color: inherit;
+    opacity: 0.6;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    padding: 0 0.2rem;
+    cursor: pointer;
+  }
+
+  .note:hover {
+    opacity: 1;
+    background: var(--accent-soft);
   }
 
   .fold {
