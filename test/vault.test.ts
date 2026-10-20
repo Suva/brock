@@ -26,6 +26,8 @@ function node(id: string, parentId: string | null, fields: Partial<Node> = {}): 
     color: null,
     icon: null,
     links: [],
+    task: null,
+    doneAt: null,
     createdAt: 1,
     updatedAt: 1,
     deletedAt: null,

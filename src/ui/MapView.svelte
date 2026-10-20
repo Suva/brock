@@ -19,6 +19,7 @@
   import type { Node, NodeFields } from "../core/node.ts";
   import { indent, outdent, place, reorder, setSide } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
+  import { progressUnder } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
@@ -101,6 +102,12 @@
       byNode.set(p.node.id, p.node.color ?? inherited ?? "var(--fg)");
     }
     return byNode;
+  });
+
+  /** How far along the tasks under each node of the map are. */
+  const progress = $derived.by(() => {
+    void live.version;
+    return progressUnder(vault, mapId);
   });
 
   /** A curve from each parent's outer edge to its child's inner edge. */
@@ -670,8 +677,13 @@
       addChild(id);
     } else if ((e.key === "Backspace" || e.key === "Delete") && !mod) {
       remove(id);
+    } else if (e.key === " " && !mod && node.task) {
+      // Space ticks a task, as it ticks a checkbox; typing or F2 still edits it.
+      vault.tick(id);
     } else if ((e.key === "F2" || e.key === " ") && !mod) {
       startEdit(id, node.title);
+    } else if (mod && !e.shiftKey && e.key.toLowerCase() === "t") {
+      vault.toggleTask(id);
     } else if (mod && e.shiftKey && e.key.toLowerCase() === "m") {
       if (!isCentre) vault.setMap(id, !node.isMap);
     } else if (mod && e.key === "/") {
@@ -743,6 +755,7 @@
         class:leaf={p.depth >= 2}
         class:portal
         class:own-colour={node.color !== null}
+        class:done={node.task === "done"}
         class:selected={selected === node.id}
         class:left={p.side === "left"}
         class:moving={movingBranch.has(node.id)}
@@ -760,6 +773,22 @@
         aria-selected={selected === node.id}
         tabindex="-1"
       >
+        {#if node.task}
+          <button
+            class="check"
+            class:ticked={node.task === "done"}
+            role="checkbox"
+            aria-checked={node.task === "done"}
+            tabindex="-1"
+            title={node.task === "done" ? "Done: click to undo (Space)" : "Tick it done (Space)"}
+            onmousedown={(e) => e.preventDefault()}
+            onpointerdown={(e) => e.stopPropagation()}
+            onclick={(e) => {
+              e.stopPropagation();
+              vault.tick(node.id);
+            }}>{node.task === "done" ? "✓" : ""}</button
+          >
+        {/if}
         {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
         {#if editing === node.id}
           <span
@@ -779,6 +808,12 @@
           ></span>
         {:else}
           <span class="text" class:placeholder={!node.title}>{node.title || (isCentre ? "Main idea" : "Idea")}</span>
+        {/if}
+        {#if progress.has(node.id)}
+          {@const p = progress.get(node.id)!}
+          <span class="progress" class:all-done={p.done === p.total} title="{p.done} of {p.total} tasks under it done"
+            >{p.done}/{p.total}</span
+          >
         {/if}
         {#if node.body.trim()}
           <button
@@ -1099,6 +1134,48 @@
 
   .away:hover {
     background: var(--accent-soft);
+  }
+
+  .check {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border: 1.5px solid var(--branch);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--bg);
+    font: 700 10px/1 system-ui, sans-serif;
+    cursor: pointer;
+  }
+
+  .check.ticked {
+    background: var(--branch);
+  }
+
+  .node.centre .check {
+    border-color: var(--bg);
+  }
+
+  .node.done .text {
+    text-decoration: line-through;
+    opacity: 0.55;
+  }
+
+  .progress {
+    font-size: 0.75em;
+    font-variant-numeric: tabular-nums;
+    padding: 0 0.3em;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    opacity: 0.55;
+    white-space: nowrap;
+  }
+
+  .progress.all-done {
+    opacity: 0.35;
   }
 
   .inside {

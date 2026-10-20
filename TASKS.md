@@ -22,6 +22,15 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 - Settings holds little yet. Candidates: where the vault is, how many copies
   to keep, a different font size.
 
+## Tasks
+
+- Due dates, and a view of what is due, once tasks have been used for a
+  while and it is clear they are missed.
+- `- [ ]` lines in notes are not tasks of the panel: they are text in a note.
+  Revisit if people expect them there.
+- OPML has no standard place for a task; exported, tasks lose their box
+  there (Markdown and JSON keep it).
+
 ## Notes
 
 - Typing `[[` could offer the titles that match, as ⌘L does.

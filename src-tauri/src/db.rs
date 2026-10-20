@@ -24,6 +24,11 @@ pub struct Node {
     /// The ids of the nodes this one links to; kept as a JSON list.
     #[serde(default)]
     pub links: Vec<String>,
+    /// "open", "done", or None for a node that is not a task.
+    #[serde(default)]
+    pub task: Option<String>,
+    #[serde(default)]
+    pub done_at: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
@@ -104,6 +109,11 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE nodes ADD COLUMN links TEXT NOT NULL DEFAULT '[]';
     DROP TABLE links;
     "#,
+    // 3: tasks, open or done, and when one was done.
+    r#"
+    ALTER TABLE nodes ADD COLUMN task TEXT CHECK (task IN ('open', 'done'));
+    ALTER TABLE nodes ADD COLUMN done_at INTEGER;
+    "#,
 ];
 
 pub struct Db {
@@ -151,7 +161,7 @@ impl Db {
             .conn
             .prepare(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links
+                        created_at, updated_at, deleted_at, links, task, done_at
                  FROM nodes",
             )
             .map_err(err)?;
@@ -167,15 +177,16 @@ impl Db {
             let mut upsert = tx
                 .prepare_cached(
                     "INSERT INTO nodes (id, parent_id, sort_key, side, title, body, is_map, collapsed,
-                                        color, icon, created_at, updated_at, deleted_at, links)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                                        color, icon, created_at, updated_at, deleted_at, links, task, done_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                      ON CONFLICT (id) DO UPDATE SET
                         parent_id = excluded.parent_id, sort_key = excluded.sort_key,
                         side = excluded.side, title = excluded.title, body = excluded.body,
                         is_map = excluded.is_map, collapsed = excluded.collapsed,
                         color = excluded.color, icon = excluded.icon,
                         created_at = excluded.created_at, updated_at = excluded.updated_at,
-                        deleted_at = excluded.deleted_at, links = excluded.links",
+                        deleted_at = excluded.deleted_at, links = excluded.links,
+                        task = excluded.task, done_at = excluded.done_at",
                 )
                 .map_err(err)?;
             let mut log = tx
@@ -187,7 +198,8 @@ impl Db {
                     .execute(params![
                         n.id, n.parent_id, n.sort_key, n.side, n.title, n.body, n.is_map, n.collapsed,
                         n.color, n.icon, n.created_at, n.updated_at, n.deleted_at,
-                        serde_json::to_string(&n.links).unwrap()
+                        serde_json::to_string(&n.links).unwrap(),
+                        n.task, n.done_at
                     ])
                     .map_err(|e| format!("Cannot save node {}: {e}", n.id))?;
                 let before = change.before.as_ref().map(|b| serde_json::to_string(b).unwrap());
@@ -248,7 +260,7 @@ impl Db {
         self.conn
             .query_row(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links
+                        created_at, updated_at, deleted_at, links, task, done_at
                  FROM nodes WHERE id = ?1",
                 [id],
                 node_from_row,
@@ -275,6 +287,8 @@ fn node_from_row(r: &Row) -> rusqlite::Result<Node> {
         deleted_at: r.get(12)?,
         // A list that does not read is taken as no links rather than losing the node.
         links: serde_json::from_str(&r.get::<_, String>(13)?).unwrap_or_default(),
+        task: r.get(14)?,
+        done_at: r.get(15)?,
     })
 }
 
@@ -303,6 +317,8 @@ mod tests {
             color: None,
             icon: None,
             links: Vec::new(),
+            task: None,
+            done_at: None,
             created_at: 1,
             updated_at: 1,
             deleted_at: None,
@@ -405,6 +421,20 @@ mod tests {
     }
 
     #[test]
+    fn tasks_are_saved_and_checked() {
+        let mut db = Db::in_memory().unwrap();
+        let mut a = node("a", None, "Home");
+        a.task = Some("done".into());
+        a.done_at = Some(5);
+        db.apply(&[Change { before: None, after: a.clone() }]).unwrap();
+        let back = db.get("a").unwrap().unwrap();
+        assert_eq!((back.task.as_deref(), back.done_at), (Some("done"), Some(5)));
+        let mut bad = a.clone();
+        bad.task = Some("maybe".into());
+        assert!(db.apply(&[Change { before: Some(a), after: bad }]).is_err());
+    }
+
+    #[test]
     fn a_vault_of_the_first_version_is_brought_up_to_date() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch(MIGRATIONS[0]).unwrap();
@@ -418,6 +448,7 @@ mod tests {
         let old = db.get("old").unwrap().unwrap();
         assert_eq!(old.title, "Old");
         assert!(old.links.is_empty());
+        assert_eq!(old.task, None);
         assert_eq!(db.search("old", 10).unwrap(), vec!["old"], "the search index carries over");
     }
 

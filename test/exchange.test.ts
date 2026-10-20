@@ -12,6 +12,8 @@ function sample() {
   vault.setMap(kyoto.id, true);
   vault.addChild(kyoto.id, { title: "Temples" });
   vault.link(shibuya.id, kyoto.id);
+  vault.toggleTask(shibuya.id);
+  vault.tick(shibuya.id);
   vault.delete(vault.addChild(vault.rootId, { title: "Gone" }).id);
   return { vault, tokyo, shibuya, kyoto };
 }
@@ -26,7 +28,7 @@ test("Markdown is a nested list with notes under their items", () => {
       "Two weeks in **May**.",
       "",
       "- 🗼 Tokyo",
-      "  - Shibuya & Harajuku",
+      "  - [x] Shibuya & Harajuku",
       "    Crossing",
       "",
       "    Takeshita Street",
@@ -85,6 +87,7 @@ test("JSON comes back in whole: maps, icons, colours and links", () => {
   assert.equal(kyoto.isMap, true);
   const shibuya = other.children(tokyo.id)[0];
   assert.deepEqual(shibuya.links, [kyoto.id], "links point at the new nodes");
+  assert.equal(shibuya.task, "done", "and tasks come back done or not");
   other.undo();
   assert.deepEqual(other.children(other.rootId), [], "bringing it in is one step");
 });

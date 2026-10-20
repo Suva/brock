@@ -23,6 +23,8 @@ export interface Outline {
   /** Its id in the vault it came from, so that links between nodes can be made again. */
   id: string | null;
   links: string[];
+  task: "open" | "done" | null;
+  doneAt: number | null;
   children: Outline[];
 }
 
@@ -41,6 +43,8 @@ export function outlineOf(vault: Vault, id: string): Outline {
     icon: node.icon,
     id: node.id,
     links: node.links.filter((l) => vault.isLive(l)),
+    task: node.task,
+    doneAt: node.doneAt,
     children: vault.children(id).map((child) => outlineOf(vault, child.id)),
   };
 }
@@ -58,7 +62,8 @@ export function toMarkdown(vault: Vault, id: string): string {
   if (root.body.trim()) lines.push(root.body.trim(), "");
   const item = (o: Outline, depth: number) => {
     const indent = "  ".repeat(depth);
-    lines.push(`${indent}- ${label(o)}`);
+    const box = o.task === "done" ? "[x] " : o.task === "open" ? "[ ] " : "";
+    lines.push(`${indent}- ${box}${label(o)}`);
     // Notes go under their item, indented to stay part of it.
     for (const line of o.body.trim() ? o.body.trim().split("\n") : []) lines.push(line ? `${indent}  ${line}` : "");
     for (const child of o.children) item(child, depth + 1);
@@ -137,6 +142,8 @@ function checked(raw: unknown): Outline {
     icon: str(o.icon),
     id: str(o.id),
     links: Array.isArray(o.links) ? o.links.filter((l): l is string => typeof l === "string") : [],
+    task: o.task === "open" || o.task === "done" ? o.task : null,
+    doneAt: typeof o.doneAt === "number" ? o.doneAt : null,
     children: Array.isArray(o.children) ? o.children.map(checked) : [],
   };
 }
@@ -167,6 +174,8 @@ export function fromOPML(xml: string): Outline[] {
       icon: null,
       id: null,
       links: [],
+      task: null,
+      doneAt: null,
       children: [],
     };
     (open.at(-1)?.children ?? top).push(outline);
@@ -209,6 +218,8 @@ export function importInto(vault: Vault, parentId: string, outlines: Outline[], 
         body: o.body,
         collapsed: o.collapsed,
         icon: o.icon,
+        task: o.task,
+        doneAt: o.task === "done" ? o.doneAt : null,
         ...(o.color ? { color: o.color } : {}),
       });
       if (o.id) newId.set(o.id, node.id);

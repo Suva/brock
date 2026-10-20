@@ -57,6 +57,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/urls.ts` | Web addresses in text, and trimming the sentence off them |
 | `src/core/markdown.ts` | Notes' Markdown read into blocks and spans, never HTML |
 | `src/core/exchange.ts` | Export to JSON, Markdown and OPML; reading OPML and JSON back in |
+| `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -68,6 +69,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
 | `src/ui/files.ts` | Saving and opening files for export and import: native dialogs in the app, downloads in a browser |
+| `src/ui/TasksPanel.svelte` | Tasks (⇧⌘T) of the open map or all maps, worked by mouse |
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
 | `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |
@@ -151,6 +153,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   dialogs from Rust (`save_text`, `open_text` in `lib.rs`), which writes or
   reads the file chosen; the window hands over text and gets text back. Keep
   new file access that way rather than giving the window a file system.
+- **Fields added to nodes get defaults where nodes are read.** Nodes saved
+  before a field existed come back without it: `withDefaults` in `vault.ts`
+  fills it in for the window, `#[serde(default)]` and the column's default
+  for the database. A new field needs all three, and a migration.
 - **Emptying the trash is the only real deletion.** It removes nodes from
   the database and their entries from the log, and clears the undo history,
   which could otherwise bring them back. It goes through the saver

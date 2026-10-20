@@ -14,6 +14,7 @@
   import OutlineView from "./OutlineView.svelte";
   import MoreMenu from "./MoreMenu.svelte";
   import Settings from "./Settings.svelte";
+  import TasksPanel from "./TasksPanel.svelte";
   import TrashDialog from "./TrashDialog.svelte";
 
   let { live }: { live: Live } = $props();
@@ -30,6 +31,7 @@
   /** The search palette, open to go somewhere or to link the selected node. */
   let searching = $state<false | "go" | "link">(false);
   let sidebarOpen = $state(false);
+  let tasksOpen = $state(false);
   let moreOpen = $state(false);
   let trashOpen = $state(false);
   let settingsOpen = $state(false);
@@ -174,6 +176,8 @@
     } else if (key === "l" && !event.shiftKey) {
       editing = null;
       searching = searching ? false : "link";
+    } else if (key === "t" && event.shiftKey) {
+      tasksOpen = !tasksOpen;
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "1" && !event.shiftKey) {
@@ -210,6 +214,7 @@
         <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌘2)">Outline</button>
       </div>
       <button onclick={() => (searching = "go")} title="Search everything (⌘K)">Search</button>
+      <button class:on={tasksOpen} onclick={() => (tasksOpen = !tasksOpen)} title="Tasks (⇧⌘T)">Tasks</button>
       <button class:on={notesOpen} onclick={() => (notesOpen = !notesOpen)} title="Notes (⇧⌘N)">Notes</button>
       <button onclick={() => undo()} disabled={!canUndo} title="Undo (⌘Z)">Undo</button>
       <button onclick={() => undo(true)} disabled={!canRedo} title="Redo (⇧⌘Z)">Redo</button>
@@ -233,6 +238,9 @@
         <OutlineView {live} {mapId} bind:selected onOpen={open} onUp={up} />
       {/if}
     </main>
+    {#if tasksOpen}
+      <TasksPanel {live} {mapId} onGoTo={goTo} onClose={() => (tasksOpen = false)} />
+    {/if}
     {#if notesOpen}
       <NotesPanel
         {live}

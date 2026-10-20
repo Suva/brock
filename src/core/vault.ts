@@ -64,7 +64,7 @@ export class Vault {
     if (options.onChange) this.#listeners.push(options.onChange);
     this.#onPurge = options.onPurge;
     // Nodes saved before a field existed get its default.
-    for (const node of nodes) this.#nodes.set(node.id, Array.isArray(node.links) ? node : { ...node, links: [] });
+    for (const node of nodes) this.#nodes.set(node.id, withDefaults(node));
     for (const node of this.#nodes.values()) this.#index(node);
     this.#pending = [];
     this.#repair();
@@ -208,6 +208,8 @@ export class Vault {
         color: null,
         icon: null,
         links: [],
+        task: null,
+        doneAt: null,
         ...fields,
         createdAt: now,
         updatedAt: now,
@@ -344,6 +346,21 @@ export class Vault {
     this.#onPurge?.([...gone]);
     for (const listener of this.#listeners) listener([]);
     return gone.size;
+  }
+
+  // ---- Tasks ---------------------------------------------------------------
+
+  /** Makes a node a task to do, or, if it is one, an ordinary node again. */
+  toggleTask(id: string): void {
+    const node = this.#requireLive(id);
+    this.update(id, node.task === null ? { task: "open" } : { task: null, doneAt: null });
+  }
+
+  /** Ticks a task done, or not done. Nothing for a node that is not a task. */
+  tick(id: string, done = this.#requireLive(id).task === "open"): void {
+    const node = this.#requireLive(id);
+    if (node.task === null) return;
+    this.update(id, done ? { task: "done", doneAt: this.#now() } : { task: "open", doneAt: null });
   }
 
   /** Makes a node a map of its own, or an ordinary node of its parent's map again. */
@@ -532,6 +549,8 @@ export class Vault {
         color: null,
         icon: null,
         links: [],
+        task: null,
+        doneAt: null,
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
@@ -592,6 +611,12 @@ export class Vault {
     }
     return smallest === id;
   }
+}
+
+/** A node as stored, with the fields added since it was saved given their defaults. */
+function withDefaults(node: Node): Node {
+  if (Array.isArray(node.links) && node.task !== undefined && node.doneAt !== undefined) return node;
+  return { ...node, links: Array.isArray(node.links) ? node.links : [], task: node.task ?? null, doneAt: node.doneAt ?? null };
 }
 
 /** One change per node: the state before the first change and after the last. */

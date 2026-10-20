@@ -7,8 +7,8 @@ a map of its own, which you open and come back out of. Everything is saved as
 you go, to a database on your computer. There is no Save command.
 
 It is at an early stage: maps can be made, drawn, edited from the keyboard,
-opened and left again, searched, overseen and linked, with notes, colours
-and icons, undo, a trash, daily copies, and export and import. Installers are
+opened and left again, searched, overseen and linked, with tasks, notes,
+colours and icons, undo, a trash, daily copies, and export and import. Installers are
 next. See
 [PLAN.md](PLAN.md) for where it is going and [TASKS.md](TASKS.md) for what is
 next.
@@ -40,7 +40,8 @@ the arrow keys, then:
 | Tab | A new node under this one; on a map, it opens the map and starts a new node in it |
 | Enter | A new node after this one (under the centre, when on the centre) |
 | Shift+Enter | A new node before this one |
-| Typing, Space or F2 | Edits the title; typing replaces it, Space and F2 keep it |
+| Typing, Space or F2 | Edits the title; typing replaces it, Space and F2 keep it. On a task, Space ticks it instead |
+| ⌘T | Makes the node a task, with a checkbox, or an ordinary node again |
 | Enter or Escape while editing | Finishes editing; Tab adds a node under it |
 | Escape on a new node left empty | Takes it away again and goes back to the node you started from |
 | ← → | Moves to the parent, or the child level with the node |
@@ -54,6 +55,7 @@ the arrow keys, then:
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
 | ⌘\ | Shows every map of the vault as a tree, beside the map; click one to open it |
+| ⇧⌘T | Shows the tasks of the open map, or of all maps |
 | ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
 | ⌘1, ⌘2 | The map, or the same map as an outline |
@@ -85,6 +87,10 @@ to zoom. Zoomed out, the deeper levels turn into bars in their branch's colour,
 and a map too big for the window gets a small picture of itself in a corner:
 click or drag in it to move there. The breadcrumbs at the top lead back to the
 maps above.
+
+A node with tasks under it shows how many are done, as 2/5. The tasks panel
+lists what is still to do, grouped by map, with what is done folded away at
+the bottom; tick tasks there, or click one to go to it.
 
 The notes panel also sets a node's colour, which carries down everything
 under it, and an icon shown before its title.

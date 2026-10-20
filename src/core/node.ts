@@ -26,6 +26,10 @@ export interface Node {
    * node since deleted stays, and comes back to life if the node does.
    */
   links: string[];
+  /** A task to do, one done, or not a task. */
+  task: "open" | "done" | null;
+  /** When the task was ticked done, or null. */
+  doneAt: number | null;
   /** Milliseconds since 1970, as `Date.now()` gives them. */
   createdAt: number;
   updatedAt: number;
@@ -46,4 +50,4 @@ export interface Change {
 }
 
 /** The fields an edit may set directly. */
-export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links">;
+export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt">;

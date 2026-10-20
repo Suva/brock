@@ -1,0 +1,68 @@
+// Tasks across the vault: how far along the tasks under a node are, and the
+// tasks of a map, or of all of them, for the tasks panel.
+
+import type { Node } from "./node.ts";
+import type { Vault } from "./vault.ts";
+
+export interface Progress {
+  done: number;
+  total: number;
+}
+
+/**
+ * For every node under `topId` with tasks under it, how many of those are
+ * done: maps inside counted in full, the node itself not. One walk.
+ */
+export function progressUnder(vault: Vault, topId: string): Map<string, Progress> {
+  const out = new Map<string, Progress>();
+  const walk = (id: string): Progress => {
+    const sum = { done: 0, total: 0 };
+    for (const child of vault.children(id)) {
+      const below = walk(child.id);
+      sum.done += below.done + (child.task === "done" ? 1 : 0);
+      sum.total += below.total + (child.task !== null ? 1 : 0);
+    }
+    if (sum.total > 0) out.set(id, sum);
+    return sum;
+  };
+  walk(topId);
+  return out;
+}
+
+export interface TaskGroup {
+  /** The map the tasks are drawn in. */
+  map: Node;
+  /** Its tasks still to do, in the order of the tree. */
+  open: Node[];
+}
+
+export interface TaskList {
+  groups: TaskGroup[];
+  /** Tasks done, the latest first, with the map each is in. */
+  done: { node: Node; map: Node }[];
+}
+
+/** The tasks under `topId`, maps inside it included, grouped by the map they are drawn in. */
+export function tasksUnder(vault: Vault, topId: string): TaskList {
+  const groups = new Map<string, TaskGroup>();
+  const done: { node: Node; map: Node }[] = [];
+  const top = vault.get(topId);
+  if (!top) return { groups: [], done };
+  const visit = (node: Node, map: Node) => {
+    for (const child of vault.children(node.id)) {
+      if (child.task === "open") {
+        let group = groups.get(map.id);
+        if (!group) groups.set(map.id, (group = { map, open: [] }));
+        group.open.push(child);
+      } else if (child.task === "done") {
+        done.push({ node: child, map });
+      }
+      visit(child, child.isMap ? child : map);
+    }
+  };
+  // The top is the map its own nodes are drawn in, or, for a node that is not a
+  // map, the map it is in.
+  visit(top, top.isMap ? top : vault.get(vault.mapOf(topId) ?? vault.rootId)!);
+  done.sort((a, b) => (b.node.doneAt ?? 0) - (a.node.doneAt ?? 0));
+  return { groups: [...groups.values()], done };
+}

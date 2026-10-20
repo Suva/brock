@@ -43,7 +43,8 @@
   }
 
   function rows(): HTMLInputElement[] {
-    return [...document.querySelectorAll<HTMLInputElement>(".outline input")];
+    // The title fields only, not the checkboxes of tasks.
+    return [...document.querySelectorAll<HTMLInputElement>(".outline input:not([type='checkbox'])")];
   }
 
   /**
@@ -71,6 +72,9 @@
       event.preventDefault();
       // The row is moved in the page, which can take the focus from it.
       if (moves[event.key]()) focusNode(node.id);
+    } else if (mod && !event.shiftKey && event.key.toLowerCase() === "t") {
+      event.preventDefault();
+      vault.toggleTask(node.id);
     } else if ((event.key === "Enter" || event.key === "ArrowDown") && mod) {
       event.preventDefault();
       if (node.isMap && !isCentre) onOpen(node.id);
@@ -146,9 +150,20 @@
   {@const portal = node.isMap && !isCentre}
   <li>
     <div class="row" class:centre={isCentre} class:portal style:padding-left="{depth * 22}px">
+      {#if node.task}
+        <input
+          type="checkbox"
+          class="check"
+          checked={node.task === "done"}
+          aria-label="Done"
+          tabindex="-1"
+          onchange={(e) => vault.tick(node.id, e.currentTarget.checked)}
+        />
+      {/if}
       {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
       <input
         id="row-{node.id}"
+        class:done={node.task === "done"}
         value={node.title}
         placeholder={isCentre ? "Main idea" : "Idea"}
         aria-label="Node title"
@@ -204,6 +219,15 @@
     border-radius: 6px;
     padding: 0.25rem 0.5rem;
     width: min(28rem, 100%);
+  }
+
+  .check {
+    margin-left: 0.4rem;
+  }
+
+  .row input.done {
+    text-decoration: line-through;
+    opacity: 0.55;
   }
 
   .row input:focus {
