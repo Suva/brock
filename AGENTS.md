@@ -48,13 +48,21 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/vault.ts` | The vault in memory: reading the tree, edits, undo, repairing a broken tree on opening |
 | `src/core/sort-key.ts` | Fractional keys that keep the order of siblings |
 | `src/core/ids.ts` | Node ids (ULIDs) |
+| `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures |
+| `src/core/navigate.ts` | Which node an arrow key moves to |
+| `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
 | `src/store/memory-store.ts` | The store in tests, and in a browser (`npm run dev`) |
 | `src/store/saver.ts` | Writes changes in order, one write at a time, retrying failures |
 | `src/ui/main.ts` | Opens the store and the vault, and the window |
 | `src/ui/live.svelte.ts` | The vault and saver made reactive for Svelte |
-| `src/ui/App.svelte` | The window |
+| `src/ui/App.svelte` | The window: breadcrumbs, the view, notes, the undo keys |
+| `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, editing from the keyboard |
+| `src/ui/camera.ts` | Pan and zoom maths for the map |
+| `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
+| `src/ui/OutlineView.svelte` | The same map as an indented list |
+| `src/ui/NotesPanel.svelte` | The selected node's longer text |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, search |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls |
 
@@ -79,15 +87,35 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **A new column needs a migration.** Add a step to `MIGRATIONS` in `db.rs`;
   never change a step that has been released. Add the field to `Node` in both
   `node.ts` and `db.rs`, and to their `SELECT` and upsert.
+- **The layout does not measure.** `layoutMap` is given each node's size;
+  the map measures its nodes with a ResizeObserver and lays them out again
+  when a size changes. A node's look must come from CSS that its size
+  follows, never from sizes set by script.
+- **Clicks are not drags.** Pointer handlers ignore movement under
+  `DRAG_START_PX`, and capture the pointer only once a drag starts, so that
+  buttons inside the map still get their clicks.
+- **The views listen to the whole window.** The map takes every key pressed
+  outside a text field (`typingIn` in `keys.ts`), wherever the focus is, so
+  that Tab never moves the focus between buttons; the outline brings the
+  focus back to its selected row. A new text field is left alone by both
+  without anything more. Buttons in the header also leave the focus where it
+  was.
+- **The centre's children keep their sides when moved.** Their sides are
+  balanced by order when not set, so a move that changes the order fixes all
+  their sides first (`pinSides` in `moves.ts`). A new branch is given its
+  side and its colour when it is made, for the same reason.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 
 ## Testing
 
-`test/*.test.ts` covers the core and the saver with Node's test runner;
+`test/*.test.ts` covers the core, the layout, the camera and the saver with Node's test runner;
 `src-tauri/src/db.rs` has the database's tests. Neither drives the window.
 A change to the window should be tried in it, with `npm run dev` or `npm start`,
-and said so.
+and said so. When driving the browser preview with a tool: text it types
+arrives without key presses, so typing on a selected node to start editing
+must be tried with key presses; and the preview keeps some ⌘ shortcuts for
+itself, so send those to the page with `dispatchEvent`.
 
 ## Working agreements
 

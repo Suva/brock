@@ -155,7 +155,7 @@ Ctrl in place of ⌘ on Windows and Linux.
 
 1. **Core and storage** (done): the model, operations and undo in TypeScript, with tests;
    the SQLite schema and Tauri commands; a Tauri + Svelte project that starts.
-2. **One map**: adding, editing, deleting and moving nodes from the keyboard;
+2. **One map** (done): adding, editing, deleting and moving nodes from the keyboard;
    automatic layout; saved as you go; the body panel.
 3. **Maps inside maps**: make into map, opening and going back, breadcrumbs,
    transitions.
