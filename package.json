@@ -1,0 +1,31 @@
+{
+  "name": "mindmap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tauri dev",
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node --test test/*.test.ts && cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:core": "node --test test/*.test.ts",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "package": "tauri build",
+    "tauri": "tauri"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tauri-apps/cli": "^2.12.3",
+    "@types/node": "^26.6.5",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4"
+  }
+}

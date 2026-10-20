@@ -1,0 +1,98 @@
+# Working on Mind Map
+
+Notes for anyone, human or AI agent, changing this code. The
+[README](README.md) says what the app does and how to run it, [PLAN.md](PLAN.md)
+where it is going, and [TASKS.md](TASKS.md) what is next.
+
+## Commands
+
+```bash
+npm install          # once
+npm start            # build and open the app (tauri dev)
+npm run dev          # the window alone, in a browser, vault in local storage
+npm test             # TypeScript tests, then Rust tests
+npm run test:core    # TypeScript tests only, in a second
+npm run check        # svelte-check: types of the TypeScript and Svelte
+npm run package      # an installer for this system, in src-tauri/target/release/bundle
+```
+
+Node 24 or newer and Rust are needed.
+
+**On this Mac**, the command line tools carry a beta macOS 27 SDK that their
+linker cannot read, and Rust builds fail with `tapi error: malformed file ...
+MacOSX27.0.sdk`. Until the tools are updated or that SDK removed, build with
+the 26.5 SDK:
+
+```bash
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+```
+
+## How it fits together
+
+The vault is **one tree of nodes**. A map is a node with `isMap` set; it holds
+every node under it down to the next map, which it shows as a portal. The
+top node of the vault is always a map.
+
+The window keeps the **whole vault in memory** and does all the work there:
+editing, undo, deciding what a map shows. The Rust side only stores. Every
+edit ends in a list of changes, `{ before, after }` per node, which is all
+that is ever saved, undone or, later, synced.
+
+```
+edit in the window → Vault (src/core) → changes → Saver → Store → apply_changes (Rust) → SQLite
+```
+
+| Path | What lives there |
+|---|---|
+| `src/core/node.ts` | A node, and a change, as they are stored |
+| `src/core/vault.ts` | The vault in memory: reading the tree, edits, undo, repairing a broken tree on opening |
+| `src/core/sort-key.ts` | Fractional keys that keep the order of siblings |
+| `src/core/ids.ts` | Node ids (ULIDs) |
+| `src/store/store.ts` | What a store does: load everything, save changes |
+| `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
+| `src/store/memory-store.ts` | The store in tests, and in a browser (`npm run dev`) |
+| `src/store/saver.ts` | Writes changes in order, one write at a time, retrying failures |
+| `src/ui/main.ts` | Opens the store and the vault, and the window |
+| `src/ui/live.svelte.ts` | The vault and saver made reactive for Svelte |
+| `src/ui/App.svelte` | The window |
+| `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, search |
+| `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls |
+
+## Rules that are easy to break
+
+- **`src/core/` stays pure.** No DOM, no Tauri, no Svelte, no Node modules: it
+  is meant to run anywhere, a web version included, and its tests run under
+  plain Node.
+- **Erasable TypeScript only.** Tests run `.ts` files directly under Node,
+  which strips types and nothing else: no enums, no parameter properties, no
+  namespaces. Imports name the `.ts` extension.
+- **Nodes change only through the vault's edits.** Each edit records its
+  changes, which are what gets saved. A node changed any other way is never
+  saved.
+- **Nothing is ever really deleted.** Deleting sets `deletedAt` on the node
+  only; the nodes under it go with it and come back with it. Undoing the
+  making of a node marks it deleted too. Syncing will need every node to stay.
+- **Svelte compares by identity.** The vault changes its own lists in place;
+  copy one before handing it to the window (`childrenOf` in `App.svelte`), or
+  the window will not update. Anything the window reads from the vault should
+  read `live.version` so that it is read again after a change.
+- **A new column needs a migration.** Add a step to `MIGRATIONS` in `db.rs`;
+  never change a step that has been released. Add the field to `Node` in both
+  `node.ts` and `db.rs`, and to their `SELECT` and upsert.
+- **Saved changes are written in order.** The saver never writes an edit
+  before an earlier one that failed; keep it that way.
+
+## Testing
+
+`test/*.test.ts` covers the core and the saver with Node's test runner;
+`src-tauri/src/db.rs` has the database's tests. Neither drives the window.
+A change to the window should be tried in it, with `npm run dev` or `npm start`,
+and said so.
+
+## Working agreements
+
+- Commit and push only when asked.
+- Comments say why the code is the way it is. User-facing text avoids jargon.
+- When a change makes something in the README, PLAN.md or this file untrue,
+  fix the text in the same change.
+- When a task in TASKS.md is done, remove it from there.
