@@ -39,6 +39,9 @@ fn search(vault: State<Vault>, query: String, limit: usize) -> Result<Vec<String
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Opens web addresses from notes in the browser, when clicked; the
+        // capability lets it open http and https addresses only.
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let path = vault_path(app)?;
             let db = Db::open(&path)?;

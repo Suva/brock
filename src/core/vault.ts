@@ -52,7 +52,8 @@ export class Vault {
   constructor(nodes: Iterable<Node>, options: VaultOptions = {}) {
     this.#now = options.now ?? Date.now;
     if (options.onChange) this.#listeners.push(options.onChange);
-    for (const node of nodes) this.#nodes.set(node.id, node);
+    // Nodes saved before a field existed get its default.
+    for (const node of nodes) this.#nodes.set(node.id, Array.isArray(node.links) ? node : { ...node, links: [] });
     for (const node of this.#nodes.values()) this.#index(node);
     this.#pending = [];
     this.#repair();
@@ -195,6 +196,7 @@ export class Vault {
         collapsed: false,
         color: null,
         icon: null,
+        links: [],
         ...fields,
         createdAt: now,
         updatedAt: now,
@@ -216,7 +218,7 @@ export class Vault {
   update(id: string, fields: Partial<NodeFields>, mergeKey?: string): void {
     this.transact(() => {
       const node = this.#requireLive(id);
-      const changed = (Object.keys(fields) as (keyof NodeFields)[]).some((k) => node[k] !== fields[k]);
+      const changed = (Object.keys(fields) as (keyof NodeFields)[]).some((k) => !same(node[k], fields[k]));
       if (changed) this.#write({ ...node, ...fields, updatedAt: this.#now() });
     }, mergeKey);
   }
@@ -258,6 +260,24 @@ export class Vault {
       }
       this.#write({ ...node, deletedAt: null, updatedAt: this.#now() });
     });
+  }
+
+  /** Links node `from` to node `to`, once; a node does not link to itself. */
+  link(from: string, to: string): void {
+    const node = this.#requireLive(from);
+    this.#requireLive(to);
+    if (from === to || node.links.includes(to)) return;
+    this.update(from, { links: [...node.links, to] });
+  }
+
+  unlink(from: string, to: string): void {
+    const node = this.#requireLive(from);
+    if (node.links.includes(to)) this.update(from, { links: node.links.filter((id) => id !== to) });
+  }
+
+  /** The live nodes that link to `id`. Reads the whole vault, so not for every frame. */
+  linksTo(id: string): Node[] {
+    return [...this.#nodes.values()].filter((n) => n.links.includes(id) && n.deletedAt === null && this.isLive(n.id));
   }
 
   /** Makes a node a map of its own, or an ordinary node of its parent's map again. */
@@ -445,6 +465,7 @@ export class Vault {
         collapsed: false,
         color: null,
         icon: null,
+        links: [],
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
@@ -519,5 +540,11 @@ function joinChanges(changes: Change[]): Change[] {
 
 /** The same node with the same content; when it last changed does not count. */
 function sameNode(a: Node, b: Node): boolean {
-  return (Object.keys(a) as (keyof Node)[]).every((k) => k === "updatedAt" || a[k] === b[k]);
+  return (Object.keys(a) as (keyof Node)[]).every((k) => k === "updatedAt" || same(a[k], b[k]));
+}
+
+/** Two values of a node's field are the same: lists by their items. */
+function same(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => x === b[i]);
+  return a === b;
 }

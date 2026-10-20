@@ -21,6 +21,9 @@ pub struct Node {
     pub collapsed: bool,
     pub color: Option<String>,
     pub icon: Option<String>,
+    /// The ids of the nodes this one links to; kept as a JSON list.
+    #[serde(default)]
+    pub links: Vec<String>,
     pub created_at: i64,
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
@@ -94,6 +97,13 @@ const MIGRATIONS: &[&str] = &[
         INSERT INTO nodes_fts (rowid, title, body) VALUES (new.rowid, new.title, new.body);
     END;
     "#,
+    // 2: links between nodes are kept on the node they start from, which
+    // saves, undoes and syncs them with it. The table planned for them was
+    // never used.
+    r#"
+    ALTER TABLE nodes ADD COLUMN links TEXT NOT NULL DEFAULT '[]';
+    DROP TABLE links;
+    "#,
 ];
 
 pub struct Db {
@@ -141,7 +151,7 @@ impl Db {
             .conn
             .prepare(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at
+                        created_at, updated_at, deleted_at, links
                  FROM nodes",
             )
             .map_err(err)?;
@@ -157,15 +167,15 @@ impl Db {
             let mut upsert = tx
                 .prepare_cached(
                     "INSERT INTO nodes (id, parent_id, sort_key, side, title, body, is_map, collapsed,
-                                        color, icon, created_at, updated_at, deleted_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                                        color, icon, created_at, updated_at, deleted_at, links)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                      ON CONFLICT (id) DO UPDATE SET
                         parent_id = excluded.parent_id, sort_key = excluded.sort_key,
                         side = excluded.side, title = excluded.title, body = excluded.body,
                         is_map = excluded.is_map, collapsed = excluded.collapsed,
                         color = excluded.color, icon = excluded.icon,
                         created_at = excluded.created_at, updated_at = excluded.updated_at,
-                        deleted_at = excluded.deleted_at",
+                        deleted_at = excluded.deleted_at, links = excluded.links",
                 )
                 .map_err(err)?;
             let mut log = tx
@@ -176,7 +186,8 @@ impl Db {
                 upsert
                     .execute(params![
                         n.id, n.parent_id, n.sort_key, n.side, n.title, n.body, n.is_map, n.collapsed,
-                        n.color, n.icon, n.created_at, n.updated_at, n.deleted_at
+                        n.color, n.icon, n.created_at, n.updated_at, n.deleted_at,
+                        serde_json::to_string(&n.links).unwrap()
                     ])
                     .map_err(|e| format!("Cannot save node {}: {e}", n.id))?;
                 let before = change.before.as_ref().map(|b| serde_json::to_string(b).unwrap());
@@ -212,7 +223,7 @@ impl Db {
         self.conn
             .query_row(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at
+                        created_at, updated_at, deleted_at, links
                  FROM nodes WHERE id = ?1",
                 [id],
                 node_from_row,
@@ -237,6 +248,8 @@ fn node_from_row(r: &Row) -> rusqlite::Result<Node> {
         created_at: r.get(10)?,
         updated_at: r.get(11)?,
         deleted_at: r.get(12)?,
+        // A list that does not read is taken as no links rather than losing the node.
+        links: serde_json::from_str(&r.get::<_, String>(13)?).unwrap_or_default(),
     })
 }
 
@@ -264,6 +277,7 @@ mod tests {
             collapsed: false,
             color: None,
             icon: None,
+            links: Vec::new(),
             created_at: 1,
             updated_at: 1,
             deleted_at: None,
@@ -340,6 +354,32 @@ mod tests {
         assert_eq!(db.get("root").unwrap().unwrap().title, "Home");
         drop(db);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn links_are_saved_with_their_node() {
+        let mut db = Db::in_memory().unwrap();
+        let mut a = node("a", None, "Home");
+        a.links = vec!["b".into(), "c".into()];
+        db.apply(&[Change { before: None, after: a.clone() }]).unwrap();
+        assert_eq!(db.get("a").unwrap().unwrap().links, vec!["b", "c"]);
+    }
+
+    #[test]
+    fn a_vault_of_the_first_version_is_brought_up_to_date() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(MIGRATIONS[0]).unwrap();
+        conn.pragma_update(None, "user_version", 1).unwrap();
+        conn.execute(
+            "INSERT INTO nodes (id, sort_key, title, created_at, updated_at) VALUES ('old', 'a0', 'Old', 1, 1)",
+            [],
+        )
+        .unwrap();
+        let db = Db::setup(conn).unwrap();
+        let old = db.get("old").unwrap().unwrap();
+        assert_eq!(old.title, "Old");
+        assert!(old.links.is_empty());
+        assert_eq!(db.search("old", 10).unwrap(), vec!["old"], "the search index carries over");
     }
 
     #[test]

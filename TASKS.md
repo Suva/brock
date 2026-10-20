@@ -1,17 +1,25 @@
 # Tasks
 
-The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 5 (core and storage,
-one map, maps inside maps, search, overview) are done; these are what is next, and what was left on the way.
+The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 6 (core and storage,
+one map, maps inside maps, search, overview, hints and links) are done; these are what is next, and what was left on the way.
 
-## Milestone 6: hints and links
+## Milestone 7: safety and finish
 
-- Dragging a node: across the centre sets its side, between siblings its
-  place, onto another node makes it that node's child. The keyboard moves
-  are done; this is the same with the mouse.
-- Links between nodes: a dashed curve when both ends are in the same map,
-  otherwise a sign on the node that goes to the other end.
-- Web addresses in notes can be clicked, opening in the browser (Tauri's
-  opener plugin; the privacy promise has to say so).
+- A trash: deleted nodes listed, to bring back or empty out.
+- A copy of the vault made daily, keeping the last few.
+- Export to JSON, Markdown and OPML; import from OPML.
+- Colours and icons for nodes, and settings.
+- Write what is still being saved before the window closes (see below).
+
+## Left from milestone 6
+
+- Dragging near the edge of the window does not move the map; a node can be
+  dragged only as far as is on screen.
+- Links have no labels. The old plan had them; add them if they are missed.
+- Clicking a web address in the app opens the browser through Tauri's
+  opener; that was not clicked while checking, only built and allowed.
+- Links can only be made with ⌘L; dragging from a node to another with a
+  key held would be quicker.
 
 ## Left from milestone 5
 

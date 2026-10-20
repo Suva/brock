@@ -1,7 +1,8 @@
 <!--
   Search everything (⌘K): type, and the best matches across the vault are
   listed with where they are; choose one to go to it. Tab narrows the search
-  to the open map, then to maps only.
+  to the open map, then to maps only. The same list picks the other end of a
+  link (⌘L), with `purpose` saying so.
 -->
 <script lang="ts">
   import { search, type Hit, type Scope } from "../core/search.ts";
@@ -12,7 +13,18 @@
     mapId,
     onChoose,
     onClose,
-  }: { live: Live; mapId: string; onChoose: (id: string) => void; onClose: () => void } = $props();
+    purpose = "go",
+    exclude = null,
+  }: {
+    live: Live;
+    mapId: string;
+    onChoose: (id: string) => void;
+    onClose: () => void;
+    /** Going to a node, or choosing one to link to. */
+    purpose?: "go" | "link";
+    /** A node left out of the results: the one a link starts from. */
+    exclude?: string | null;
+  } = $props();
 
   const SCOPES = ["all", "within", "maps"] as const;
   const LABELS = { all: "Everything", within: "In this map", maps: "Maps" };
@@ -25,7 +37,7 @@
   const hits: Hit[] = $derived.by(() => {
     void live.version;
     const s: Scope = scope === "within" ? { kind: "within", mapId } : { kind: scope };
-    return search(live.vault, query, s);
+    return search(live.vault, query, s).filter((h) => h.node.id !== exclude);
   });
 
   // A new search starts at its best match.
@@ -85,13 +97,13 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="backdrop" onclick={onClose}>
-  <div class="palette" role="dialog" aria-label="Search" tabindex="-1" onclick={(e) => e.stopPropagation()}>
+  <div class="palette" role="dialog" aria-label={purpose === "link" ? "Link to" : "Search"} tabindex="-1" onclick={(e) => e.stopPropagation()}>
     <input
       use:focus
       bind:value={query}
       onkeydown={onKey}
-      placeholder="Search titles and notes"
-      aria-label="Search"
+      placeholder={purpose === "link" ? "Link to…" : "Search titles and notes"}
+      aria-label={purpose === "link" ? "Link to" : "Search"}
       aria-controls="search-results"
       spellcheck="false"
       autocomplete="off"

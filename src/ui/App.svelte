@@ -22,7 +22,8 @@
   let editing = $state<string | null>(null);
   let view = $state<"map" | "outline">("map");
   let notesOpen = $state(false);
-  let searching = $state(false);
+  /** The search palette, open to go somewhere or to link the selected node. */
+  let searching = $state<false | "go" | "link">(false);
   let sidebarOpen = $state(false);
 
   /** The map on screen: the one opened, or the nearest map above it if an edit took it away. */
@@ -73,6 +74,12 @@
     selected = id;
   }
 
+  /** Links the selected node to `id`, chosen in the palette. */
+  function linkTo(id: string) {
+    searching = false;
+    vault.link(selected ?? mapId, id);
+  }
+
   /** Back out to the map this one is in. */
   function up() {
     const parent = vault.mapOf(mapId);
@@ -100,7 +107,10 @@
       sidebarOpen = !sidebarOpen;
     } else if (key === "k" && !event.shiftKey) {
       editing = null;
-      searching = !searching;
+      searching = searching ? false : "go";
+    } else if (key === "l" && !event.shiftKey) {
+      editing = null;
+      searching = searching ? false : "link";
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "1" && !event.shiftKey) {
@@ -136,7 +146,7 @@
         <button class:on={view === "map"} onclick={() => (view = "map")} title="Map (⌘1)">Map</button>
         <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌘2)">Outline</button>
       </div>
-      <button onclick={() => (searching = true)} title="Search everything (⌘K)">Search</button>
+      <button onclick={() => (searching = "go")} title="Search everything (⌘K)">Search</button>
       <button class:on={notesOpen} onclick={() => (notesOpen = !notesOpen)} title="Notes (⇧⌘N)">Notes</button>
       <button onclick={() => undo()} disabled={!canUndo} title="Undo (⌘Z)">Undo</button>
       <button onclick={() => undo(true)} disabled={!canRedo} title="Redo (⇧⌘Z)">Redo</button>
@@ -149,18 +159,25 @@
     {/if}
     <main>
       {#if view === "map"}
-        <MapView {live} {mapId} bind:selected bind:editing onOpen={open} />
+        <MapView {live} {mapId} bind:selected bind:editing onOpen={open} onGoTo={goTo} onShowNotes={() => (notesOpen = true)} />
       {:else}
         <OutlineView {live} {mapId} bind:selected onOpen={open} onUp={up} />
       {/if}
     </main>
     {#if notesOpen}
-      <NotesPanel {live} nodeId={selected ?? mapId} onClose={() => (notesOpen = false)} />
+      <NotesPanel {live} nodeId={selected ?? mapId} onClose={() => (notesOpen = false)} onGoTo={goTo} />
     {/if}
   </div>
 
   {#if searching}
-    <Palette {live} {mapId} onChoose={goTo} onClose={() => (searching = false)} />
+    <Palette
+      {live}
+      {mapId}
+      purpose={searching}
+      exclude={searching === "link" ? (selected ?? mapId) : null}
+      onChoose={searching === "link" ? linkTo : goTo}
+      onClose={() => (searching = false)}
+    />
   {/if}
 
   <footer class:failed={live.saveStatus === "failed"}>

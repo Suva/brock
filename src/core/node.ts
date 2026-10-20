@@ -21,6 +21,11 @@ export interface Node {
   collapsed: boolean;
   color: string | null;
   icon: string | null;
+  /**
+   * The nodes this one links to, by id, anywhere in the vault. A link to a
+   * node since deleted stays, and comes back to life if the node does.
+   */
+  links: string[];
   /** Milliseconds since 1970, as `Date.now()` gives them. */
   createdAt: number;
   updatedAt: number;
@@ -41,4 +46,4 @@ export interface Change {
 }
 
 /** The fields an edit may set directly. */
-export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon">;
+export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links">;

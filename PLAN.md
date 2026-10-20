@@ -37,7 +37,8 @@ Everything is **one tree of nodes**. A map is a node marked as a map root.
   parent.
 
 Links between nodes are kept apart from the tree, so a node can point anywhere
-without having two parents.
+without having two parents. They are a list of ids on the node they start
+from, saved, undone and synced with it.
 
 ### Tables (SQLite)
 
@@ -52,11 +53,9 @@ nodes
   is_map       boolean
   collapsed
   color, icon
+  links        the ids of the nodes it links to, as a JSON list
   created_at, updated_at
   deleted_at   soft delete: for undo, a trash and later syncing
-
-links
-  id, from_id, to_id, label, created_at, deleted_at
 
 ops            every change, in order: undo and redo now, syncing later
 nodes_fts      FTS5 index over title and body
@@ -166,7 +165,7 @@ Ctrl in place of ⌘ on Windows and Linux.
    transitions.
 4. **Search** (done): the palette, FTS.
 5. **Overview** (done): minimap, outline view, map of maps, zooming out.
-6. **Hints and links**: dragging to set side, order and parent; links between
+6. **Hints and links** (done): dragging to set side, order and parent; links between
    nodes; clickable web addresses.
 7. **Safety and finish**: trash, daily copies, export and import, colours and
    icons, settings.

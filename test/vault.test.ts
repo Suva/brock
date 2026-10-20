@@ -25,6 +25,7 @@ function node(id: string, parentId: string | null, fields: Partial<Node> = {}): 
     collapsed: false,
     color: null,
     icon: null,
+    links: [],
     createdAt: 1,
     updatedAt: 1,
     deletedAt: null,
@@ -254,4 +255,27 @@ test("a vault whose top node was deleted gets it back", () => {
   const { vault } = open([node("root", null, { deletedAt: 5, isMap: false }), node("a", "root")]);
   assert.equal(vault.isLive("a"), true);
   assert.equal(vault.get("root")!.isMap, true);
+});
+
+test("links go from node to node, once, and are undone like any edit", () => {
+  const { vault } = open();
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  vault.link(a.id, b.id);
+  vault.link(a.id, b.id);
+  vault.link(a.id, a.id);
+  assert.deepEqual(vault.get(a.id)!.links, [b.id]);
+  assert.deepEqual(vault.linksTo(b.id).map((n) => n.id), [a.id]);
+  vault.unlink(a.id, b.id);
+  assert.deepEqual(vault.get(a.id)!.links, []);
+  vault.undo();
+  assert.deepEqual(vault.get(a.id)!.links, [b.id]);
+  vault.delete(a.id);
+  assert.deepEqual(vault.linksTo(b.id), [], "a deleted node's links do not count");
+});
+
+test("nodes saved before links existed get an empty list", () => {
+  const { links: _, ...old } = node("old", "root");
+  const { vault } = open([node("root", null), old as Node]);
+  assert.deepEqual(vault.get("old")!.links, []);
 });

@@ -7,7 +7,8 @@ a map of its own, which you open and come back out of. Everything is saved as
 you go, to a database on your computer. There is no Save command.
 
 It is at an early stage: maps can be made, drawn, edited from the keyboard,
-opened and left again, searched and overseen, with notes, undo and saving. See
+opened and left again, searched, overseen and linked, with notes, undo and
+saving. See
 [PLAN.md](PLAN.md) for where it is going and [TASKS.md](TASKS.md) for what is
 next.
 
@@ -52,6 +53,7 @@ the arrow keys, then:
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
 | ⌘\ | Shows every map of the vault as a tree, beside the map; click one to open it |
+| ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
 | ⌘1, ⌘2 | The map, or the same map as an outline |
 | ⇧⌘N | Shows the selected node's notes |
@@ -60,11 +62,26 @@ the arrow keys, then:
 The outline has the same ⌥ keys, ← for out and → for in. There they take the
 place of jumping a word at a time in a title.
 
+Drag a node to move it: onto another node to put it under that one (into it,
+if it is a map), or between two to put it there; near a branch on the other
+side, it crosses the centre. A line or an outline shows where it will land;
+Escape leaves it where it was.
+
+Links between nodes are dashed arrows when both ends are on the open map; a
+link to somewhere else shows as ↗ on the node, which goes there. The notes
+panel (⇧⌘N) lists a node's links, the nodes linking to it, and the web
+addresses in its notes, which open in your browser.
+
 Drag the background or scroll to move around; pinch, or scroll with ⌘ held,
 to zoom. Zoomed out, the deeper levels turn into bars in their branch's colour,
 and a map too big for the window gets a small picture of itself in a corner:
 click or drag in it to move there. The breadcrumbs at the top lead back to the
 maps above.
+
+## Nothing leaves your computer
+
+The app works without a network. The only thing that reaches outside it is a
+web address in your notes that you click, which opens in your browser.
 
 ## Where the vault is kept
 

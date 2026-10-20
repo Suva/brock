@@ -9,6 +9,11 @@
 // the sides of all of them are fixed before one moves: otherwise changing the
 // order would rebalance the columns and move other nodes across.
 
+import { newBranch } from "./branches.ts";
+import { sidesOf } from "./layout.ts";
+import type { Node, Side } from "./node.ts";
+import type { Vault } from "./vault.ts";
+
 export interface Where {
   /** The centre of the map the node is moved in. */
   centreId: string;
@@ -16,9 +21,6 @@ export interface Where {
   columns: boolean;
 }
 
-import { sidesOf } from "./layout.ts";
-import type { Node, Side } from "./node.ts";
-import type { Vault } from "./vault.ts";
 
 /** Gives every child of the centre the side it is drawn on now, so that none moves across. */
 function pinSides(vault: Vault, centreId: string): void {
@@ -100,6 +102,43 @@ export function setSide(vault: Vault, id: string, side: Side, centreId: string):
   vault.transact(() => {
     pinSides(vault, centreId);
     vault.update(id, { side });
+  });
+  return true;
+}
+
+/** Where a node is put: under `parentId` at `index` among its other children, on `side` if that is the centre. */
+export interface Place {
+  parentId: string;
+  index: number;
+  side: Side | null;
+}
+
+/**
+ * Puts a node where it was dropped. A node that becomes a branch of the
+ * centre takes the side it was dropped on and, if it has none, a colour; a
+ * folded parent unfolds to show it. Returns false when nothing would change.
+ */
+export function place(vault: Vault, id: string, to: Place, centreId: string): boolean {
+  const node = vault.get(id);
+  if (!node || node.parentId === null || id === centreId) return false;
+  const others = vault.children(to.parentId).filter((n) => n.id !== id);
+  const index = Math.max(0, Math.min(to.index, others.length));
+  const stays =
+    node.parentId === to.parentId &&
+    vault.children(to.parentId).indexOf(node) === index &&
+    (to.side === null || to.side === sidesOf(vault.children(to.parentId))[index]);
+  if (stays) return false;
+  vault.transact(() => {
+    if (to.parentId === centreId || node.parentId === centreId) pinSides(vault, centreId);
+    const parent = vault.get(to.parentId)!;
+    if (parent.collapsed) vault.update(parent.id, { collapsed: false });
+    vault.move(id, to.parentId, index);
+    if (to.parentId === centreId) {
+      const fields: { side?: Side; color?: string } = {};
+      if (to.side) fields.side = to.side;
+      if (!node.color) fields.color = newBranch(others).color!;
+      vault.update(id, fields);
+    }
   });
   return true;
 }

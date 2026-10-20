@@ -53,6 +53,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/branches.ts` | The side and colour a new branch of a map's centre is given, and the palette |
 | `src/core/search.ts` | Searching titles and notes, in memory |
 | `src/core/overview.ts` | The vault's maps as a tree, with what each holds |
+| `src/core/drop.ts` | Where a node dragged on a map would land |
+| `src/core/urls.ts` | Web addresses in a node's notes |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -63,13 +65,14 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/App.svelte` | The window: breadcrumbs, the view, notes, the undo keys |
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
+| `src/ui/open-url.ts` | Opens a web address in the browser, never in the app |
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
-| `src/ui/NotesPanel.svelte` | The selected node's longer text |
+| `src/ui/NotesPanel.svelte` | The selected node's longer text, its links and the nodes linking to it, and its web addresses |
 | `src/ui/MapsSidebar.svelte` | Every map of the vault as a tree (⌘\), worked by mouse |
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
-| `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls |
+| `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the opener for web addresses |
 
 ## Rules that are easy to break
 
@@ -121,6 +124,14 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   measured sizes, and with them the layout, stay the same at every zoom.
 - **The sidebar never takes the keyboard.** It is worked by mouse and keeps
   the focus where it was, so the map's keys go on working beside it.
+- **Links live on the node they start from** (`links`, a list of ids), so
+  they are saved, undone and synced with it; there is no table of their own.
+  A link to a deleted node is kept and ignored until the node comes back.
+- **Only web addresses may be opened, and only on a click.** The capability
+  in `src-tauri/capabilities/default.json` lets the opener open http and
+  https addresses and nothing else. The README promises that nothing leaves
+  the computer otherwise; anything new that reaches the network has to be
+  said there.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

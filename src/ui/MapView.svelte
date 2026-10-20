@@ -14,9 +14,10 @@
 <script lang="ts">
   import { tick, untrack } from "svelte";
   import { branchBeside, branchColour, newBranch } from "../core/branches.ts";
-  import { layoutMap, type Layout } from "../core/layout.ts";
+  import { dropAt, type Drop } from "../core/drop.ts";
+  import { layoutMap, SPACING, type Layout, type Placed } from "../core/layout.ts";
   import type { Node, NodeFields } from "../core/node.ts";
-  import { indent, outdent, reorder, setSide } from "../core/moves.ts";
+  import { indent, outdent, place, reorder, setSide } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
@@ -28,12 +29,18 @@
     selected = $bindable(),
     editing = $bindable(),
     onOpen,
+    onGoTo,
+    onShowNotes,
   }: {
     live: Live;
     mapId: string;
     selected: string | null;
     editing: string | null;
     onOpen: (id: string) => void;
+    /** Goes to a node anywhere in the vault, as choosing it in search does. */
+    onGoTo: (id: string) => void;
+    /** Shows the selected node's notes, where its links are listed. */
+    onShowNotes: () => void;
   } = $props();
 
   const vault = $derived(live.vault);
@@ -107,6 +114,50 @@
         };
       }),
   );
+
+  /**
+   * Links: a dashed curve where both ends are drawn on this map, and the ends
+   * that are elsewhere (another map, or folded away), for a sign on the node.
+   */
+  const links = $derived.by(() => {
+    const curves: { id: string; d: string }[] = [];
+    const away = new Map<string, string[]>();
+    for (const p of layout.placed) {
+      for (const to of p.node.links) {
+        if (!vault.isLive(to)) continue;
+        const q = layout.byId.get(to);
+        if (q) curves.push({ id: `${p.node.id}>${to}`, d: linkCurve(p, q) });
+        else away.set(p.node.id, [...(away.get(p.node.id) ?? []), to]);
+      }
+    }
+    return { curves, away };
+  });
+
+  /**
+   * A curve from one node to another: from the facing edges when they are
+   * apart sideways, and around the outside when one is above the other.
+   */
+  function linkCurve(p: Placed, q: Placed): string {
+    const y1 = p.y + p.height / 2;
+    const y2 = q.y + q.height / 2;
+    const pc = p.x + p.width / 2;
+    const qc = q.x + q.width / 2;
+    if (Math.abs(pc - qc) < (p.width + q.width) / 2) {
+      const left = p.side === "left";
+      const x1 = left ? p.x : p.x + p.width;
+      const x2 = left ? q.x : q.x + q.width;
+      const out = left ? Math.min(x1, x2) - 60 : Math.max(x1, x2) + 60;
+      return `M${x1},${y1} C${out},${y1} ${out},${y2} ${x2},${y2}`;
+    }
+    const right = qc > pc;
+    const x1 = right ? p.x + p.width : p.x;
+    const x2 = right ? q.x : q.x + q.width;
+    const dx = Math.max(40, Math.abs(x2 - x1) / 2) * (right ? 1 : -1);
+    // Bowed away from the centre, above it or below, so that a link across
+    // the map does not run along the branches through the middle.
+    const bow = Math.min(220, Math.abs(x2 - x1) * 0.35) * ((y1 + y2) / 2 < 0 ? -1 : 1);
+    return `M${x1},${y1} C${x1 + dx},${y1 + bow} ${x2 - dx},${y2 + bow} ${x2},${y2}`;
+  }
 
   // ---- The camera ----------------------------------------------------------
 
@@ -290,6 +341,7 @@
   }
 
   function onPointerMove(e: PointerEvent) {
+    if (moving) return dragTo(e);
     if (!drag) return;
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
@@ -303,10 +355,82 @@
   }
 
   function onPointerUp(e: PointerEvent) {
+    if (moving) return dropNode(e);
     if (!drag) return;
     if (drag.moved) viewport.releasePointerCapture(e.pointerId);
     drag = null;
   }
+
+  // ---- Dragging a node -------------------------------------------------------
+  //
+  // A node dragged follows the pointer as a label, its branch fades, and the
+  // map shows where it would land: the node it would go onto, outlined, or a
+  // line where it would go beside one (see drop.ts). Letting go puts it
+  // there; Escape, or letting go far from everything, leaves it.
+
+  let moving = $state<{
+    id: string;
+    x: number;
+    y: number;
+    moved: boolean;
+    /** The pointer, in the view. */
+    at: { x: number; y: number };
+    drop: Drop | null;
+  } | null>(null);
+
+  function startMove(e: PointerEvent, node: Node) {
+    if (e.button !== 0 || node.id === mapId || editing === node.id) return;
+    if ((e.target as Element).closest(".fold, .editing")) return;
+    moving = { id: node.id, x: e.clientX, y: e.clientY, moved: false, at: { x: 0, y: 0 }, drop: null };
+  }
+
+  function dragTo(e: PointerEvent) {
+    const m = moving!;
+    if (!m.moved) {
+      if (Math.hypot(e.clientX - m.x, e.clientY - m.y) < DRAG_START_PX) return;
+      m.moved = true;
+      editing = null;
+      viewport.setPointerCapture(e.pointerId);
+    }
+    const r = viewport.getBoundingClientRect();
+    m.at = { x: e.clientX - r.left, y: e.clientY - r.top };
+    m.drop = dropAt(vault, layout, m.id, (m.at.x - camera.x) / camera.zoom, (m.at.y - camera.y) / camera.zoom);
+  }
+
+  function dropNode(e: PointerEvent) {
+    const m = moving!;
+    moving = null;
+    if (!m.moved) return;
+    viewport.releasePointerCapture(e.pointerId);
+    if (m.drop && place(vault, m.id, m.drop, mapId)) selected = m.id;
+  }
+
+  /** The dragged node and everything under it, drawn faded while it moves. */
+  const movingBranch = $derived.by(() => {
+    const out = new Set<string>();
+    if (!moving?.moved) return out;
+    for (const p of layout.placed) {
+      for (let q = p.node; ; ) {
+        if (q.id === moving.id) {
+          out.add(p.node.id);
+          break;
+        }
+        const up = q.parentId ? layout.byId.get(q.parentId)?.node : undefined;
+        if (!up) break;
+        q = up;
+      }
+    }
+    return out;
+  });
+
+  /** Where the line goes when a dragged node would land beside another. */
+  const dropLine = $derived.by(() => {
+    const beside = moving?.drop?.beside;
+    const p = beside && layout.byId.get(beside.id);
+    if (!p) return null;
+    const gap = (p.depth === 1 ? SPACING.centreBetween : SPACING.between) / 2;
+    return { x: p.x, y: beside.after ? p.y + p.height + gap : p.y - gap, width: p.width };
+  });
 
   function zoomBy(factor: number) {
     setCamera(zoomAt(camera, factor, width / 2, height / 2), true);
@@ -509,6 +633,12 @@
   // The map takes the window's keys, not only its own, so that the keys work
   // wherever the focus is: Tab would otherwise move the focus between buttons.
   function onKey(e: KeyboardEvent) {
+    if (moving && e.key === "Escape") {
+      // Leaves the dragged node where it was.
+      moving = null;
+      e.preventDefault();
+      return;
+    }
     if (editing !== null || e.defaultPrevented || typingIn(e.target)) return;
     const id = selected ?? mapId;
     const node = vault.get(id);
@@ -579,6 +709,14 @@
     style:transform="translate({camera.x}px, {camera.y}px) scale({camera.zoom})"
   >
     <svg class="edges" aria-hidden="true">
+      <defs>
+        <marker id="link-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0,1 L9,5 L0,9 z" class="link-arrow" />
+        </marker>
+      </defs>
+      {#each links.curves as link (link.id)}
+        <path d={link.d} class="link" marker-end="url(#link-arrow)" />
+      {/each}
       {#each edges as edge (edge.id)}
         <path d={edge.d} stroke={edge.colour} stroke-width={edge.width} fill="none" stroke-linecap="round" />
       {/each}
@@ -597,6 +735,8 @@
         class:portal
         class:selected={selected === node.id}
         class:left={p.side === "left"}
+        class:moving={movingBranch.has(node.id)}
+        class:drop-onto={moving?.drop?.onto === node.id}
         data-id={node.id}
         use:measure
         style:transform="translate({Math.round(p.x)}px, {Math.round(p.y)}px){p.depth <= 1 && labelScale > 1
@@ -604,6 +744,7 @@
           : ''}"
         style:--branch={colours.get(p.branch) ?? "var(--fg)"}
         onmousedown={() => select(node.id)}
+        onpointerdown={(e) => startMove(e, node)}
         ondblclick={() => (portal ? onOpen(node.id) : startEdit(node.id, node.title))}
         role="treeitem"
         aria-selected={selected === node.id}
@@ -631,6 +772,28 @@
         {#if node.body.trim()}
           <span class="note" title="Has notes">≡</span>
         {/if}
+        {#if links.away.has(node.id)}
+          {@const targets = links.away.get(node.id)!}
+          <button
+            class="away"
+            tabindex="-1"
+            title={targets.length === 1
+              ? `Go to “${vault.get(targets[0])?.title || "Untitled"}”`
+              : `${targets.length} links elsewhere: show them`}
+            onmousedown={(e) => e.preventDefault()}
+            onpointerdown={(e) => e.stopPropagation()}
+            onclick={(e) => {
+              e.stopPropagation();
+              if (targets.length === 1) onGoTo(targets[0]);
+              else {
+                selected = node.id;
+                onShowNotes();
+              }
+            }}
+          >
+            ↗{targets.length > 1 ? ` ${targets.length}` : ""}
+          </button>
+        {/if}
         {#if portal}
           <span class="inside" title="A map with {p.hidden} {p.hidden === 1 ? 'node' : 'nodes'} under its centre">
             ⧉ {p.hidden}
@@ -654,7 +817,21 @@
         {/if}
       </div>
     {/each}
+
+    {#if dropLine}
+      <div
+        class="drop-line"
+        style:transform="translate({dropLine.x}px, {dropLine.y - 1.5}px)"
+        style:width="{dropLine.width}px"
+      ></div>
+    {/if}
   </div>
+
+  {#if moving?.moved}
+    <div class="drag-label" style:transform="translate({moving.at.x + 12}px, {moving.at.y + 8}px)">
+      {vault.get(moving.id)?.title || "Idea"}
+    </div>
+  {/if}
 
   {#if minimap.shown}
     {@const { box, scale, view } = minimap}
@@ -813,6 +990,43 @@
     opacity: 0.9;
   }
 
+  .node.moving {
+    opacity: 0.3;
+  }
+
+  .node.drop-onto {
+    outline: 2px dashed var(--accent);
+    outline-offset: 3px;
+  }
+
+  .drop-line {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    pointer-events: none;
+  }
+
+  .drag-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    max-width: 240px;
+    padding: 3px 9px;
+    border-radius: 7px;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+  }
+
   .text {
     min-width: 1ch;
     white-space: pre-wrap;
@@ -827,6 +1041,33 @@
     cursor: text;
     user-select: text;
     -webkit-user-select: text;
+  }
+
+  .edges .link {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+    opacity: 0.8;
+  }
+
+  .edges .link-arrow {
+    fill: var(--accent);
+  }
+
+  .away {
+    font: inherit;
+    font-size: 0.8em;
+    color: var(--accent);
+    background: none;
+    border: none;
+    border-radius: 4px;
+    padding: 0 0.2rem;
+    cursor: pointer;
+  }
+
+  .away:hover {
+    background: var(--accent-soft);
   }
 
   .note,
