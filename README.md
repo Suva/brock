@@ -59,8 +59,8 @@ the arrow keys, then:
 | ⌘← ⌘→, or ⌘[ ⌘] | Back and forward through the maps visited, as in a browser |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
-| ⌘\ | Shows every map of the vault as a tree, beside the map; click one to open it |
-| ⇧⌘T | Shows the tasks of the open map, or of all maps |
+| ⌘\ | Shows or hides the sidebar on the left: every map of the vault as a tree, or the tasks |
+| ⇧⌘T | Shows the tasks of the open map, or of all maps, in the sidebar |
 | ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
 | ⌘1, ⌘2 | The map, or the same map as an outline |
@@ -97,9 +97,14 @@ and a map too big for the window gets a small picture of itself in a corner:
 click or drag in it to move there. The breadcrumbs at the top lead back to the
 maps above.
 
-A node with tasks under it shows how many are done, as 2/5. The tasks panel
-lists what is still to do, grouped by map, with what is done folded away at
-the bottom; tick tasks there, or click one to go to it.
+A node with tasks under it shows how many are done, as 2/5.
+
+The sidebar on the left, opened by the small tab on the left edge or ⌘\,
+lists places in the vault to go to, as two tabs:
+Maps, every map as a tree with what each holds, and Tasks, what is still to
+do, grouped by map, with what is done folded away at the bottom. Tick tasks
+there, or click one to go to it. The panel on the right is about the selected
+node, so a task's notes show beside the list.
 
 The notes panel also sets a node's colour, which carries down everything
 under it, and an icon shown before its title.

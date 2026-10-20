@@ -123,7 +123,7 @@ elements. Try it there early, not at the end.
 1. **Minimap** in a corner of the canvas.
 2. **Outline view**: the same tree as an indented list, for reading through and
    restructuring quickly. A toggle, not a separate thing to keep in step.
-3. **Map of maps**: only the map roots, as a tree in a sidebar (⌘\), with how
+3. **Map of maps**: only the map roots, as a tree in the sidebar (⌘\), with how
    much each holds: what is in the vault at a glance.
 4. **Zooming out hides detail**: deeper levels shrink to dots, and only the upper
    levels keep their labels.

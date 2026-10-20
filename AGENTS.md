@@ -70,7 +70,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
 | `src/ui/files.ts` | Saving and opening files for export and import: native dialogs in the app, downloads in a browser |
-| `src/ui/TasksPanel.svelte` | Tasks (⇧⌘T) of the open map or all maps, worked by mouse |
+| `src/ui/TasksList.svelte` | The sidebar's Tasks tab: the open map's or all maps' tasks |
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
 | `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |
@@ -80,7 +80,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
 | `src/ui/NotesPanel.svelte` | The selected node's notes, read or written, its links and the nodes linking to it |
 | `src/ui/Markdown.svelte` | Draws notes from `markdown.ts`'s blocks; links are buttons |
-| `src/ui/MapsSidebar.svelte` | Every map of the vault as a tree (⌘\), worked by mouse |
+| `src/ui/Sidebar.svelte` | The sidebar on the left, with the Maps and Tasks tabs; places to go in the vault |
+| `src/ui/MapsList.svelte` | The sidebar's Maps tab: every map of the vault as a tree |
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
@@ -134,8 +135,11 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **Zoomed out, only the drawing changes.** Bars in place of text and the
   larger branch names come from CSS and transforms; text keeps its place, so
   measured sizes, and with them the layout, stay the same at every zoom.
-- **The sidebar never takes the keyboard.** It is worked by mouse and keeps
-  the focus where it was, so the map's keys go on working beside it.
+- **Left for the vault, right for the node.** The sidebar on the left holds
+  lists of places to go (maps, tasks), as tabs; the panel on the right is
+  about the selected node (notes, colour, links). A new list goes in the
+  sidebar as a tab, not as a panel of its own. The sidebar is worked by
+  mouse and keeps the focus where it was, so the map's keys go on working.
 - **Links live on the node they start from** (`links`, a list of ids), so
   they are saved, undone and synced with it; there is no table of their own.
   A link to a deleted node is kept and ignored until the node comes back.

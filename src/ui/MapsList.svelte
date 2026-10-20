@@ -1,8 +1,8 @@
 <!--
-  Every map of the vault as a tree, beside the open map (⌘\). The map open
-  and the maps above it are shown unfolded; clicking a map opens it. It is
-  worked with the mouse and never takes the keyboard, which stays with the
-  map; ⌘K, narrowed to maps, is the way there from the keyboard.
+  Every map of the vault as a tree, in the sidebar's Maps tab. The map open
+  and the maps above it are shown unfolded; clicking a map opens it. Like
+  the rest of the sidebar it is worked with the mouse; ⌘K, narrowed to maps,
+  is the way there from the keyboard.
 -->
 <script lang="ts">
   import { mapTree, type MapEntry } from "../core/overview.ts";
@@ -38,10 +38,7 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<aside aria-label="Maps" onmousedown={(e) => e.preventDefault()}>
-  <h2>Maps</h2>
-  <ul role="tree" aria-label="Maps">
+<ul role="tree" aria-label="Maps">
     {#each rows as { entry, depth, open } (entry.node.id)}
       <li
         role="treeitem"
@@ -69,29 +66,9 @@
         <span class="size" title="{entry.size} {entry.size === 1 ? 'node' : 'nodes'}">{entry.size}</span>
       </li>
     {/each}
-  </ul>
-</aside>
+</ul>
 
 <style>
-  aside {
-    width: 240px;
-    padding: 0.6rem 0.4rem;
-    border-right: 1px solid var(--line);
-    overflow-y: auto;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  h2 {
-    margin: 0 0 0.4rem;
-    padding: 0 0.6rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
   ul {
     list-style: none;
     margin: 0;

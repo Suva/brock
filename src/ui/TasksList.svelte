@@ -1,9 +1,8 @@
 <!--
-  Tasks (⇧⌘T): the tasks still to do in the open map, maps inside it
-  included, or in all of them, grouped by the map they are in; the ones done
-  fold away at the bottom, the latest first. Ticking works here as on the
-  map, and a click on a task goes to it. Worked with the mouse, it leaves
-  the keyboard with the map.
+  Tasks, in the sidebar's Tasks tab (⇧⌘T): the tasks still to do in the open
+  map, maps inside it included, or in all of them, grouped by the map they
+  are in; the ones done fold away at the bottom, the latest first. Ticking
+  works here as on the map, and a click on a task goes to it.
 -->
 <script lang="ts">
   import type { Node } from "../core/node.ts";
@@ -14,8 +13,7 @@
     live,
     mapId,
     onGoTo,
-    onClose,
-  }: { live: Live; mapId: string; onGoTo: (id: string) => void; onClose: () => void } = $props();
+  }: { live: Live; mapId: string; onGoTo: (id: string) => void } = $props();
 
   let scope = $state<"map" | "all">("map");
   let showDone = $state(false);
@@ -52,19 +50,14 @@
   </li>
 {/snippet}
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<aside aria-label="Tasks" onmousedown={(e) => e.preventDefault()}>
-  <div class="head">
-    <h2>Tasks</h2>
-    <div class="scope" role="radiogroup" aria-label="Show tasks of">
+<div class="tasks">
+  <div class="scope" role="radiogroup" aria-label="Show tasks of">
       <button role="radio" aria-checked={scope === "map"} class:on={scope === "map"} tabindex="-1" onclick={() => (scope = "map")}
         >This map</button
       >
       <button role="radio" aria-checked={scope === "all"} class:on={scope === "all"} tabindex="-1" onclick={() => (scope = "all")}
         >All maps</button
       >
-    </div>
-    <button class="close" onclick={onClose} tabindex="-1" title="Hide tasks (⇧⌘T)" aria-label="Hide tasks">×</button>
   </div>
 
   {#if openCount === 0 && list.done.length === 0}
@@ -100,32 +93,9 @@
       </section>
     {/if}
   {/if}
-</aside>
+</div>
 
 <style>
-  aside {
-    width: 300px;
-    padding: 0.7rem 0.6rem 1rem;
-    border-left: 1px solid var(--line);
-    overflow-y: auto;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .head {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
-    padding-left: 0.4rem;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-  }
-
   button {
     font: inherit;
     color: inherit;
@@ -136,8 +106,8 @@
   }
 
   .scope {
-    display: flex;
-    margin-left: auto;
+    display: inline-flex;
+    margin: 0 0.4rem 0.2rem;
     padding: 2px;
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -152,12 +122,6 @@
   .scope button.on {
     color: var(--accent);
     background: var(--accent-soft);
-  }
-
-  .close {
-    color: var(--muted);
-    font-size: 1.1rem;
-    padding: 0 0.3rem;
   }
 
   section {

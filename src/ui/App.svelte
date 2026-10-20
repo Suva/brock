@@ -8,14 +8,13 @@
   import { openText, saveText, type FileKind } from "./files.ts";
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
-  import MapsSidebar from "./MapsSidebar.svelte";
   import MapView from "./MapView.svelte";
   import NotesPanel from "./NotesPanel.svelte";
   import Palette from "./Palette.svelte";
   import OutlineView from "./OutlineView.svelte";
   import MoreMenu from "./MoreMenu.svelte";
   import Settings from "./Settings.svelte";
-  import TasksPanel from "./TasksPanel.svelte";
+  import Sidebar, { type Tab } from "./Sidebar.svelte";
   import TrashDialog from "./TrashDialog.svelte";
 
   let { live }: { live: Live } = $props();
@@ -31,8 +30,15 @@
   let notesOpen = $state(false);
   /** The search palette, open to go somewhere or to link the selected node. */
   let searching = $state<false | "go" | "link">(false);
+  /** The sidebar on the left, and which of its tabs shows; it opens on the tab used last. */
   let sidebarOpen = $state(false);
-  let tasksOpen = $state(false);
+  let sidebarTab = $state<Tab>("maps");
+
+  /** A tab's button or key: opens the sidebar on it, or closes it if it is showing. */
+  function showTab(tab: Tab) {
+    sidebarOpen = !(sidebarOpen && sidebarTab === tab);
+    sidebarTab = tab;
+  }
   let moreOpen = $state(false);
   let trashOpen = $state(false);
   let settingsOpen = $state(false);
@@ -221,7 +227,7 @@
       editing = null;
       searching = searching ? false : "link";
     } else if (key === "t" && event.shiftKey) {
-      tasksOpen = !tasksOpen;
+      showTab("tasks");
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "1" && !event.shiftKey) {
@@ -241,9 +247,6 @@
   <!-- Clicking a button here leaves the focus where it was, so the map keeps the keyboard. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header onmousedown={(e) => (e.target as Element).closest("button") && e.preventDefault()}>
-    <button class="sidebar-toggle" class:on={sidebarOpen} onclick={() => (sidebarOpen = !sidebarOpen)} title="All maps (⌘\)">
-      Maps
-    </button>
     <div class="history">
       <button onclick={() => step("back")} disabled={!canGoBack} title="Back (⌘←)" aria-label="Back">‹</button>
       <button onclick={() => step("forward")} disabled={!canGoForward} title="Forward (⌘→)" aria-label="Forward">›</button>
@@ -262,7 +265,6 @@
         <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌘2)">Outline</button>
       </div>
       <button onclick={() => (searching = "go")} title="Search everything (⌘K)">Search</button>
-      <button class:on={tasksOpen} onclick={() => (tasksOpen = !tasksOpen)} title="Tasks (⇧⌘T)">Tasks</button>
       <button class:on={notesOpen} onclick={() => (notesOpen = !notesOpen)} title="Notes (⇧⌘N)">Notes</button>
       <button onclick={() => undo()} disabled={!canUndo} title="Undo (⌘Z)">Undo</button>
       <button onclick={() => undo(true)} disabled={!canRedo} title="Redo (⇧⌘Z)">Redo</button>
@@ -276,8 +278,28 @@
   </header>
 
   <div class="body">
+    {#if !sidebarOpen}
+      <!-- A tab on the edge: the sidebar's way in, out of the way of the map. -->
+      <button
+        class="knob"
+        onmousedown={(e) => e.preventDefault()}
+        onclick={() => (sidebarOpen = true)}
+        title="Maps and tasks (⌘\, ⇧⌘T)"
+        aria-label="Show the sidebar"
+      >
+        ›
+      </button>
+    {/if}
     {#if sidebarOpen}
-      <MapsSidebar {live} {mapId} onOpen={open} />
+      <Sidebar
+        {live}
+        {mapId}
+        tab={sidebarTab}
+        onTab={(tab) => (sidebarTab = tab)}
+        onClose={() => (sidebarOpen = false)}
+        onOpen={open}
+        onGoTo={goTo}
+      />
     {/if}
     <main>
       {#if view === "map"}
@@ -286,9 +308,6 @@
         <OutlineView {live} {mapId} bind:selected onOpen={open} onUp={up} />
       {/if}
     </main>
-    {#if tasksOpen}
-      <TasksPanel {live} {mapId} onGoTo={goTo} onClose={() => (tasksOpen = false)} />
-    {/if}
     {#if notesOpen}
       <NotesPanel
         {live}
@@ -350,14 +369,34 @@
     border-bottom: 1px solid var(--line);
   }
 
-  .sidebar-toggle {
-    flex: none;
-  }
-
   .history {
     display: flex;
     flex: none;
-    margin-left: -0.5rem;
+    margin-left: -0.4rem;
+  }
+
+  .knob {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    z-index: 2;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 56px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  .knob:hover {
+    width: 18px;
+    color: var(--accent);
+    background: var(--accent-soft);
   }
 
   .history button {
@@ -436,6 +475,7 @@
   }
 
   .body {
+    position: relative;
     display: flex;
     min-height: 0;
   }

@@ -60,9 +60,10 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 
 - The minimap of a very tall or wide map is a thin strip; give it a smallest
   width or height if that turns out hard to use.
-- The sidebar is not reachable from the keyboard; ⌘K narrowed to maps is.
+- The sidebar is not reachable from the keyboard; ⌘K narrowed to maps is,
+  and the map's ⌘T and Space for tasks.
   Revisit if it is missed.
-- Whether the sidebar is open is forgotten at each start.
+- Whether the sidebar is open, and on which tab, is forgotten at each start.
 
 ## Left from milestone 4
 
