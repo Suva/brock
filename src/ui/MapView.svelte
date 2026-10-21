@@ -1484,6 +1484,14 @@
     pointer-events: none;
   }
 
+  /* A node clicked keeps the page's focus while the arrow keys move the
+     selection, and the browser rings it once a key is pressed. The map draws
+     its own selection and takes the keys for the whole window, so a node
+     never shows the browser's focus ring. */
+  .node:focus {
+    outline: none;
+  }
+
   .node.leaf:hover:not(.selected) {
     background: var(--accent-soft);
   }
