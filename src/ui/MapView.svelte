@@ -527,7 +527,13 @@
   // A node dragged follows the pointer as a label, its branch fades, and the
   // map shows where it would land: the node it would go onto, outlined, or a
   // line where it would go beside one (see drop.ts). Letting go puts it
-  // there; Escape, or letting go far from everything, leaves it.
+  // there; Escape, or letting go far from everything, leaves it. Near an edge
+  // of the view, the map moves by itself, so a node can go anywhere on it.
+
+  /** How near an edge, in pixels, the map starts to follow a dragged node. */
+  const EDGE_PX = 48;
+  /** How fast it moves with the pointer at the edge or past it, in pixels a second. */
+  const EDGE_SPEED = 900;
 
   let moving = $state<{
     id: string;
@@ -572,7 +578,47 @@
     }
     const r = viewport.getBoundingClientRect();
     m.at = { x: e.clientX - r.left, y: e.clientY - r.top };
+    aimDrop(m);
+    followEdges();
+  }
+
+  /** Where the dragged nodes would land, under the pointer. */
+  function aimDrop(m: NonNullable<typeof moving>) {
     m.drop = dropAt(vault, layout, m.ids, (m.at.x - camera.x) / camera.zoom, (m.at.y - camera.y) / camera.zoom);
+  }
+
+  /**
+   * How hard the pointer pushes against each edge, from -1 to 1: 0 away from
+   * the edges, growing to 1 at an edge and past it.
+   */
+  function edgePush(at: { x: number; y: number }): [number, number] {
+    const push = (pos: number, size: number) =>
+      pos < EDGE_PX ? Math.min(1, (EDGE_PX - pos) / EDGE_PX) : pos > size - EDGE_PX ? -Math.min(1, (pos - size + EDGE_PX) / EDGE_PX) : 0;
+    return [push(at.x, width), push(at.y, height)];
+  }
+
+  let edgeFrame = 0;
+
+  /** Moves the map, a frame at a time, while a dragged node is held near an edge. */
+  function followEdges() {
+    if (edgeFrame) return;
+    let last = performance.now();
+    const step = (now: number) => {
+      const m = moving;
+      const [px, py] = m?.moved ? edgePush(m.at) : [0, 0];
+      if (!m || (px === 0 && py === 0)) {
+        edgeFrame = 0;
+        return;
+      }
+      // By the time passed, so that it moves as fast on any screen; a long
+      // pause (the window hidden) does not jump.
+      const seconds = Math.min(now - last, 50) / 1000;
+      last = now;
+      setCamera({ ...camera, x: camera.x + px * EDGE_SPEED * seconds, y: camera.y + py * EDGE_SPEED * seconds });
+      aimDrop(m);
+      edgeFrame = requestAnimationFrame(step);
+    };
+    edgeFrame = requestAnimationFrame(step);
   }
 
   function dropNode(e: PointerEvent) {

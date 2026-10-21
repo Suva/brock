@@ -107,7 +107,8 @@ as nodes.
 Drag a node to move it: onto another node to put it under that one (into it,
 if it is a map), or between two to put it there; near a branch on the other
 side, it crosses the centre. A line or an outline shows where it will land;
-Escape leaves it where it was.
+Escape leaves it where it was. Held near an edge of the window, the map moves
+along, so a node can be taken anywhere on it.
 
 Links between nodes are dashed arrows when both ends are on the open map; a
 link to somewhere else shows as ↗ on the node, which goes there.

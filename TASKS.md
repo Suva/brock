@@ -18,6 +18,30 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   campus map is brockmaps.com).
 - Register getbrock.app (and brockmap.app to hold), and put the website there.
 
+## A locked vault
+
+A password that encrypts the vault, so its file is unreadable without it:
+for a shared computer, backups such as Time Machine, or a vault kept in a
+synced folder. Disk encryption (FileVault, BitLocker) already covers a
+stolen laptop. A few days' work:
+
+- Build rusqlite with SQLCipher (`bundled-sqlcipher`), which encrypts the
+  whole file, its search index and write-ahead log included, with a key
+  made from the password.
+- An unlock screen before the vault opens; optionally "remember on this
+  computer", keeping the key in the macOS Keychain or Windows Credential
+  Manager. Lock after a while idle, perhaps.
+- Turning a vault's password on, changing it (`PRAGMA rekey`) and turning
+  it off, in Settings; an existing vault converted with `sqlcipher_export`
+  and the plain file removed.
+- The daily copies encrypted too, and the carry-over from the old
+  identifier able to open an encrypted vault.
+- A forgotten password loses the maps: say so plainly when one is set, and
+  perhaps offer a recovery key to write down. Exports stay plain text; say
+  so when exporting from a locked vault.
+- While unlocked the maps are in memory as in any app; this protects the
+  file, not the running app.
+
 ## The window
 
 - In a very narrow window the breadcrumbs shrink until the open map's own
@@ -76,8 +100,9 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 
 ## Left from milestone 6
 
-- Dragging near the edge of the window does not move the map; a node can be
-  dragged only as far as is on screen.
+- Near an edge, the map follows a dragged node; that was tried with
+  pointer events sent by a script, not with a real mouse or trackpad. A node
+  grabbed close to an edge starts the map moving at once.
 - Links have no labels. The old plan had them; add them if they are missed.
 - Clicking a web address in the app opens the browser through Tauri's
   opener; that was not clicked while checking, only built and allowed.
