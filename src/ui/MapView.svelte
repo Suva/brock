@@ -1402,9 +1402,17 @@
     flex: none;
   }
 
-  .node.selected {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+  /* The selection ring, 2px outside the border. It is a box of its own rather
+     than an outline: WebKit, at zooms that are not whole numbers, left bits of
+     an outline behind as a node grew while its title was typed. */
+  .node.selected::after {
+    content: "";
+    position: absolute;
+    /* The border (2px), a gap (2px) and the ring (2px), outside the padding box. */
+    inset: -6px;
+    border: 2px solid var(--accent);
+    border-radius: 11px;
+    pointer-events: none;
   }
 
   .node.leaf:hover:not(.selected) {
