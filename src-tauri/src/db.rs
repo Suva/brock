@@ -4,7 +4,7 @@
 
 use rusqlite::{Connection, Row, params};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// A node as the window knows it (`src/core/node.ts`).
@@ -278,15 +278,25 @@ impl Db {
 }
 
 /// Copies the vault kept under the app's old name into `new_dir`, once: when
-/// there is none there yet and there is one in `old_dir`. SQLite makes the
-/// copy (`VACUUM INTO`), so changes still in the old vault's write-ahead log
-/// come too. The daily copies come along. The old folder is left as it was.
-/// Returns whether anything was copied.
+/// there is none there yet, or one that holds nothing yet, and there is one
+/// in `old_dir`. SQLite makes the copy (`VACUUM INTO`), so changes still in
+/// the old vault's write-ahead log come too. The daily copies come along. The
+/// old folder is left as it was. Returns whether anything was copied.
+///
+/// A vault that holds nothing is one the app made on starting under the new
+/// name before it could copy, as a development build restarted midway
+/// through the change did. It is set aside, under another name, not deleted.
 pub fn carry_over(old_dir: &Path, new_dir: &Path) -> Result<bool, String> {
     let old = old_dir.join("vault.sqlite");
     let new = new_dir.join("vault.sqlite");
-    if new.exists() || !old.exists() {
+    if !old.exists() {
         return Ok(false);
+    }
+    if new.exists() {
+        if !holds_nothing(&new)? {
+            return Ok(false);
+        }
+        set_aside(&new)?;
     }
     std::fs::create_dir_all(new_dir).map_err(|e| format!("Cannot make {}: {e}", new_dir.display()))?;
     let partial = new.with_extension("partial");
@@ -302,6 +312,34 @@ pub fn carry_over(old_dir: &Path, new_dir: &Path) -> Result<bool, String> {
         let _ = std::fs::copy(old_copies.join(&copy.name), new_copies.join(&copy.name));
     }
     Ok(true)
+}
+
+/// Whether a vault holds nothing anyone made: no node besides its top one,
+/// and no notes on that.
+fn holds_nothing(path: &Path) -> Result<bool, String> {
+    let conn = Connection::open(path).map_err(err)?;
+    let others: i64 = conn
+        .query_row("SELECT count(*) FROM nodes WHERE parent_id IS NOT NULL AND deleted_at IS NULL", [], |r| r.get(0))
+        .map_err(err)?;
+    let notes: i64 = conn
+        .query_row("SELECT count(*) FROM nodes WHERE parent_id IS NULL AND body <> ''", [], |r| r.get(0))
+        .map_err(err)?;
+    Ok(others == 0 && notes == 0)
+}
+
+/// Moves a vault, with its write-ahead log, to `vault-before-copy-<time>.sqlite`
+/// beside it, still a vault that opens.
+fn set_aside(path: &Path) -> Result<(), String> {
+    let dir = path.parent().unwrap_or(Path::new("."));
+    let aside = dir.join(format!("vault-before-copy-{}.sqlite", now()));
+    for suffix in ["", "-wal", "-shm"] {
+        let from = PathBuf::from(format!("{}{suffix}", path.display()));
+        if from.exists() {
+            let to = PathBuf::from(format!("{}{suffix}", aside.display()));
+            std::fs::rename(&from, &to).map_err(|e| format!("Cannot set {} aside: {e}", from.display()))?;
+        }
+    }
+    Ok(())
 }
 
 fn node_from_row(r: &Row) -> rusqlite::Result<Node> {
@@ -516,9 +554,55 @@ mod tests {
         assert!(old_dir.join("vault.sqlite").exists(), "the old vault is left as it was");
 
         drop(new);
-        assert!(!carry_over(&old_dir, &new_dir).unwrap(), "once only: a vault there is never written over");
+        assert!(!carry_over(&old_dir, &new_dir).unwrap(), "once only: a vault with work in it is never written over");
         assert!(!carry_over(&root.join("nothing"), &root.join("fresh")).unwrap(), "nothing to copy");
         drop(old);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn a_new_vault_that_holds_nothing_is_set_aside_and_the_old_one_copied() {
+        let root = std::env::temp_dir().join(format!("brock-carry-empty-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (old_dir, new_dir) = (root.join("old"), root.join("new"));
+        let mut old = Db::open(&old_dir.join("vault.sqlite")).unwrap();
+        old.apply(&[
+            Change { before: None, after: node("root", None, "Home") },
+            Change { before: None, after: node("work", Some("root"), "My work") },
+        ])
+        .unwrap();
+        drop(old);
+
+        // Made by the app starting under the new name too early: its top node,
+        // and one made and deleted.
+        let mut early = Db::open(&new_dir.join("vault.sqlite")).unwrap();
+        let mut gone = node("tried", Some("fresh"), "");
+        gone.deleted_at = Some(5);
+        early.apply(&[Change { before: None, after: node("fresh", None, "Home") }, Change { before: None, after: gone }]).unwrap();
+        drop(early);
+
+        assert!(carry_over(&old_dir, &new_dir).unwrap());
+        let new = Db::open(&new_dir.join("vault.sqlite")).unwrap();
+        assert_eq!(new.get("work").unwrap().unwrap().title, "My work");
+        let aside: Vec<_> = std::fs::read_dir(&new_dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.starts_with("vault-before-copy-") && n.ends_with(".sqlite"))
+            .collect();
+        assert_eq!(aside.len(), 1, "the early vault is kept beside it");
+        let kept = Db::open(&new_dir.join(&aside[0])).unwrap();
+        assert!(kept.get("fresh").unwrap().is_some());
+
+        // One with work in it is left alone.
+        let mut busy = Db::open(&root.join("busy").join("vault.sqlite")).unwrap();
+        busy.apply(&[
+            Change { before: None, after: node("b", None, "Home") },
+            Change { before: None, after: node("c", Some("b"), "Mine") },
+        ])
+        .unwrap();
+        drop(busy);
+        assert!(!carry_over(&old_dir, &root.join("busy")).unwrap());
         std::fs::remove_dir_all(&root).unwrap();
     }
 

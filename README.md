@@ -158,7 +158,9 @@ use a vault there instead.
 Before the app was called Brock, its folder was `com.jaanpullerits.mindmap`.
 On its first start under the new name, the app copies the vault and its daily
 copies from there, and leaves the old folder as it was; once the vault is
-there in Brock, the old folder can be deleted.
+there in Brock, the old folder can be deleted. A vault Brock made before it
+could copy, holding nothing but its first node, is set aside as
+`vault-before-copy-….sqlite` and replaced by the copy.
 
 Every day the app is used, a copy of the vault is made in the `Backups` folder
 beside it, and the last seven are kept. Settings shows them and makes one on
