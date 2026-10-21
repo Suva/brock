@@ -57,7 +57,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/urls.ts` | Web addresses in text, and trimming the sentence off them |
 | `src/core/markdown.ts` | Notes' Markdown read into blocks and spans, never HTML |
 | `src/core/exchange.ts` | Export to JSON, Markdown and OPML; reading OPML and JSON back in |
-| `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel |
+| `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel, done tasks by the day they were done, clearing them |
 | `src/core/history.ts` | The maps visited, for back and forward |
 | `src/core/clipboard.ts` | Copy, cut and paste of branches: copies as outlines, cuts moved whole |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
@@ -72,7 +72,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
 | `src/ui/files.ts` | Saving and opening files for export and import: native dialogs in the app, downloads in a browser |
-| `src/ui/TasksList.svelte` | The sidebar's Tasks tab: the open map's or all maps' tasks |
+| `src/ui/TasksList.svelte` | The sidebar's Tasks tab: the open map's or all maps' tasks, the done ones by when they were done |
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
 | `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |

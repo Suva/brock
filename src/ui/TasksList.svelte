@@ -1,12 +1,14 @@
 <!--
   Tasks, in the sidebar's Tasks tab (⇧⌘T): the tasks still to do in the open
   map, maps inside it included, or in all of them, grouped by the map they
-  are in; the ones done fold away at the bottom, the latest first. Ticking
-  works here as on the map, and a click on a task goes to it.
+  are in; the ones done fold away at the bottom, grouped by when they were
+  done (today, yesterday, this week, earlier), each group with its own Clear.
+  Ticking works here as on the map, and a click on a task goes to it.
 -->
 <script lang="ts">
   import type { Node } from "../core/node.ts";
-  import { clearDone, tasksUnder } from "../core/tasks.ts";
+  import { onMount } from "svelte";
+  import { clearDone, groupDone, tasksUnder, type DoneWhen } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
 
@@ -25,6 +27,39 @@
     return tasksUnder(vault, scope === "map" ? mapId : vault.rootId);
   });
   const openCount = $derived(list.groups.reduce((n, g) => n + g.open.length, 0));
+
+  // The time the groups are reckoned from, moved on every minute so that
+  // today's tasks become yesterday's at midnight without anything else changing.
+  let now = $state(Date.now());
+  onMount(() => {
+    const timer = setInterval(() => (now = Date.now()), 60_000);
+    return () => clearInterval(timer);
+  });
+  const doneGroups = $derived(groupDone(list.done, now, weekStart()));
+
+  /** The day weeks start on where this computer is set up: Monday in most of the world. */
+  function weekStart(): number {
+    try {
+      const locale = new Intl.Locale(navigator.language) as Intl.Locale & {
+        getWeekInfo?: () => { firstDay: number };
+        weekInfo?: { firstDay: number };
+      };
+      // 1 for Monday to 7 for Sunday; Date counts Sunday as 0.
+      const first = (locale.getWeekInfo?.() ?? locale.weekInfo)?.firstDay;
+      return first ? first % 7 : 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  const top = () => (scope === "map" ? mapId : vault.rootId);
+  const where = () => (scope === "map" ? "of this map" : "of all maps");
+
+  /** Clears the done tasks of one group, or all of them. */
+  function clear(when?: DoneWhen) {
+    const ids = new Set((when ? doneGroups.find((g) => g.when === when)?.items ?? [] : list.done).map((d) => d.node.id));
+    clearDone(vault, top(), (node) => ids.has(node.id));
+  }
 
   /** What a task is under in its map, for telling tasks of the same name apart. */
   function under(node: Node, map: Node): string {
@@ -89,17 +124,29 @@
           <button
             class="clear"
             tabindex="-1"
-            onclick={() => clearDone(vault, scope === "map" ? mapId : vault.rootId)}
-            title="Move the done tasks {scope === 'map' ? 'of this map' : 'of all maps'} to the trash; ⌘Z brings them back. Done tasks with open ones under them stay."
-            >Clear</button
+            onclick={() => clear()}
+            title="Move all the done tasks {where()} to the trash; ⌘Z brings them back. Done tasks with open ones under them stay."
+            >Clear all</button
           >
         </div>
         {#if showDone}
-          <ul>
-            {#each list.done as { node, map } (node.id)}
-              {@render task(node, map)}
-            {/each}
-          </ul>
+          {#each doneGroups as group (group.when)}
+            <div class="when">
+              <h3>{group.label} <span class="count">{group.items.length}</span></h3>
+              <button
+                class="clear"
+                tabindex="-1"
+                onclick={() => clear(group.when)}
+                title="Move the tasks {where()} done {group.label === 'Earlier' ? 'before this week' : group.label.toLowerCase()} to the trash; ⌘Z brings them back. A done task stays while one done at another time, or an open one, is under it."
+                >Clear</button
+              >
+            </div>
+            <ul>
+              {#each group.items as { node, map } (node.id)}
+                {@render task(node, map)}
+              {/each}
+            </ul>
+          {/each}
         {/if}
       </section>
     {/if}
@@ -165,6 +212,21 @@
     margin-right: 0.3rem;
     padding: 0.1rem 0.45rem;
     font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .when {
+    display: flex;
+    align-items: center;
+    margin-top: 0.4rem;
+  }
+
+  h3 {
+    flex: 1;
+    margin: 0;
+    padding: 0.1rem 0.4rem 0.1rem 1.2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--muted);
   }
 

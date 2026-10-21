@@ -124,26 +124,79 @@ export function setPriority(vault: Vault, ids: string[], priority: number): void
  * work never disappears. The top itself is never left out.
  */
 export function doneToHide(vault: Vault, topId: string): Set<string> {
+  return doneBranches(vault, topId, () => true);
+}
+
+/**
+ * The highest done tasks under `topId` that `chosen` picks and that nothing
+ * under them has to outlive: no open task, and no done task it does not pick.
+ */
+function doneBranches(vault: Vault, topId: string, chosen: (node: Node) => boolean): Set<string> {
   const out = new Set<string>();
-  // Whether there is an open task at or under a node.
-  const openAtOrUnder = (node: Node): boolean => {
-    let open = node.task === "open";
-    for (const child of vault.children(node.id)) if (openAtOrUnder(child)) open = true;
-    if (node.task === "done" && !open && node.id !== topId) out.add(node.id);
-    return open;
+  // Whether anything at or under a node has to stay.
+  const staysAtOrUnder = (node: Node): boolean => {
+    let under = false;
+    for (const child of vault.children(node.id)) if (staysAtOrUnder(child)) under = true;
+    const picked = node.task === "done" && chosen(node);
+    if (picked && !under && node.id !== topId) out.add(node.id);
+    return under || node.task === "open" || (node.task === "done" && !picked);
   };
   const top = vault.get(topId);
-  if (top) openAtOrUnder(top);
+  if (top) staysAtOrUnder(top);
   // Only the highest of each: the rest go with them.
   return new Set([...out].filter((id) => !vault.ancestors(id).some((a) => out.has(a.id))));
 }
 
 /**
  * Moves the done tasks under `topId` to the trash, as `doneToHide` picks
- * them, as one step, and returns how many branches went.
+ * them, as one step, and returns how many branches went. Given `chosen`,
+ * only the done tasks it picks go, and a done task stays if one it does not
+ * pick is under it: clearing last week's leaves today's alone.
  */
-export function clearDone(vault: Vault, topId: string): number {
-  const ids = [...doneToHide(vault, topId)];
+export function clearDone(vault: Vault, topId: string, chosen: (node: Node) => boolean = () => true): number {
+  const ids = [...doneBranches(vault, topId, chosen)];
   if (ids.length) vault.transact(() => ids.forEach((id) => vault.delete(id)));
   return ids.length;
+}
+
+/** When a task was done, as the tasks panel groups them. */
+export type DoneWhen = "today" | "yesterday" | "week" | "earlier";
+
+export const DONE_WHEN: { when: DoneWhen; label: string }[] = [
+  { when: "today", label: "Today" },
+  { when: "yesterday", label: "Yesterday" },
+  { when: "week", label: "This week" },
+  { when: "earlier", label: "Earlier" },
+];
+
+/**
+ * When `doneAt` was, by the calendar of this computer's time zone, seen at
+ * `now`: today, yesterday, earlier this week or before it. Weeks start on
+ * `weekStart`, 0 for Sunday to 6 for Saturday. A time a little ahead of
+ * `now`, from a clock set back, counts as today; one never set, as before.
+ */
+export function doneWhen(doneAt: number | null, now: number, weekStart = 1): DoneWhen {
+  if (doneAt === null) return "earlier";
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  if (doneAt >= today.getTime()) return "today";
+  // Days are moved by the calendar, not by 24 hours, which a change of
+  // summer time would get wrong.
+  const daysBefore = (n: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() - n).getTime();
+  if (doneAt >= daysBefore(1)) return "yesterday";
+  if (doneAt >= daysBefore((today.getDay() - weekStart + 7) % 7)) return "week";
+  return "earlier";
+}
+
+/** Done tasks grouped by when they were done, latest group first; empty groups left out. */
+export function groupDone<T extends { node: Node }>(
+  done: T[],
+  now: number,
+  weekStart = 1,
+): { when: DoneWhen; label: string; items: T[] }[] {
+  return DONE_WHEN.map(({ when, label }) => ({
+    when,
+    label,
+    items: done.filter((d) => doneWhen(d.node.doneAt, now, weekStart) === when),
+  })).filter((g) => g.items.length > 0);
 }

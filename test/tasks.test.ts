@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clearDone, doneToHide, priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
+import { clearDone, doneToHide, doneWhen, groupDone, priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
 import { layoutMap } from "../src/core/layout.ts";
 import { Vault } from "../src/core/vault.ts";
 
@@ -149,4 +149,49 @@ test("clearing done moves them to the trash, as one step", () => {
   vault.undo();
   assert.equal(vault.isLive(booked.id), true);
   assert.equal(clearDone(vault, vault.rootId), 2, "Booked and the done map");
+});
+
+test("done tasks are grouped by the day they were done, in local time", () => {
+  // Wednesday 21 October 2026, half past three in the afternoon.
+  const now = new Date(2026, 9, 21, 15, 30).getTime();
+  const at = (day: number, hour = 12) => new Date(2026, 9, day, hour).getTime();
+  assert.equal(doneWhen(at(21, 0), now), "today", "just after midnight");
+  assert.equal(doneWhen(now + 60_000, now), "today", "a clock a little behind");
+  assert.equal(doneWhen(at(20, 23), now), "yesterday");
+  assert.equal(doneWhen(at(19, 9), now), "week", "Monday");
+  assert.equal(doneWhen(at(18), now), "earlier", "Sunday is last week");
+  assert.equal(doneWhen(at(18), now, 0), "week", "unless weeks start on Sunday");
+  assert.equal(doneWhen(null, now), "earlier", "done before times were kept");
+
+  // On a Monday, yesterday is last week, and this week holds only today.
+  const monday = new Date(2026, 9, 19, 10).getTime();
+  assert.equal(doneWhen(at(18), monday), "yesterday");
+  assert.equal(doneWhen(at(17), monday), "earlier");
+
+  const vault = new Vault([]);
+  const task = (title: string, doneAt: number) => ({
+    node: { ...vault.addChild(vault.rootId, { title, task: "done" }), doneAt },
+  });
+  const groups = groupDone([task("A", at(21)), task("B", at(10)), task("C", at(21, 9))], now);
+  assert.deepEqual(
+    groups.map((g) => [g.label, g.items.map((i) => i.node.title)]),
+    [["Today", ["A", "C"]], ["Earlier", ["B"]]],
+    "in order, empty groups left out, the order within kept",
+  );
+});
+
+test("clearing one group of done tasks leaves the others", () => {
+  const vault = new Vault([]);
+  const add = (parent: string, title: string) => vault.addChild(parent, { title, task: "open" });
+  const old = add(vault.rootId, "Last week");
+  const recent = add(vault.rootId, "Today");
+  const parent = add(vault.rootId, "Old, with a new one under it");
+  const child = add(parent.id, "New");
+  for (const n of [old, recent, parent, child]) vault.tick(n.id);
+  const lastWeek = new Set([old.id, parent.id]);
+  assert.equal(clearDone(vault, vault.rootId, (n) => lastWeek.has(n.id)), 1);
+  assert.equal(vault.isLive(old.id), false);
+  assert.equal(vault.isLive(recent.id), true);
+  assert.equal(vault.isLive(parent.id), true, "a done task stays while one not cleared is under it");
+  assert.equal(vault.isLive(child.id), true);
 });
