@@ -49,6 +49,7 @@ the arrow keys, then:
 | ⌘-click, Shift-click | Adds a node to those chosen, or the siblings between |
 | Shift with ← → ↑ ↓ | Adds the next node that way to those chosen |
 | ⌘A | Chooses everything in the map |
+| ⌘C, ⌘X, ⌘V | Copies, cuts and pastes the chosen branches, with everything under them |
 | Escape | Back to one node chosen |
 | ⌥↑ ⌥↓ | Moves the node up or down among its siblings |
 | ⌥ with ← or → | Moves the node outwards, under the sibling above it, or inwards, beside its parent; a branch of the centre moved inwards crosses to the other side |
@@ -76,6 +77,13 @@ Windows and Linux): ↑ and ↓ among their siblings, → in under the row above
 Several nodes can be chosen at once: ⌘-click, Shift-click, Shift with the
 arrows, ⌘A, or Shift and a drag on the background to draw a box. Deleting,
 ⌘T, Space and dragging then act on all of them, as one step to undo.
+
+Copying takes a branch with everything under it: maps inside, notes, tasks,
+colours, icons and links. Paste puts it under the selected node, inside it if
+it is a map. Cut and paste moves the branch itself, so links to it still lead
+to it. Copied branches also paste into other apps as an indented list, and an
+outline copied from another app (an indented list, Markdown, OPML) pastes in
+as nodes.
 
 Drag a node to move it: onto another node to put it under that one (into it,
 if it is a map), or between two to put it there; near a branch on the other
@@ -122,7 +130,8 @@ back until the trash is emptied, and Settings.
 ## Nothing leaves your computer
 
 The app works without a network. The only thing that reaches outside it is a
-web address in your notes that you click, which opens in your browser.
+web address in your notes that you click, which opens in your browser. The
+clipboard is read only when you paste.
 
 ## Where the vault is kept
 

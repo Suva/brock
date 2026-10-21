@@ -60,6 +60,16 @@ export function toMarkdown(vault: Vault, id: string): string {
   const root = outlineOf(vault, id);
   const lines: string[] = [`# ${label(root)}`, ""];
   if (root.body.trim()) lines.push(root.body.trim(), "");
+  return lines.join("\n") + "\n" + markdownList(root.children);
+}
+
+/**
+ * Outlines as a nested Markdown list: an item for each, `[ ]` or `[x]` for
+ * tasks, notes indented under their item. What a copy puts on the clipboard
+ * for other apps, and the body of a Markdown export.
+ */
+export function markdownList(outlines: Outline[]): string {
+  const lines: string[] = [];
   const item = (o: Outline, depth: number) => {
     const indent = "  ".repeat(depth);
     const box = o.task === "done" ? "[x] " : o.task === "open" ? "[ ] " : "";
@@ -68,8 +78,68 @@ export function toMarkdown(vault: Vault, id: string): string {
     for (const line of o.body.trim() ? o.body.trim().split("\n") : []) lines.push(line ? `${indent}  ${line}` : "");
     for (const child of o.children) item(child, depth + 1);
   };
-  for (const child of root.children) item(child, 0);
-  return lines.join("\n") + "\n";
+  for (const o of outlines) item(o, 0);
+  return lines.join("\n") + (lines.length ? "\n" : "");
+}
+
+/**
+ * Text pasted from elsewhere, read as outlines: OPML, this app's JSON, or
+ * lines of text. In lines, indentation nests them; Markdown bullets and
+ * checkboxes are understood, and when there are bullets, lines without one
+ * are the notes of the item above.
+ */
+export function fromText(text: string): Outline[] {
+  const start = text.trimStart();
+  if (start.startsWith("<")) {
+    try {
+      return fromOPML(start);
+    } catch {
+      // Not OPML after all: read it as lines.
+    }
+  }
+  if (start.startsWith("{")) {
+    try {
+      return [fromJSON(start)];
+    } catch {
+      // Not ours: read it as lines.
+    }
+  }
+  const lines = text.replace(/\r\n?/g, "\n").split("\n").filter((l) => l.trim() !== "");
+  const bullet = /^(?:[-*+]|\d+[.)])\s+/;
+  const anyBullets = lines.some((l) => bullet.test(l.trim()));
+  const top: Outline[] = [];
+  const open: { outline: Outline; indent: number }[] = [];
+  const indentOf = (l: string) => l.match(/^[ \t]*/)![0].replace(/\t/g, "    ").length;
+  for (const line of lines) {
+    const indent = indentOf(line);
+    let rest = line.trim();
+    if (anyBullets && !bullet.test(rest) && !rest.startsWith("#") && open.length) {
+      // A line without a bullet belongs to the item above, as its notes.
+      const last = open.at(-1)!.outline;
+      last.body = last.body ? `${last.body}\n${rest}` : rest;
+      continue;
+    }
+    rest = rest.replace(bullet, "").replace(/^#+\s*/, "");
+    const box = /^\[([ xX])\]\s+/.exec(rest);
+    if (box) rest = rest.slice(box[0].length);
+    const outline: Outline = {
+      title: rest,
+      body: "",
+      isMap: false,
+      collapsed: false,
+      color: null,
+      icon: null,
+      id: null,
+      links: [],
+      task: box ? (box[1] === " " ? "open" : "done") : null,
+      doneAt: null,
+      children: [],
+    };
+    while (open.length && open.at(-1)!.indent >= indent) open.pop();
+    (open.at(-1)?.outline.children ?? top).push(outline);
+    open.push({ outline, indent });
+  }
+  return top;
 }
 
 export function toOPML(vault: Vault, id: string): string {
@@ -203,10 +273,18 @@ function entities(text: string): string {
 /**
  * Adds outlines as children of `parentId`, last, in one step, and returns
  * the nodes made for them. Links among them are made again between the new
- * nodes; links to nodes not brought in are dropped. A child of the centre
- * `centreId` is given a side and colour like any new branch.
+ * nodes; links to nodes not brought in are dropped, unless `keepLinks` says
+ * the node is there to link to, as when pasting a copy in the same vault. A
+ * child of the centre `centreId` is given a side and colour like any new
+ * branch.
  */
-export function importInto(vault: Vault, parentId: string, outlines: Outline[], centreId: string): Node[] {
+export function importInto(
+  vault: Vault,
+  parentId: string,
+  outlines: Outline[],
+  centreId: string,
+  keepLinks: (id: string) => boolean = () => false,
+): Node[] {
   return vault.transact(() => {
     const newId = new Map<string, string>();
     const made: { node: Node; links: string[] }[] = [];
@@ -231,7 +309,7 @@ export function importInto(vault: Vault, parentId: string, outlines: Outline[], 
     const tops = outlines.map((o) => add(o, parentId));
     for (const { node, links } of made) {
       for (const old of links) {
-        const to = newId.get(old);
+        const to = newId.get(old) ?? (keepLinks(old) ? old : undefined);
         if (to) vault.link(node.id, to);
       }
     }

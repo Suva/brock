@@ -143,6 +143,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         // The save and open dialogs of export and import, used from Rust only.
         .plugin(tauri_plugin_dialog::init())
+        // Copy and paste of branches: text only, read only when ⌘V is pressed.
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let path = vault_path(app)?;
             let db = Db::open(&path)?;

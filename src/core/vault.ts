@@ -363,6 +363,25 @@ export class Vault {
     this.update(id, done ? { task: "done", doneAt: this.#now() } : { task: "open", doneAt: null });
   }
 
+  /**
+   * Brings a deleted node back as the last child of `parentId`, with all
+   * that went with it: how a cut branch is pasted, keeping its identity, so
+   * that links to it still lead to it.
+   */
+  restoreTo(id: string, parentId: string): void {
+    this.transact(() => {
+      const node = this.#nodes.get(id);
+      if (!node || node.deletedAt === null) throw new Error(`No deleted node ${id}`);
+      this.#requireLive(parentId);
+      if (id === parentId || this.ancestors(parentId).some((n) => n.id === id)) {
+        throw new Error("A node cannot be put under itself");
+      }
+      const sortKey = this.#keyAt(parentId, this.children(parentId).length);
+      const side = node.parentId === parentId ? node.side : null;
+      this.#write({ ...node, parentId, sortKey, side, deletedAt: null, updatedAt: this.#now() });
+    });
+  }
+
   /** Makes a node a map of its own, or an ordinary node of its parent's map again. */
   setMap(id: string, isMap: boolean): void {
     this.transact(() => {

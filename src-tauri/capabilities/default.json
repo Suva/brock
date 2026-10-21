@@ -20,6 +20,8 @@
           "url": "http://*"
         }
       ]
-    }
+    },
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text"
   ]
 }

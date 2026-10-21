@@ -5,6 +5,14 @@
 -->
 <script lang="ts" module>
   import type { Camera } from "./camera.ts";
+  import type { Clip } from "../core/clipboard.ts";
+
+  /**
+   * What was copied or cut last, with all it carries. The system's clipboard
+   * gets its text; a paste whose text is the same is this clip, and comes in
+   * whole. Kept here so that it outlives a turn in the outline.
+   */
+  let clip: Clip | null = null;
 
   // Each map keeps where it was looked at, for coming back to it, also after
   // a turn in the outline.
@@ -14,6 +22,8 @@
 <script lang="ts">
   import { tick, untrack } from "svelte";
   import { branchBeside, branchColour, newBranch } from "../core/branches.ts";
+  import { copyOf, cut as cutBranches, paste } from "../core/clipboard.ts";
+  import { fromText } from "../core/exchange.ts";
   import { dropAt, type Drop } from "../core/drop.ts";
   import { layoutMap, SPACING, type Layout, type Placed } from "../core/layout.ts";
   import type { Node, NodeFields } from "../core/node.ts";
@@ -22,6 +32,7 @@
   import { progressUnder, tickAll, toggleTasks } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
+  import { readText, writeText } from "./system-clipboard.ts";
   import type { Live } from "./live.svelte.ts";
 
   let {
@@ -770,17 +781,76 @@
   function removeChosen() {
     const ids = acting();
     if (ids.length <= 1) return remove(ids[0] ?? selected ?? mapId);
+    const next = leftBeside(ids);
+    vault.transact(() => ids.forEach((id) => vault.delete(id)));
+    others = new Set();
+    selected = next;
+  }
+
+  /** What to choose once `ids` are gone: a sibling left beside the first, or its parent. */
+  function leftBeside(ids: string[]): string {
     const gone = new Set(ids);
     const first = vault.get(ids[0])!;
     const siblings = vault.children(first.parentId!);
     const i = siblings.indexOf(first);
-    const next =
+    return (
       siblings.slice(i).find((n) => !gone.has(n.id)) ??
       siblings.slice(0, i).reverse().find((n) => !gone.has(n.id)) ??
-      vault.get(first.parentId!)!;
-    vault.transact(() => ids.forEach((id) => vault.delete(id)));
-    others = new Set();
-    selected = next.id;
+      vault.get(first.parentId!)!
+    ).id;
+  }
+
+  // ---- Copy, cut and paste --------------------------------------------------
+
+  /**
+   * Copies the chosen branches, everything under them included; with only
+   * the centre chosen, the whole map. Cut takes them away too, to be moved
+   * by a paste. The clipboard gets them as an indented list for other apps.
+   */
+  function copyChosen(cutting: boolean) {
+    let ids = acting();
+    if (ids.length === 0) {
+      if (cutting) return;
+      ids = [mapId];
+    }
+    const next = cutting ? leftBeside(ids) : null;
+    clip = cutting ? cutBranches(vault, ids) : copyOf(vault, ids);
+    if (next) {
+      others = new Set();
+      selected = next;
+    }
+    writeText(clip.text).catch(() => {
+      // Without the system's clipboard, a paste in the app still has the clip.
+    });
+  }
+
+  /**
+   * Pastes under the selected node: inside it, if it is a map, and as
+   * branches with a side and colour on the centre. What is pasted is chosen.
+   * Text from other apps comes in as outlines; a cut is moved, once.
+   */
+  async function pasteHere() {
+    let text = "";
+    try {
+      text = await readText();
+    } catch {
+      // No access to the system's clipboard: paste what was copied here.
+      text = clip?.text ?? "";
+    }
+    const from = clip && clip.text === text ? clip : text.trim() ? { text, outlines: fromText(text), cut: null } : null;
+    if (!from || from.outlines.length === 0) return;
+    const target = selected && layout.byId.has(selected) ? selected : mapId;
+    const node = vault.get(target)!;
+    const portal = node.isMap && target !== mapId;
+    const pasted = vault.transact(() => {
+      if (node.collapsed) vault.update(target, { collapsed: false });
+      return paste(vault, from, target, portal ? target : mapId);
+    });
+    // A cut moves once; pasting it again makes copies.
+    if (from === clip && clip.cut) clip = { ...clip, cut: null };
+    if (portal || pasted.length === 0) return;
+    others = new Set(pasted.slice(1).map((n) => n.id));
+    selected = pasted[0].id;
   }
 
   function remove(id: string) {
@@ -839,6 +909,10 @@
       // Shift with an arrow adds the next node that way to those chosen.
       const next = neighbour(layout, id, arrows[e.key]);
       if (next) choose(next);
+    } else if (mod && !e.shiftKey && !e.altKey && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "x")) {
+      copyChosen(e.key.toLowerCase() === "x");
+    } else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "v") {
+      pasteHere();
     } else if (mod && !e.shiftKey && e.key.toLowerCase() === "a") {
       // Everything in the map but its centre.
       const all = layout.placed.filter((p) => p.depth > 0).map((p) => p.node.id);

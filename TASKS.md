@@ -36,7 +36,7 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 - ⌥ with the arrows, making maps, colours and icons work on the selected
   node only; extend them to all chosen if that is missed.
 - The outline chooses one row at a time.
-- Copy, cut and paste of chosen branches.
+- Copy and paste in the outline: its rows are text fields, which copy text.
 
 ## Tasks
 

@@ -59,6 +59,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/exchange.ts` | Export to JSON, Markdown and OPML; reading OPML and JSON back in |
 | `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel |
 | `src/core/history.ts` | The maps visited, for back and forward |
+| `src/core/clipboard.ts` | Copy, cut and paste of branches: copies as outlines, cuts moved whole |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -75,6 +76,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
 | `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |
 | `src/ui/theme.ts` | Light, dark or as the system, kept in the window's storage |
+| `src/ui/system-clipboard.ts` | The system's clipboard as text: Tauri's plugin in the app, the browser's elsewhere |
 | `src/ui/open-url.ts` | Opens a web address in the browser, never in the app |
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
@@ -187,6 +189,11 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   Where a key would clash with text editing or the system on one platform,
   use another there (the outline's moves, the sidebar's ⌃⌘S on a Mac and
   Ctrl+Shift+S elsewhere).
+- **Copy and paste are keys, not clipboard events.** WebKit, the engine on a
+  Mac, gives a page no copy or paste events without a text selection, which
+  the map never has, and asks before a page reads the clipboard. So the map
+  handles ⌘C, ⌘X and ⌘V itself and uses Tauri's clipboard plugin (text
+  only; read on ⌘V only). Text fields keep the system's own copy and paste.
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.
