@@ -23,6 +23,10 @@ struct Vault {
 /// How often the app looks whether today's copy is due, while it stays open.
 const BACKUP_CHECK: Duration = Duration::from_secs(60 * 60);
 
+/// The window starts hidden and the page shows it once it is drawn, so that
+/// it does not flash white; if the page never does, it is shown after this.
+const SHOW_ANYWAY: Duration = Duration::from_secs(3);
+
 /// Where the vault is kept: `MINDMAP_DATA` if it is set, for trying things out
 /// without touching the real vault, or else the app's data folder.
 fn vault_path(app: &tauri::App) -> Result<PathBuf, String> {
@@ -164,6 +168,13 @@ pub fn run() {
                 }
             });
             app.manage(Vault { db, backups });
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(SHOW_ANYWAY);
+                if let Some(window) = handle.get_webview_window("main") {
+                    let _ = window.show();
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

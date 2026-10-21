@@ -194,6 +194,11 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   the map never has, and asks before a page reads the clipboard. So the map
   handles ⌘C, ⌘X and ⌘V itself and uses Tauri's clipboard plugin (text
   only; read on ⌘V only). Text fields keep the system's own copy and paste.
+- **The window starts hidden.** It is created with `visible: false` and
+  `main.ts` shows it once the page is made (`showWindow`), so it does not
+  flash white in dark mode; the native side shows it after three seconds
+  anyway (`SHOW_ANYWAY` in `lib.rs`), so a page that fails to load still
+  shows its error. Anything that delays the first render delays the window.
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.

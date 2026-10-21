@@ -5,6 +5,12 @@
     <link rel="icon" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mind Map</title>
+    <meta name="color-scheme" content="light dark" />
+    <!-- The page's background before its styles load, so it does not start white in dark mode. -->
+    <style>
+      html { background: #fbfbfa; }
+      @media (prefers-color-scheme: dark) { html { background: #1b1d21; } }
+    </style>
   </head>
   <body>
     <div id="app"></div>

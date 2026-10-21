@@ -20,6 +20,7 @@ async function start(target: HTMLElement) {
     onPurge: (ids) => saver.purge(ids),
   });
   mount(App, { target, props: { live: new Live(vault, saver) } });
+  showWindow();
   keepUntilSaved(saver);
   fitTitleBar();
 }
@@ -73,4 +74,18 @@ const target = document.getElementById("app")!;
 start(target).catch((error) => {
   target.textContent = `The vault could not be opened: ${error instanceof Error ? error.message : error}`;
   target.className = "fatal";
+  showWindow();
 });
+
+/**
+ * Shows the app's window, which starts hidden (`visible: false` in
+ * tauri.conf.json) so that it does not flash white before the page is
+ * there in its colours. By now the styles are loaded and the window's
+ * contents made, so it can show at once: a hidden window may draw no frames
+ * to wait for. Should this never run, the native side shows the window
+ * after a few seconds anyway.
+ */
+function showWindow() {
+  if (!inTauri()) return;
+  import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().show());
+}
