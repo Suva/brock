@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { progressUnder, tasksUnder } from "../src/core/tasks.ts";
+import { priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
 import { Vault } from "../src/core/vault.ts";
 
 function trip() {
@@ -69,4 +69,36 @@ test("old nodes without tasks open as ordinary nodes", () => {
   const { task: _t, doneAt: _d, ...old } = vault.get(vault.rootId)!;
   const again = new Vault([old as never]);
   assert.equal(again.get(vault.rootId)!.task, null);
+});
+
+test("priorities: 1 to 3 before tasks without one, 4 and 5 after", () => {
+  const vault = new Vault([]);
+  const titles = ["none a", "p4", "p1", "none b", "p5", "p3"];
+  const nodes = titles.map((t) => vault.addChild(vault.rootId, { title: t }));
+  for (const n of nodes) vault.toggleTask(n.id);
+  const [, p4, p1, , p5, p3] = nodes;
+  setPriority(vault, [p4.id], 4);
+  setPriority(vault, [p1.id], 1);
+  setPriority(vault, [p5.id], 5);
+  setPriority(vault, [p3.id], 3);
+  const [group] = tasksUnder(vault, vault.rootId).groups;
+  assert.deepEqual(
+    group.open.map((n) => n.title),
+    ["p1", "p3", "none a", "none b", "p4", "p5"],
+    "and the tree's order among equals",
+  );
+  assert.ok(priorityRank(3) < priorityRank(null) && priorityRank(null) < priorityRank(4));
+});
+
+test("the same number again takes a priority off; several get it together", () => {
+  const vault = new Vault([]);
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  setPriority(vault, [a.id], 2);
+  setPriority(vault, [a.id, b.id], 2);
+  assert.deepEqual([vault.get(a.id)!.priority, vault.get(b.id)!.priority], [2, 2], "mixed: all get it");
+  setPriority(vault, [a.id, b.id], 2);
+  assert.deepEqual([vault.get(a.id)!.priority, vault.get(b.id)!.priority], [null, null], "all had it: off");
+  vault.undo();
+  assert.equal(vault.get(b.id)!.priority, 2, "one step");
 });

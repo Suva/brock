@@ -29,11 +29,12 @@
   import type { Node, NodeFields } from "../core/node.ts";
   import { indent, outdent, place, placeAll, reorder, setSide, topmost } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
-  import { progressUnder, tickAll, toggleTasks } from "../core/tasks.ts";
+  import { progressUnder, setPriority, tickAll, toggleTasks } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
   import { readText, writeText } from "./system-clipboard.ts";
   import type { Live } from "./live.svelte.ts";
+  import PriorityBadge from "./PriorityBadge.svelte";
 
   let {
     live,
@@ -909,6 +910,9 @@
       // Shift with an arrow adds the next node that way to those chosen.
       const next = neighbour(layout, id, arrows[e.key]);
       if (next) choose(next);
+    } else if (mod && !e.shiftKey && !e.altKey && /^Digit[1-5]$/.test(e.code)) {
+      // ⌘1 to ⌘5, by the key's place, so that layouts where digits need Shift work too.
+      setPriority(vault, [...chosen], Number(e.code.slice(5)));
     } else if (mod && !e.shiftKey && !e.altKey && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "x")) {
       copyChosen(e.key.toLowerCase() === "x");
     } else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "v") {
@@ -1047,6 +1051,7 @@
             }}>{node.task === "done" ? "✓" : ""}</button
           >
         {/if}
+        {#if node.priority}<PriorityBadge priority={node.priority} />{/if}
         {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
         {#if editing === node.id}
           <span

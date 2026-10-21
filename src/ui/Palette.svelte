@@ -7,6 +7,7 @@
 <script lang="ts">
   import { search, type Hit, type Scope } from "../core/search.ts";
   import type { Live } from "./live.svelte.ts";
+  import PriorityBadge from "./PriorityBadge.svelte";
 
   let {
     live,
@@ -135,6 +136,7 @@
         >
           <div class="title">
             {#if hit.node.isMap}<span class="map" title="A map">⧉</span>{/if}
+            {#if hit.node.priority}<PriorityBadge priority={hit.node.priority} />{/if}
             {#if hit.node.icon}<span class="icon">{hit.node.icon}</span>{/if}
             {#each pieces(hit) as piece, k (k)}
               {#if piece.mark}<mark>{piece.text}</mark>{:else}{piece.text}{/if}

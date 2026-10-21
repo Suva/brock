@@ -29,6 +29,9 @@ pub struct Node {
     pub task: Option<String>,
     #[serde(default)]
     pub done_at: Option<i64>,
+    /// 1 to 5, or None.
+    #[serde(default)]
+    pub priority: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
@@ -114,6 +117,10 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE nodes ADD COLUMN task TEXT CHECK (task IN ('open', 'done'));
     ALTER TABLE nodes ADD COLUMN done_at INTEGER;
     "#,
+    // 4: priorities, 1 to 5.
+    r#"
+    ALTER TABLE nodes ADD COLUMN priority INTEGER CHECK (priority BETWEEN 1 AND 5);
+    "#,
 ];
 
 pub struct Db {
@@ -161,7 +168,7 @@ impl Db {
             .conn
             .prepare(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links, task, done_at
+                        created_at, updated_at, deleted_at, links, task, done_at, priority
                  FROM nodes",
             )
             .map_err(err)?;
@@ -177,8 +184,8 @@ impl Db {
             let mut upsert = tx
                 .prepare_cached(
                     "INSERT INTO nodes (id, parent_id, sort_key, side, title, body, is_map, collapsed,
-                                        color, icon, created_at, updated_at, deleted_at, links, task, done_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                                        color, icon, created_at, updated_at, deleted_at, links, task, done_at, priority)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
                      ON CONFLICT (id) DO UPDATE SET
                         parent_id = excluded.parent_id, sort_key = excluded.sort_key,
                         side = excluded.side, title = excluded.title, body = excluded.body,
@@ -186,7 +193,7 @@ impl Db {
                         color = excluded.color, icon = excluded.icon,
                         created_at = excluded.created_at, updated_at = excluded.updated_at,
                         deleted_at = excluded.deleted_at, links = excluded.links,
-                        task = excluded.task, done_at = excluded.done_at",
+                        task = excluded.task, done_at = excluded.done_at, priority = excluded.priority",
                 )
                 .map_err(err)?;
             let mut log = tx
@@ -199,7 +206,7 @@ impl Db {
                         n.id, n.parent_id, n.sort_key, n.side, n.title, n.body, n.is_map, n.collapsed,
                         n.color, n.icon, n.created_at, n.updated_at, n.deleted_at,
                         serde_json::to_string(&n.links).unwrap(),
-                        n.task, n.done_at
+                        n.task, n.done_at, n.priority
                     ])
                     .map_err(|e| format!("Cannot save node {}: {e}", n.id))?;
                 let before = change.before.as_ref().map(|b| serde_json::to_string(b).unwrap());
@@ -260,7 +267,7 @@ impl Db {
         self.conn
             .query_row(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links, task, done_at
+                        created_at, updated_at, deleted_at, links, task, done_at, priority
                  FROM nodes WHERE id = ?1",
                 [id],
                 node_from_row,
@@ -289,6 +296,7 @@ fn node_from_row(r: &Row) -> rusqlite::Result<Node> {
         links: serde_json::from_str(&r.get::<_, String>(13)?).unwrap_or_default(),
         task: r.get(14)?,
         done_at: r.get(15)?,
+        priority: r.get(16)?,
     })
 }
 
@@ -319,6 +327,7 @@ mod tests {
             links: Vec::new(),
             task: None,
             done_at: None,
+            priority: None,
             created_at: 1,
             updated_at: 1,
             deleted_at: None,
@@ -431,7 +440,14 @@ mod tests {
         assert_eq!((back.task.as_deref(), back.done_at), (Some("done"), Some(5)));
         let mut bad = a.clone();
         bad.task = Some("maybe".into());
-        assert!(db.apply(&[Change { before: Some(a), after: bad }]).is_err());
+        assert!(db.apply(&[Change { before: Some(a.clone()), after: bad }]).is_err());
+        let mut urgent = a.clone();
+        urgent.priority = Some(1);
+        db.apply(&[Change { before: Some(a.clone()), after: urgent.clone() }]).unwrap();
+        assert_eq!(db.get("a").unwrap().unwrap().priority, Some(1));
+        let mut wrong = urgent.clone();
+        wrong.priority = Some(9);
+        assert!(db.apply(&[Change { before: Some(urgent), after: wrong }]).is_err(), "only 1 to 5");
     }
 
     #[test]

@@ -64,7 +64,8 @@ the arrow keys, then:
 | ⇧⌘T | Shows the tasks of the open map, or of all maps, in the sidebar |
 | ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
-| ⌘1, ⌘2 | The map, or the same map as an outline |
+| ⌘1 to ⌘5 | Gives the node a priority, 1 to 5; the same number again takes it off |
+| ⌥⌘1, ⌥⌘2 | The map, or the same map as an outline |
 | ⌘, | Settings: light, dark or as the system; the daily copies |
 | ⇧⌘N | Shows the selected node's notes |
 | ⌘Z, ⇧⌘Z | Undo, redo |
@@ -110,6 +111,10 @@ maps above. On a deep map the ones in the middle fold into a "…",
 which lists them.
 
 A node with tasks under it shows how many are done, as 2/5.
+
+Any node can have a priority, from 1 to 5, shown as a numbered circle before
+its title. In the tasks list, priorities 1 to 3 come before tasks that have
+none, and 4 and 5 after them.
 
 The sidebar on the left, opened by the small tab on the left edge or ⌃⌘S,
 lists places in the vault to go to, as two tabs:

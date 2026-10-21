@@ -7,6 +7,7 @@
 <script lang="ts">
   import type { Node } from "../core/node.ts";
   import { tasksUnder } from "../core/tasks.ts";
+  import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
 
   let {
@@ -44,6 +45,7 @@
       onchange={(e) => vault.tick(node.id, e.currentTarget.checked)}
     />
     <button class="title" tabindex="-1" onclick={() => onGoTo(node.id)} title="Go to it">
+      {#if node.priority}<PriorityBadge priority={node.priority} />{/if}
       {label(node)}
       {#if under(node, map)}<span class="under">{under(node, map)}</span>{/if}
     </button>

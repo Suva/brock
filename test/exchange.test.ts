@@ -14,6 +14,7 @@ function sample() {
   vault.link(shibuya.id, kyoto.id);
   vault.toggleTask(shibuya.id);
   vault.tick(shibuya.id);
+  vault.update(shibuya.id, { priority: 2 });
   vault.delete(vault.addChild(vault.rootId, { title: "Gone" }).id);
   return { vault, tokyo, shibuya, kyoto };
 }
@@ -88,6 +89,7 @@ test("JSON comes back in whole: maps, icons, colours and links", () => {
   const shibuya = other.children(tokyo.id)[0];
   assert.deepEqual(shibuya.links, [kyoto.id], "links point at the new nodes");
   assert.equal(shibuya.task, "done", "and tasks come back done or not");
+  assert.equal(shibuya.priority, 2, "with their priority");
   other.undo();
   assert.deepEqual(other.children(other.rootId), [], "bringing it in is one step");
 });

@@ -244,9 +244,10 @@
       showTab("tasks");
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
-    } else if (key === "1" && !event.shiftKey) {
+    } else if (event.altKey && event.code === "Digit1" && !event.shiftKey) {
+      // ⌥⌘1 and ⌥⌘2: ⌘1 to ⌘5 set priorities.
       view = "map";
-    } else if (key === "2" && !event.shiftKey) {
+    } else if (event.altKey && event.code === "Digit2" && !event.shiftKey) {
       view = "outline";
     } else {
       return;
@@ -295,8 +296,8 @@
     </nav>
     <div class="tools">
       <div class="switch" role="group" aria-label="View">
-        <button class:on={view === "map"} onclick={() => (view = "map")} title="Map (⌘1)">Map</button>
-        <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌘2)">Outline</button>
+        <button class:on={view === "map"} onclick={() => (view = "map")} title="Map (⌥⌘1)">Map</button>
+        <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌥⌘2)">Outline</button>
       </div>
       <button class="icon-button" onclick={() => (searching = "go")} title="Search everything (⌘K)" aria-label="Search">
         <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">

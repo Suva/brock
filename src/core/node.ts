@@ -30,6 +30,11 @@ export interface Node {
   task: "open" | "done" | null;
   /** When the task was ticked done, or null. */
   doneAt: number | null;
+  /**
+   * How much it matters, 1 to 5, or null. 1 to 3 come before what has none,
+   * 4 and 5 after: see `byPriority` in tasks.ts.
+   */
+  priority: number | null;
   /** Milliseconds since 1970, as `Date.now()` gives them. */
   createdAt: number;
   updatedAt: number;
@@ -50,4 +55,4 @@ export interface Change {
 }
 
 /** The fields an edit may set directly. */
-export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt">;
+export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt" | "priority">;

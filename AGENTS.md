@@ -77,6 +77,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |
 | `src/ui/theme.ts` | Light, dark or as the system, kept in the window's storage |
 | `src/ui/system-clipboard.ts` | The system's clipboard as text: Tauri's plugin in the app, the browser's elsewhere |
+| `src/ui/PriorityBadge.svelte` | A priority, 1 to 5, as a numbered circle |
 | `src/ui/open-url.ts` | Opens a web address in the browser, never in the app |
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
@@ -184,6 +185,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   (`data-tauri-drag-region="deep"`); its buttons stay buttons. Change the
   header's height and the buttons' position has to follow. Windows and
   Linux keep their own title bars.
+- **Number keys are matched by `e.code`, not `e.key`.** ⌘1 to ⌘5 and ⌥⌘1
+  look at the key's place (`Digit1`): where digits need Shift, as in French
+  layouts, and with ⌥ on a Mac, `e.key` is another character.
 - **Shortcuts are letters, arrows and common punctuation.** Keys like `\`
   sit behind awkward combinations on many keyboard layouts outside the US.
   Where a key would clash with text editing or the system on one platform,

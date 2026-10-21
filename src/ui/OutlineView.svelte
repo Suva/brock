@@ -5,6 +5,8 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { branchBeside, newBranch } from "../core/branches.ts";
+  import { setPriority } from "../core/tasks.ts";
+  import PriorityBadge from "./PriorityBadge.svelte";
   import { indent, outdent, reorder } from "../core/moves.ts";
   import type { Node } from "../core/node.ts";
   import { typingIn } from "./keys.ts";
@@ -87,6 +89,9 @@
     } else if (event.key === "Tab" && event.shiftKey) {
       event.preventDefault();
       if (outdent(vault, node.id, where)) focusNode(node.id);
+    } else if (mod && !event.shiftKey && !event.altKey && /^Digit[1-5]$/.test(event.code)) {
+      event.preventDefault();
+      setPriority(vault, [node.id], Number(event.code.slice(5)));
     } else if (mod && !event.shiftKey && event.key.toLowerCase() === "t") {
       event.preventDefault();
       vault.toggleTask(node.id);
@@ -176,6 +181,7 @@
           onchange={(e) => vault.tick(node.id, e.currentTarget.checked)}
         />
       {/if}
+      {#if node.priority}<span class="priority"><PriorityBadge priority={node.priority} /></span>{/if}
       {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
       <input
         id="row-{node.id}"
@@ -224,8 +230,13 @@
     gap: 0.4rem;
   }
 
-  .icon {
+  .icon,
+  .priority {
     margin-left: 0.4rem;
+  }
+
+  .priority {
+    display: flex;
   }
 
   /* The title fields only: a task's checkbox is an input too. */
