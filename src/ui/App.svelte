@@ -111,6 +111,18 @@
     return vault.mapPath(mapId);
   });
 
+  /**
+   * The breadcrumbs as shown: all of them when few, or else the top, a "…"
+   * for the maps between, and the last two, so a deep map never pushes the
+   * header's buttons out of the window.
+   */
+  const MOST_CRUMBS = 4;
+  const folded = $derived(breadcrumbs.length > MOST_CRUMBS ? breadcrumbs.slice(1, -2) : []);
+  const shownCrumbs = $derived(
+    folded.length ? [breadcrumbs[0], "fold" as const, ...breadcrumbs.slice(-2)] : breadcrumbs,
+  );
+  let foldOpen = $state(false);
+
   // Back and forward (⌘← ⌘→, or ⌘[ ⌘]) go through the maps visited.
   const history = new History();
   /** Goes up with each step through the history, for the buttons to know. */
@@ -163,8 +175,8 @@
     if (node.isMap) return open(id);
     const map = vault.mapOf(id)!;
     const above = vault.ancestors(id);
-    const folded = above.slice(above.findIndex((n) => n.id === map) + 1).filter((n) => n.collapsed);
-    if (folded.length) vault.transact(() => folded.forEach((n) => vault.update(n.id, { collapsed: false })));
+    const foldedAbove = above.slice(above.findIndex((n) => n.id === map) + 1).filter((n) => n.collapsed);
+    if (foldedAbove.length) vault.transact(() => foldedAbove.forEach((n) => vault.update(n.id, { collapsed: false })));
     moveTo(map, id);
   }
 
@@ -188,6 +200,16 @@
     if (last && vault.isLive(last.id)) selected = last.id;
   }
 
+  /**
+   * Showing and hiding the sidebar: ⌃⌘S on a Mac, as in Finder, Mail and
+   * Notes, and Ctrl+Shift+S elsewhere. Keys of letters, which every keyboard
+   * layout types the same way, unlike a backslash.
+   */
+  function sidebarKey(e: KeyboardEvent): boolean {
+    if (e.key.toLowerCase() !== "s" || e.altKey) return false;
+    return navigator.platform.startsWith("Mac") ? e.ctrlKey && e.metaKey && !e.shiftKey : e.ctrlKey && e.shiftKey;
+  }
+
   function onWindowKey(event: KeyboardEvent) {
     const mod = event.metaKey || event.ctrlKey;
     if (!mod) return;
@@ -208,7 +230,7 @@
       (event.key === "ArrowRight" && !event.shiftKey && !event.altKey && !typingIn(event.target))
     ) {
       step("forward");
-    } else if (event.key === "\\" && !event.shiftKey) {
+    } else if (sidebarKey(event)) {
       sidebarOpen = !sidebarOpen;
     } else if (event.key === "," && !event.shiftKey) {
       settingsOpen = !settingsOpen;
@@ -245,11 +267,30 @@
       <button onclick={() => step("forward")} disabled={!canGoForward} title="Forward (⌘→)" aria-label="Forward">›</button>
     </div>
     <nav aria-label="Breadcrumbs">
-      {#each breadcrumbs as map, i (map.id)}
+      {#each shownCrumbs as crumb, i (crumb === "fold" ? "fold" : crumb.id)}
         {#if i > 0}<span class="sep">›</span>{/if}
-        <button class="crumb" class:current={map.id === mapId} onclick={() => open(map.id)}>
-          {#if map.icon}{map.icon}&nbsp;{/if}{map.title || "Untitled"}
-        </button>
+        {#if crumb === "fold"}
+          <div class="fold-crumbs">
+            <button
+              class="crumb"
+              class:on={foldOpen}
+              onclick={() => (foldOpen = !foldOpen)}
+              title="{folded.length} maps between"
+              aria-label="{folded.length} maps between">…</button
+            >
+            {#if foldOpen}
+              <MoreMenu
+                align="left"
+                items={folded.map((m) => ({ label: (m.icon ? `${m.icon} ` : "") + (m.title || "Untitled"), run: () => open(m.id) }))}
+                onClose={() => (foldOpen = false)}
+              />
+            {/if}
+          </div>
+        {:else}
+          <button class="crumb" class:current={crumb.id === mapId} onclick={() => open(crumb.id)} title={crumb.title || "Untitled"}>
+            {#if crumb.icon}{crumb.icon}&nbsp;{/if}{crumb.title || "Untitled"}
+          </button>
+        {/if}
       {/each}
     </nav>
     <div class="tools">
@@ -279,7 +320,7 @@
         class="knob"
         onmousedown={(e) => e.preventDefault()}
         onclick={() => (sidebarOpen = true)}
-        title="Maps and tasks (⌘\, ⇧⌘T)"
+        title="Maps and tasks (⌃⌘S, ⇧⌘T)"
         aria-label="Show the sidebar"
       >
         ›
@@ -363,6 +404,8 @@
   .app {
     display: grid;
     grid-template-rows: auto 1fr auto;
+    /* The column may be narrower than the header's content, which shrinks to fit. */
+    grid-template-columns: minmax(0, 1fr);
     height: 100%;
   }
 
@@ -475,9 +518,22 @@
   }
 
   .crumb {
+    /* Long names shrink with an ellipsis rather than widen the header. */
+    flex: 0 1 auto;
+    min-width: 2.5rem;
+    max-width: 14rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .fold-crumbs {
+    position: relative;
+    flex: none;
+  }
+
+  .sep {
+    flex: none;
   }
 
   .crumb.current {
@@ -485,6 +541,7 @@
   }
 
   .tools {
+    flex: none;
     display: flex;
     align-items: center;
     gap: 0.25rem;

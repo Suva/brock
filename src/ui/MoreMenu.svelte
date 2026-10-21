@@ -6,7 +6,11 @@
 <script lang="ts">
   type Item = { label: string; run: () => void; hint?: string } | "line";
 
-  let { items, onClose }: { items: Item[]; onClose: () => void } = $props();
+  let {
+    items,
+    onClose,
+    align = "right",
+  }: { items: Item[]; onClose: () => void; /** Which edge of its button the menu lines up with. */ align?: "left" | "right" } = $props();
 
   let menu: HTMLDivElement;
   const buttons = () => [...menu.querySelectorAll<HTMLButtonElement>("button")];
@@ -30,7 +34,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="away" onclick={onClose}></div>
-<div class="menu" role="dialog" aria-label="More" tabindex="-1" bind:this={menu} onkeydown={onKey}>
+<div class="menu" class:left={align === "left"} role="dialog" aria-label="More" tabindex="-1" bind:this={menu} onkeydown={onKey}>
   {#each items as item, i (i)}
     {#if item === "line"}
       <hr />
@@ -67,6 +71,11 @@
     background: var(--bg);
     box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
     outline: none;
+  }
+
+  .menu.left {
+    right: auto;
+    left: 0;
   }
 
   button {

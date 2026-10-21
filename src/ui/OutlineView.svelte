@@ -179,6 +179,7 @@
       {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
       <input
         id="row-{node.id}"
+        class="title"
         class:done={node.task === "done"}
         value={node.title}
         placeholder={isCentre ? "Main idea" : "Idea"}
@@ -227,7 +228,8 @@
     margin-left: 0.4rem;
   }
 
-  .row input {
+  /* The title fields only: a task's checkbox is an input too. */
+  .row input.title {
     font: inherit;
     color: inherit;
     background: none;
@@ -238,26 +240,27 @@
   }
 
   .check {
-    margin-left: 0.4rem;
+    flex: none;
+    margin: 0 0 0 0.5rem;
   }
 
-  .row input.done {
+  .row input.title.done {
     text-decoration: line-through;
     opacity: 0.55;
   }
 
-  .row input:focus {
+  .row input.title:focus {
     outline: none;
     border-color: var(--accent);
     background: var(--accent-soft);
   }
 
-  .row.centre input {
+  .row.centre input.title {
     font-size: 1.3rem;
     font-weight: 600;
   }
 
-  .row.portal input {
+  .row.portal input.title {
     font-weight: 600;
   }
 

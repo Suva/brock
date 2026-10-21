@@ -1,6 +1,6 @@
 <!--
   The sidebar on the left: lists of places in the vault to go to, as tabs,
-  the maps (⌘\) and the tasks (⇧⌘T). The right side is for the selected
+  the maps (⌃⌘S) and the tasks (⇧⌘T). The right side is for the selected
   node; this side is for the vault. It is worked with the mouse and leaves
   the keyboard with the map.
 -->
@@ -33,13 +33,13 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <aside aria-label="Sidebar" onmousedown={(e) => e.preventDefault()}>
   <div class="tabs" role="tablist" aria-label="Show">
-    <button role="tab" aria-selected={tab === "maps"} class:on={tab === "maps"} tabindex="-1" onclick={() => onTab("maps")} title="All maps (⌘\)"
+    <button role="tab" aria-selected={tab === "maps"} class:on={tab === "maps"} tabindex="-1" onclick={() => onTab("maps")} title="All maps (⌃⌘S)"
       >Maps</button
     >
     <button role="tab" aria-selected={tab === "tasks"} class:on={tab === "tasks"} tabindex="-1" onclick={() => onTab("tasks")} title="Tasks (⇧⌘T)"
       >Tasks</button
     >
-    <button class="close" tabindex="-1" onclick={onClose} title="Hide the sidebar (⌘\)" aria-label="Hide the sidebar">‹</button>
+    <button class="close" tabindex="-1" onclick={onClose} title="Hide the sidebar (⌃⌘S)" aria-label="Hide the sidebar">‹</button>
   </div>
   <div class="content" role="tabpanel">
     {#if tab === "maps"}

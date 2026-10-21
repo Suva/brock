@@ -59,7 +59,7 @@ the arrow keys, then:
 | ⌘← ⌘→, or ⌘[ ⌘] | Back and forward through the maps visited, as in a browser |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
-| ⌘\ | Shows or hides the sidebar on the left: every map of the vault as a tree, or the tasks |
+| ⌃⌘S | Shows or hides the sidebar on the left: every map of the vault as a tree, or the tasks |
 | ⇧⌘T | Shows the tasks of the open map, or of all maps, in the sidebar |
 | ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
@@ -98,11 +98,12 @@ Drag the background or scroll to move around; pinch, or scroll with ⌘ held,
 to zoom. Zoomed out, the deeper levels turn into bars in their branch's colour,
 and a map too big for the window gets a small picture of itself in a corner:
 click or drag in it to move there. The breadcrumbs at the top lead back to the
-maps above.
+maps above. On a deep map the ones in the middle fold into a "…",
+which lists them.
 
 A node with tasks under it shows how many are done, as 2/5.
 
-The sidebar on the left, opened by the small tab on the left edge or ⌘\,
+The sidebar on the left, opened by the small tab on the left edge or ⌃⌘S,
 lists places in the vault to go to, as two tabs:
 Maps, every map as a tree with what each holds, and Tasks, what is still to
 do, grouped by map, with what is done folded away at the bottom. Tick tasks

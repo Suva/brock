@@ -182,6 +182,11 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   (`data-tauri-drag-region="deep"`); its buttons stay buttons. Change the
   header's height and the buttons' position has to follow. Windows and
   Linux keep their own title bars.
+- **Shortcuts are letters, arrows and common punctuation.** Keys like `\`
+  sit behind awkward combinations on many keyboard layouts outside the US.
+  Where a key would clash with text editing or the system on one platform,
+  use another there (the outline's moves, the sidebar's ⌃⌘S on a Mac and
+  Ctrl+Shift+S elsewhere).
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.
