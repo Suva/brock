@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Brock: a badger peeking out of its burrow, the maps inside maps. The
+       source of every icon size: `npx tauri icon src-tauri/icons/icon.svg`. -->
+  <defs>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="186" />
+    </clipPath>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f7a5a" />
+      <stop offset="1" stop-color="#25503a" />
+    </linearGradient>
+    <linearGradient id="soil" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9a663d" />
+      <stop offset="1" stop-color="#6c4325" />
+    </linearGradient>
+    <linearGradient id="lip" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a87146" />
+      <stop offset="1" stop-color="#734828" />
+    </linearGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7b7e84" />
+      <stop offset="1" stop-color="#55585e" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity="0.28" />
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#sky)" />
+  </g>
+
+  <g clip-path="url(#tile)">
+    <!-- The mound, and the burrow in it. -->
+    <ellipse cx="512" cy="930" rx="470" ry="300" fill="url(#soil)" />
+    <ellipse cx="512" cy="712" rx="232" ry="118" fill="#231509" />
+
+    <!-- Shoulders, in the burrow. -->
+    <ellipse cx="512" cy="700" rx="178" ry="112" fill="url(#fur)" />
+
+    <!-- Ears, white-tipped, behind the face. -->
+    <circle cx="392" cy="372" r="42" fill="#55585e" />
+    <circle cx="392" cy="372" r="24" fill="#ece8e1" />
+    <circle cx="632" cy="372" r="42" fill="#55585e" />
+    <circle cx="632" cy="372" r="24" fill="#ece8e1" />
+
+    <!-- The face: white, narrowing to the snout. -->
+    <path d="M512 326 C 642 326 696 420 664 504 C 634 584 566 646 512 650 C 458 646 390 584 360 504 C 328 420 382 326 512 326 Z" fill="#f3f0ea" />
+
+    <!-- The two dark stripes, from the ears over the eyes to the snout. -->
+    <path d="M404 360 C 432 340 462 342 474 360 C 486 420 496 520 504 612 C 496 620 484 616 478 606 C 456 528 424 446 398 388 C 394 376 396 366 404 360 Z" fill="#1f2023" />
+    <path d="M620 360 C 592 340 562 342 550 360 C 538 420 528 520 520 612 C 528 620 540 616 546 606 C 568 528 600 446 626 388 C 630 376 628 366 620 360 Z" fill="#1f2023" />
+
+    <!-- Eyes: a glint in each stripe. -->
+    <circle cx="462" cy="470" r="12" fill="#ffffff" />
+    <circle cx="562" cy="470" r="12" fill="#ffffff" />
+
+    <!-- Nose. -->
+    <ellipse cx="512" cy="628" rx="34" ry="24" fill="#1f2023" />
+    <ellipse cx="502" cy="621" rx="9" ry="5" fill="#5b5d62" />
+
+    <!-- The burrow's front edge, over the shoulders: it is peeking out. -->
+    <path d="M150 760 C 290 728 400 760 512 760 C 624 760 734 728 874 760 L 924 924 L 100 924 Z" fill="url(#lip)" />
+  </g>
+</svg>

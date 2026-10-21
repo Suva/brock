@@ -27,13 +27,25 @@ const BACKUP_CHECK: Duration = Duration::from_secs(60 * 60);
 /// it does not flash white; if the page never does, it is shown after this.
 const SHOW_ANYWAY: Duration = Duration::from_secs(3);
 
-/// Where the vault is kept: `MINDMAP_DATA` if it is set, for trying things out
+/// The app's identifier before it was called Brock: its data folder holds the
+/// vaults made then, which are copied over on the first start (`carry_over`).
+const OLD_IDENTIFIER: &str = "com.jaanpullerits.mindmap";
+
+/// Where the vault is kept: `BROCK_DATA` if it is set, for trying things out
 /// without touching the real vault, or else the app's data folder.
 fn vault_path(app: &tauri::App) -> Result<PathBuf, String> {
-    let dir = match std::env::var_os("MINDMAP_DATA") {
-        Some(dir) => PathBuf::from(dir),
-        None => app.path().app_data_dir().map_err(|e| e.to_string())?,
-    };
+    if let Some(dir) = std::env::var_os("BROCK_DATA") {
+        return Ok(PathBuf::from(dir).join("vault.sqlite"));
+    }
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    if let Some(parent) = dir.parent() {
+        // A copy that cannot be made must not keep the app from starting.
+        match db::carry_over(&parent.join(OLD_IDENTIFIER), &dir) {
+            Ok(true) => eprintln!("Copied the vault from {}", parent.join(OLD_IDENTIFIER).display()),
+            Ok(false) => {}
+            Err(e) => eprintln!("{e}"),
+        }
+    }
     Ok(dir.join("vault.sqlite"))
 }
 

@@ -277,6 +277,33 @@ impl Db {
     }
 }
 
+/// Copies the vault kept under the app's old name into `new_dir`, once: when
+/// there is none there yet and there is one in `old_dir`. SQLite makes the
+/// copy (`VACUUM INTO`), so changes still in the old vault's write-ahead log
+/// come too. The daily copies come along. The old folder is left as it was.
+/// Returns whether anything was copied.
+pub fn carry_over(old_dir: &Path, new_dir: &Path) -> Result<bool, String> {
+    let old = old_dir.join("vault.sqlite");
+    let new = new_dir.join("vault.sqlite");
+    if new.exists() || !old.exists() {
+        return Ok(false);
+    }
+    std::fs::create_dir_all(new_dir).map_err(|e| format!("Cannot make {}: {e}", new_dir.display()))?;
+    let partial = new.with_extension("partial");
+    let _ = std::fs::remove_file(&partial);
+    let conn = Connection::open(&old).map_err(|e| format!("Cannot open {}: {e}", old.display()))?;
+    conn.execute("VACUUM INTO ?1", [partial.to_string_lossy()])
+        .map_err(|e| format!("Cannot copy the vault from {}: {e}", old.display()))?;
+    drop(conn);
+    std::fs::rename(&partial, &new).map_err(|e| format!("Cannot keep the copied vault: {e}"))?;
+    let (old_copies, new_copies) = (crate::backups::folder(&old), crate::backups::folder(&new));
+    for copy in crate::backups::list(&old_copies) {
+        std::fs::create_dir_all(&new_copies).map_err(|e| e.to_string())?;
+        let _ = std::fs::copy(old_copies.join(&copy.name), new_copies.join(&copy.name));
+    }
+    Ok(true)
+}
+
 fn node_from_row(r: &Row) -> rusqlite::Result<Node> {
     Ok(Node {
         id: r.get(0)?,
@@ -393,7 +420,7 @@ mod tests {
 
     #[test]
     fn a_vault_on_disk_opens_again() {
-        let dir = std::env::temp_dir().join(format!("mindmap-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("brock-test-{}", std::process::id()));
         let path = dir.join("vault.sqlite");
         let _ = std::fs::remove_dir_all(&dir);
         {
@@ -466,6 +493,33 @@ mod tests {
         assert!(old.links.is_empty());
         assert_eq!(old.task, None);
         assert_eq!(db.search("old", 10).unwrap(), vec!["old"], "the search index carries over");
+    }
+
+    #[test]
+    fn the_vault_under_the_old_name_is_copied_once_with_what_its_log_holds() {
+        let root = std::env::temp_dir().join(format!("brock-carry-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (old_dir, new_dir) = (root.join("com.jaanpullerits.mindmap"), root.join("app.getbrock.brock"));
+
+        // The old vault, still open, its last change only in the write-ahead log.
+        let mut old = Db::open(&old_dir.join("vault.sqlite")).unwrap();
+        old.apply(&[Change { before: None, after: node("root", None, "Home") }]).unwrap();
+        old.conn.execute_batch("PRAGMA wal_autocheckpoint = 0;").unwrap();
+        old.apply(&[Change { before: None, after: node("late", Some("root"), "Written last") }]).unwrap();
+        std::fs::create_dir_all(old_dir.join("Backups")).unwrap();
+        std::fs::write(old_dir.join("Backups").join("vault-2026-10-01.sqlite"), b"a copy").unwrap();
+
+        assert!(carry_over(&old_dir, &new_dir).unwrap());
+        let new = Db::open(&new_dir.join("vault.sqlite")).unwrap();
+        assert_eq!(new.get("late").unwrap().unwrap().title, "Written last", "what was only in the log came too");
+        assert!(new_dir.join("Backups").join("vault-2026-10-01.sqlite").exists(), "the daily copies came along");
+        assert!(old_dir.join("vault.sqlite").exists(), "the old vault is left as it was");
+
+        drop(new);
+        assert!(!carry_over(&old_dir, &new_dir).unwrap(), "once only: a vault there is never written over");
+        assert!(!carry_over(&root.join("nothing"), &root.join("fresh")).unwrap(), "nothing to copy");
+        drop(old);
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

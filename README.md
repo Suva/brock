@@ -1,6 +1,7 @@
-# Mind Map
+# Brock
 
-*A working name: the app's real name is still to be chosen.*
+*A brock is a badger: it digs a burrow of tunnels and chambers, as this app
+keeps maps inside maps.*
 
 A desktop mind-mapping app. It starts with a single node; any node can become
 a map of its own, which you open and come back out of. Everything is saved as
@@ -149,10 +150,15 @@ clipboard is read only when you paste.
 ## Where the vault is kept
 
 One SQLite file, `vault.sqlite`, in the app's data folder:
-`~/Library/Application Support/com.jaanpullerits.mindmap` on macOS,
-`%APPDATA%\com.jaanpullerits.mindmap` on Windows and
-`~/.local/share/com.jaanpullerits.mindmap` on Linux. Set `MINDMAP_DATA` to a
-folder to use a vault there instead.
+`~/Library/Application Support/app.getbrock.brock` on macOS,
+`%APPDATA%\app.getbrock.brock` on Windows and
+`~/.local/share/app.getbrock.brock` on Linux. Set `BROCK_DATA` to a folder to
+use a vault there instead.
+
+Before the app was called Brock, its folder was `com.jaanpullerits.mindmap`.
+On its first start under the new name, the app copies the vault and its daily
+copies from there, and leaves the old folder as it was; once the vault is
+there in Brock, the old folder can be deleted.
 
 Every day the app is used, a copy of the vault is made in the `Backups` folder
 beside it, and the last seven are kept. Settings shows them and makes one on

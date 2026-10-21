@@ -1,11 +1,12 @@
-# Mind map app: plan
+# Brock: plan
 
 A desktop mind-mapping app that starts with a single node. Any node can become
 a map of its own, and you can move into it and back out to its parent. Everything
 is saved as you go to a local database. It should be fast to navigate and search,
 clean to look at, and give a good overview of everything in it.
 
-The name is still to be chosen (see "Open questions").
+The app is called Brock: a brock is a badger, which digs burrows of tunnels and
+chambers. Its web address is to be getbrock.app.
 
 ## Decisions so far
 
@@ -176,8 +177,4 @@ Later: Markdown in bodies, images, more vaults, syncing and a web version, phone
 
 ## Open questions
 
-- **The name.** There are many mind-mapping apps, so it needs a check against
-  existing apps, domains and trademarks. Ideas to start from, none checked yet,
-  most of them about digging into nested maps: Warren, Burrow, Delve, Thicket,
-  Canopy, Sprig, Nook, Loam.
 - Whether the top of the vault is a map like any other, or a special home view.

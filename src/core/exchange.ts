@@ -29,7 +29,9 @@ export interface Outline {
   children: Outline[];
 }
 
-const FORMAT = "mindmap";
+const FORMAT = "brock";
+/** The format's name before the app was called Brock: files exported then still come in. */
+const OLD_FORMATS = ["mindmap"];
 const FORMAT_VERSION = 1;
 
 /** The branch from `id` down, without what is deleted. */
@@ -195,7 +197,9 @@ export function fromJSON(text: string): Outline {
     throw new Error("The file is not valid JSON.");
   }
   const f = file as { format?: unknown; version?: unknown; root?: unknown };
-  if (f.format !== FORMAT) throw new Error("This JSON was not exported from this app.");
+  if (f.format !== FORMAT && !OLD_FORMATS.includes(f.format as string)) {
+    throw new Error("This JSON was not exported from this app.");
+  }
   if (typeof f.version !== "number" || f.version > FORMAT_VERSION) {
     throw new Error("This file is from a newer version of the app. Update the app to bring it in.");
   }

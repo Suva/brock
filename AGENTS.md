@@ -1,4 +1,4 @@
-# Working on Mind Map
+# Working on Brock
 
 Notes for anyone, human or AI agent, changing this code. The
 [README](README.md) says what the app does and how to run it, [PLAN.md](PLAN.md)
@@ -89,6 +89,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
+| `src-tauri/icons/icon.svg` | The icon, from which every size is made: `npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons` (delete the `android` and `ios` folders it makes too) |
 | `src-tauri/src/backups.rs` | Daily copies of the vault, the last seven kept |
 
 ## Rules that are easy to break
@@ -194,6 +195,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   Where a key would clash with text editing or the system on one platform,
   use another there (the outline's moves, the sidebar's ⌃⌘S on a Mac and
   Ctrl+Shift+S elsewhere).
+- **The identifier is `app.getbrock.brock`.** It names the data folder, so
+  it must not change again. The vault of the app's old identifier is copied
+  over once, on the first start (`carry_over` in `db.rs`). JSON exports say
+  `"brock"`; `"mindmap"`, from before, is still read.
 - **Copy and paste are keys, not clipboard events.** WebKit, the engine on a
   Mac, gives a page no copy or paste events without a text selection, which
   the map never has, and asks before a page reads the clipboard. So the map

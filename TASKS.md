@@ -6,8 +6,13 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 
 - Installers for macOS, Windows and Linux, built by GitHub on a version tag,
   as for DJ Mix Master; the app's own updates (Tauri's updater).
-- Choose the name first: it is in the installers, the bundle identifier and
-  the data folder.
+- Before the first release, search the Mac App Store and Microsoft Store
+  for apps called Brock, and the US and EU trademark registers for "Brock"
+  in software: the web search done when choosing the name found none, but
+  could not reach the registers. Avoid "Brock Maps" (Brock University's
+  campus map is brockmaps.com).
+- Register getbrock.app (and brockmap.app to hold), and put the website there.
+- The icon is a placeholder drawn in SVG; a designer's would be better.
 - A native menu bar (File, Edit, View) with the commands and their keys, for
   finding them without knowing the keys. Undo and Redo have no buttons any
   more; Edit > Undo and Redo is where they belong.
@@ -113,8 +118,6 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   load them on demand if it is slow.
 - The search command in Rust exists but nothing calls it: search runs in
   memory. Keep it for vaults too big for that, or for a web version.
-- Choose the name, then change `productName`, `identifier` (which moves the
-  data folder), the window title and the README.
 - Try the app on Windows and Linux.
 
 ## Later: a demo on the website

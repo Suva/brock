@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn a_copy_a_day_and_only_the_last_few_kept() {
-        let dir = std::env::temp_dir().join(format!("mindmap-backups-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("brock-backups-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("CREATE TABLE t (x); INSERT INTO t VALUES (42);").unwrap();

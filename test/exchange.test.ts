@@ -96,7 +96,7 @@ test("JSON comes back in whole: maps, icons, colours and links", () => {
 
 test("a file not from here, or from a newer version, is refused with a reason", () => {
   assert.throws(() => readOutlines('{"format":"other"}'), /not exported from this app/);
-  assert.throws(() => readOutlines('{"format":"mindmap","version":99,"root":{}}'), /newer version/);
+  assert.throws(() => readOutlines('{"format":"brock","version":99,"root":{}}'), /newer version/);
   assert.throws(() => readOutlines("{nope"), /not valid JSON/);
 });
 
@@ -108,4 +108,11 @@ test("brought in under the centre, outlines become branches with sides and colou
     ["right", "left"],
   );
   assert.ok(made.every((n) => n.color));
+});
+
+test("files exported before the app was called Brock still come in", () => {
+  const [old] = readOutlines('{"format":"mindmap","version":1,"root":{"title":"From before"}}');
+  assert.equal(old.title, "From before");
+  const fresh = new Vault([]);
+  assert.match(toJSON(fresh, fresh.rootId), /"format": "brock"/, "and new exports say Brock");
 });
