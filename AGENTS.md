@@ -90,7 +90,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
-| `src-tauri/icons/icon.svg` | The icon, from which every size is made: `npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons` (delete the `android` and `ios` folders it makes too) |
+| `src-tauri/icons/icon.svg` | The icon, from which every size is made: `npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons` (delete the `android` and `ios` folders it makes too, and copy `64x64.png` to `static/favicon.png`). It is the logo without its wordmark, with two more branches where the word was |
+| `static/Brock-logo.svg`, `static/brock-logo-plain.svg` | The logo with the wordmark: on its tile with a grey surround, and on plain black |
 | `src-tauri/src/backups.rs` | Daily copies of the vault, the last seven kept |
 
 ## Rules that are easy to break

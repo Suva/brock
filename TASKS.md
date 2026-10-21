@@ -17,7 +17,6 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   could not reach the registers. Avoid "Brock Maps" (Brock University's
   campus map is brockmaps.com).
 - Register getbrock.app (and brockmap.app to hold), and put the website there.
-- The icon is a placeholder drawn in SVG; a designer's would be better.
 
 ## The window
 
