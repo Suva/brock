@@ -45,6 +45,7 @@
     onOpen,
     onGoTo,
     onShowNotes,
+    onUp,
   }: {
     live: Live;
     mapId: string;
@@ -57,6 +58,8 @@
     onGoTo: (id: string) => void;
     /** Shows the selected node's notes, where its links are listed. */
     onShowNotes: () => void;
+    /** Back out to the map this one is in. */
+    onUp: () => void;
   } = $props();
 
   const vault = $derived(live.vault);
@@ -1043,6 +1046,26 @@
         aria-selected={selected === node.id}
         tabindex="-1"
       >
+        {#if isCentre && node.parentId !== null}
+          {@const outer = vault.mapOf(node.id)}
+          <button
+            class="up"
+            tabindex="-1"
+            title="Back to {(outer && vault.get(outer)?.title) || 'the map around it'} (⌘↑)"
+            aria-label="Back to the map around it"
+            onmousedown={(e) => e.preventDefault()}
+            onpointerdown={(e) => e.stopPropagation()}
+            ondblclick={(e) => e.stopPropagation()}
+            onclick={(e) => {
+              e.stopPropagation();
+              onUp();
+            }}
+          >
+            <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+              <path d="M6 10V2.5M2.8 5.5 6 2.3l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        {/if}
         {#if node.task}
           <button
             class="check"
@@ -1426,6 +1449,26 @@
 
   .away:hover {
     background: var(--accent-soft);
+  }
+
+  /* On the centre of a map inside another: the way back out, by mouse. */
+  .up {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-left: -8px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--bg) 18%, transparent);
+    color: var(--bg);
+    cursor: pointer;
+  }
+
+  .up:hover {
+    background: color-mix(in srgb, var(--bg) 32%, transparent);
   }
 
   .check {

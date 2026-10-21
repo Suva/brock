@@ -14,6 +14,8 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 
 ## The window
 
+- In a very narrow window the breadcrumbs shrink until the open map's own
+  name is cut off; it should be the last to go.
 - A title bar of our own on Windows (and Linux), as on the Mac: the
   minimise, maximise and close buttons drawn by the app, with Windows 11's
   snap layouts and resizing at the edges.

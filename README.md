@@ -56,7 +56,7 @@ the arrow keys, then:
 | Delete or Backspace | Deletes the node and what is under it |
 | ⇧⌘M | Makes the node a map of its own, or an ordinary node again |
 | ⌘↓, ⌘↵ or a double click | Opens a map |
-| ⌘↑ | Back out to the map this one is in, with the map you left selected |
+| ⌘↑, or the ↑ button on a map's centre | Back out to the map this one is in, with the map you left selected |
 | ⌘← ⌘→, or ⌘[ ⌘] | Back and forward through the maps visited, as in a browser |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |

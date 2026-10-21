@@ -384,6 +384,7 @@
           onOpen={open}
           onGoTo={goTo}
           onShowNotes={() => (notesOpen = true)}
+          onUp={up}
         />
       {:else}
         <OutlineView {live} {mapId} {hideDone} bind:selected onOpen={open} onUp={up} />
