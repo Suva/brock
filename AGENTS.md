@@ -228,6 +228,8 @@ itself, so send those to the page with `dispatchEvent`.
 ## Working agreements
 
 - Commit and push only when asked.
+GitHub runs the type check and both sets of tests on every push to `main`
+and every pull request (`.github/workflows/test.yml`).
 - Comments say why the code is the way it is. User-facing text avoids jargon.
 - When a change makes something in the README, PLAN.md or this file untrue,
   fix the text in the same change.
