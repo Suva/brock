@@ -236,6 +236,31 @@ arrives without key presses, so typing on a selected node to start editing
 must be tried with key presses; and the preview keeps some ⌘ shortcuts for
 itself, so send those to the page with `dispatchEvent`.
 
+## Releasing a version
+
+The version lives in `package.json`; `tauri.conf.json` reads it from there,
+and `npm version` also writes it into `Cargo.toml` and `Cargo.lock`
+(`scripts/sync-version.mjs`), commits and makes the tag. Pushing the tag
+makes GitHub build the installers and publish them as a release
+(`.github/workflows/release.yml`), with notes made from the commits since
+the last one.
+
+```bash
+npm version minor -m "Release %s"   # or: patch, major, or an exact number
+git push --follow-tags
+```
+
+- The working folder has to be clean first.
+- Use `minor` for new features and `patch` for fixes only.
+- The release workflow can be run by hand from the Actions tab, which builds
+  the installers without publishing anything, kept with the run.
+- Nothing is signed. The Mac app is signed ad hoc (`signingIdentity: "-"`),
+  without which a downloaded copy on Apple silicon is called damaged and
+  will not open at all; macOS still asks before opening it.
+- While the repository is private, so are its releases: only people with
+  access to it can download them. Building on macOS uses ten times the
+  Actions minutes of Linux; a release takes about fifteen minutes there.
+
 ## Working agreements
 
 - Commit and push only when asked.

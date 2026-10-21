@@ -4,8 +4,13 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 
 ## Milestone 8: releases
 
-- Installers for macOS, Windows and Linux, built by GitHub on a version tag,
-  as for DJ Mix Master; the app's own updates (Tauri's updater).
+- The app's own updates (Tauri's updater). It reads what is newest from the
+  releases, which a private repository keeps from it: it waits until the
+  repository is public, or the installers are put somewhere public.
+- Signing: an Apple Developer ID and notarisation, so macOS opens the app
+  without asking; a certificate for Windows, against SmartScreen.
+- The installers were only built here for the Mac; the Windows and Linux
+  ones have not been installed on a real machine.
 - Before the first release, search the Mac App Store and Microsoft Store
   for apps called Brock, and the US and EU trademark registers for "Brock"
   in software: the web search done when choosing the name found none, but
@@ -21,8 +26,6 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 - A title bar of our own on Windows (and Linux), as on the Mac: the
   minimise, maximise and close buttons drawn by the app, with Windows 11's
   snap layouts and resizing at the edges.
-- Full screen on the Mac (where the window's buttons hide and the header
-  takes back their room) was not tried.
 
 ## Left from the menu bar
 

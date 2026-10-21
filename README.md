@@ -9,12 +9,25 @@ you go, to a database on your computer. There is no Save command.
 
 It is at an early stage: maps can be made, drawn, edited from the keyboard,
 opened and left again, searched, overseen and linked, with tasks, notes,
-colours and icons, undo, a trash, daily copies, and export and import. Installers are
-next. See
+colours and icons, undo, a trash, daily copies, and export and import. See
 [PLAN.md](PLAN.md) for where it is going and [TASKS.md](TASKS.md) for what is
 next.
 
-## Running it
+## Installing it
+
+Installers for macOS, Windows and Linux are on the
+[releases page](https://github.com/Suva/brock/releases). They are not signed
+yet, so the system asks before opening the app the first time:
+
+- **macOS**: open the `.dmg` and drag Brock to Applications. The first time,
+  macOS says it cannot check the app; open System Settings › Privacy &
+  Security and click Open Anyway.
+- **Windows**: run the `.exe`. If SmartScreen stops it, click More info, then
+  Run anyway.
+- **Linux**: the `.AppImage` runs as it is (make it executable first); the
+  `.deb` installs on Debian and Ubuntu.
+
+## Running it from the source
 
 You need Node 24 or newer, Rust (from [rustup.rs](https://rustup.rs)), and on a
 Mac the Xcode command line tools.
