@@ -93,12 +93,15 @@ jobs:
           merge-multiple: true
       # A tag made on GitHub's "new release" page already has its release; one
       # pushed from a terminal does not. Either way the installers end up on it.
+      # They come in folders (Linux's two kinds each have one), so they are
+      # gathered as files.
       - name: Put the installers on the release
         run: |
+          mapfile -t files < <(find installers -type f)
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" installers/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" installers/* --repo "$GITHUB_REPOSITORY" --title "Brock $GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --title "Brock $GITHUB_REF_NAME" --generate-notes
           fi
         env:
           GH_TOKEN: ${{ github.token }}
