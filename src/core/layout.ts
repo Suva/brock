@@ -57,7 +57,13 @@ export const SPACING = {
   centreBetween: 16,
 };
 
-export function layoutMap(tree: Tree, centreId: string, size: (node: Node) => Size): Layout {
+/** `leaveOut`: nodes not to draw, with all under them, as done tasks when they are hidden. */
+export function layoutMap(
+  tree: Tree,
+  centreId: string,
+  size: (node: Node) => Size,
+  leaveOut: ReadonlySet<string> = new Set(),
+): Layout {
   const centre = tree.get(centreId);
   if (!centre) throw new Error(`No node ${centreId}`);
 
@@ -69,7 +75,12 @@ export function layoutMap(tree: Tree, centreId: string, size: (node: Node) => Si
   };
   // Children drawn under a node: none for a folded node, or for a map other
   // than the centre, which is drawn as a portal.
-  const shown = (node: Node) => (node.collapsed || (node.isMap && node.id !== centreId) ? [] : tree.children(node.id));
+  const shown = (node: Node) =>
+    node.collapsed || (node.isMap && node.id !== centreId)
+      ? []
+      : leaveOut.size
+        ? tree.children(node.id).filter((n) => !leaveOut.has(n.id))
+        : tree.children(node.id);
 
   const bands = new Map<string, number>();
   const band = (node: Node): number => {

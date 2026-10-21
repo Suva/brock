@@ -5,7 +5,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { branchBeside, newBranch } from "../core/branches.ts";
-  import { setPriority } from "../core/tasks.ts";
+  import { doneToHide, setPriority } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import { indent, outdent, reorder } from "../core/moves.ts";
   import type { Node } from "../core/node.ts";
@@ -15,12 +15,15 @@
   let {
     live,
     mapId,
+    hideDone = false,
     selected = $bindable(),
     onOpen,
     onUp,
   }: {
     live: Live;
     mapId: string;
+    /** Done tasks left out, as on the map. */
+    hideDone?: boolean;
     selected: string | null;
     onOpen: (id: string) => void;
     /** Back out to the map this one is in. */
@@ -33,10 +36,15 @@
     return vault.get(mapId)!;
   });
 
+  const leaveOut = $derived.by(() => {
+    void live.version;
+    return hideDone ? doneToHide(vault, mapId) : new Set<string>();
+  });
+
   function childrenOf(id: string, _version: number): readonly Node[] {
     // A copy: the vault changes its lists in place, and Svelte would take the
     // same list for no change.
-    return [...vault.children(id)];
+    return vault.children(id).filter((n) => !leaveOut.has(n.id));
   }
 
   async function focusNode(id: string) {

@@ -10,11 +10,13 @@ export interface Session {
   sidebarOpen: boolean;
   sidebarTab: "maps" | "tasks";
   notesOpen: boolean;
+  /** Whether done tasks are hidden on the map and in the outline. */
+  hideDone: boolean;
 }
 
 const KEY = "mindmap-session";
 
-const DEFAULTS: Session = { map: null, node: null, view: "map", sidebarOpen: false, sidebarTab: "maps", notesOpen: false };
+const DEFAULTS: Session = { map: null, node: null, view: "map", sidebarOpen: false, sidebarTab: "maps", notesOpen: false, hideDone: false };
 
 /** The session last saved, every field checked: storage can hold anything, or nothing. */
 export function savedSession(): Session {
@@ -28,6 +30,7 @@ export function savedSession(): Session {
       sidebarOpen: raw.sidebarOpen === true,
       sidebarTab: raw.sidebarTab === "tasks" ? "tasks" : "maps",
       notesOpen: raw.notesOpen === true,
+      hideDone: raw.hideDone === true,
     };
   } catch {
     return { ...DEFAULTS };

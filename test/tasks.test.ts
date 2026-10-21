@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
+import { clearDone, doneToHide, priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
+import { layoutMap } from "../src/core/layout.ts";
 import { Vault } from "../src/core/vault.ts";
 
 function trip() {
@@ -101,4 +102,51 @@ test("the same number again takes a priority off; several get it together", () =
   assert.deepEqual([vault.get(a.id)!.priority, vault.get(b.id)!.priority], [null, null], "all had it: off");
   vault.undo();
   assert.equal(vault.get(b.id)!.priority, 2, "one step");
+});
+
+function project() {
+  let time = 1;
+  const vault = new Vault([], { now: () => time++ });
+  const add = (parent: string, title: string, task: "open" | "done" | null = null) => {
+    const n = vault.addChild(parent, { title, task });
+    return n;
+  };
+  const plan = add(vault.rootId, "Plan");
+  const booked = add(plan.id, "Booked", "done");
+  add(booked.id, "Receipt");
+  const packed = add(plan.id, "Packing", "done");
+  add(packed.id, "Charger", "open");
+  const visa = add(plan.id, "Visa", "open");
+  const city = add(vault.rootId, "City", "done");
+  vault.setMap(city.id, true);
+  add(city.id, "Museum", "done");
+  return { vault, plan, booked, packed, visa, city };
+}
+
+test("hiding done leaves out done tasks, but never open work under them", () => {
+  const { vault, booked, packed, visa, city } = project();
+  const hide = doneToHide(vault, vault.rootId);
+  assert.deepEqual(new Set(hide), new Set([booked.id, city.id]), "Packing has an open task under it, so it stays");
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }), hide);
+  const drawn = layout.placed.map((p) => p.node.title);
+  assert.ok(!drawn.includes("Booked") && !drawn.includes("Receipt"), "what is under a hidden task goes with it");
+  assert.ok(drawn.includes("Packing") && drawn.includes("Charger") && drawn.includes("Visa"));
+  assert.ok(!drawn.includes("City"));
+  assert.ok(visa && packed);
+});
+
+test("inside a map, its own centre is never hidden", () => {
+  const { vault, city } = project();
+  assert.deepEqual([...doneToHide(vault, city.id)].map((id) => vault.get(id)!.title), ["Museum"]);
+});
+
+test("clearing done moves them to the trash, as one step", () => {
+  const { vault, plan, booked } = project();
+  assert.equal(clearDone(vault, plan.id), 1, "only under the top given");
+  assert.equal(vault.isLive(booked.id), false);
+  assert.deepEqual(vault.children(plan.id).map((n) => n.title), ["Packing", "Visa"]);
+  assert.equal(vault.trash()[0].node.id, booked.id);
+  vault.undo();
+  assert.equal(vault.isLive(booked.id), true);
+  assert.equal(clearDone(vault, vault.rootId), 2, "Booked and the done map");
 });

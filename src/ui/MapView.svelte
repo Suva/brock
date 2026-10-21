@@ -29,7 +29,7 @@
   import type { Node, NodeFields } from "../core/node.ts";
   import { indent, outdent, place, placeAll, reorder, setSide, topmost } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
-  import { progressUnder, setPriority, tickAll, toggleTasks } from "../core/tasks.ts";
+  import { doneToHide, progressUnder, setPriority, tickAll, toggleTasks } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
   import { readText, writeText } from "./system-clipboard.ts";
@@ -39,6 +39,7 @@
   let {
     live,
     mapId,
+    hideDone = false,
     selected = $bindable(),
     editing = $bindable(),
     onOpen,
@@ -47,6 +48,8 @@
   }: {
     live: Live;
     mapId: string;
+    /** Done tasks left out, with what is under them, unless open work is. */
+    hideDone?: boolean;
     selected: string | null;
     editing: string | null;
     onOpen: (id: string) => void;
@@ -93,10 +96,15 @@
       : { width: Math.min(280, chars * 8 + 26), height: 30 };
   }
 
+  const leaveOut = $derived.by(() => {
+    void live.version;
+    return hideDone ? doneToHide(vault, mapId) : new Set<string>();
+  });
+
   const layout = $derived.by(() => {
     void live.version;
     void sizesVersion;
-    return layoutMap(vault, mapId, (n) => sizes.get(n.id) ?? estimate(n));
+    return layoutMap(vault, mapId, (n) => sizes.get(n.id) ?? estimate(n), leaveOut);
   });
 
   /**

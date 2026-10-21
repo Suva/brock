@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
   import type { Node } from "../core/node.ts";
-  import { tasksUnder } from "../core/tasks.ts";
+  import { clearDone, tasksUnder } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
 
@@ -82,9 +82,18 @@
     {/each}
     {#if list.done.length}
       <section class="done-section">
-        <button class="map" tabindex="-1" onclick={() => (showDone = !showDone)} aria-expanded={showDone}>
-          {showDone ? "▾" : "▸"} Done <span class="count">{list.done.length}</span>
-        </button>
+        <div class="done-head">
+          <button class="map" tabindex="-1" onclick={() => (showDone = !showDone)} aria-expanded={showDone}>
+            {showDone ? "▾" : "▸"} Done <span class="count">{list.done.length}</span>
+          </button>
+          <button
+            class="clear"
+            tabindex="-1"
+            onclick={() => clearDone(vault, scope === "map" ? mapId : vault.rootId)}
+            title="Move the done tasks {scope === 'map' ? 'of this map' : 'of all maps'} to the trash; ⌘Z brings them back. Done tasks with open ones under them stay."
+            >Clear</button
+          >
+        </div>
         {#if showDone}
           <ul>
             {#each list.done as { node, map } (node.id)}
@@ -139,6 +148,29 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+
+  .done-head {
+    display: flex;
+    align-items: center;
+  }
+
+  .done-head .map {
+    flex: 1;
+    width: auto;
+  }
+
+  .clear {
+    flex: none;
+    margin-right: 0.3rem;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .clear:hover {
+    color: var(--danger);
+    background: var(--accent-soft);
   }
 
   .map:hover {

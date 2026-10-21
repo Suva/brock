@@ -61,6 +61,7 @@ the arrow keys, then:
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
 | ⌃⌘S | Shows or hides the sidebar on the left: every map of the vault as a tree, or the tasks |
+| ⇧⌘H | Hides done tasks on the map and in the outline, or shows them again |
 | ⇧⌘T | Shows the tasks of the open map, or of all maps, in the sidebar |
 | ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
@@ -111,6 +112,11 @@ maps above. On a deep map the ones in the middle fold into a "…",
 which lists them.
 
 A node with tasks under it shows how many are done, as 2/5.
+
+Done tasks can be hidden (⇧⌘H, or the checkbox button in the header): they
+stay in the vault and come back when shown, and one with open work under it
+stays visible. "Clear" in the tasks list's Done section moves the done tasks
+to the trash instead, where one undo brings them back.
 
 Any node can have a priority, from 1 to 5, shown as a numbered circle before
 its title. In the tasks list, priorities 1 to 3 come before tasks that have

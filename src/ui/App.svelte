@@ -45,10 +45,12 @@
   /** The sidebar on the left, and which of its tabs shows; it opens on the tab used last. */
   let sidebarOpen = $state(start.sidebarOpen);
   let sidebarTab = $state<Tab>(start.sidebarTab);
+  /** Done tasks hidden on the map and in the outline (⇧⌘H); nothing is changed in the vault. */
+  let hideDone = $state(start.hideDone);
 
   // Remembered as it changes, for the next start.
   $effect(() => {
-    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen });
+    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen, hideDone });
   });
 
   /** A tab's button or key: opens the sidebar on it, or closes it if it is showing. */
@@ -257,6 +259,8 @@
     } else if (key === "l" && !event.shiftKey) {
       editing = null;
       searching = searching ? false : "link";
+    } else if (key === "h" && event.shiftKey) {
+      hideDone = !hideDone;
     } else if (key === "t" && event.shiftKey) {
       showTab("tasks");
     } else if (key === "n" && event.shiftKey) {
@@ -316,6 +320,20 @@
         <button class:on={view === "map"} onclick={() => (view = "map")} title="Map (⌥⌘1)">Map</button>
         <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌥⌘2)">Outline</button>
       </div>
+      <button
+        class="icon-button"
+        class:on={hideDone}
+        aria-pressed={hideDone}
+        onclick={() => (hideDone = !hideDone)}
+        title={hideDone ? "Show done tasks (⇧⌘H)" : "Hide done tasks (⇧⌘H)"}
+        aria-label="Hide done tasks"
+      >
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path d="M5 8.2 7.1 10.3 11 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          {#if hideDone}<path d="M2.5 13.5 13.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />{/if}
+        </svg>
+      </button>
       <button class="icon-button" onclick={() => (searching = "go")} title="Search everything (⌘K)" aria-label="Search">
         <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
           <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6" />
@@ -357,9 +375,18 @@
     {/if}
     <main>
       {#if view === "map"}
-        <MapView {live} {mapId} bind:selected bind:editing onOpen={open} onGoTo={goTo} onShowNotes={() => (notesOpen = true)} />
+        <MapView
+          {live}
+          {mapId}
+          {hideDone}
+          bind:selected
+          bind:editing
+          onOpen={open}
+          onGoTo={goTo}
+          onShowNotes={() => (notesOpen = true)}
+        />
       {:else}
-        <OutlineView {live} {mapId} bind:selected onOpen={open} onUp={up} />
+        <OutlineView {live} {mapId} {hideDone} bind:selected onOpen={open} onUp={up} />
       {/if}
     </main>
     {#if !notesOpen}

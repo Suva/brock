@@ -116,3 +116,34 @@ export function setPriority(vault: Vault, ids: string[], priority: number): void
     for (const n of nodes) vault.update(n.id, { priority: clear ? null : priority });
   });
 }
+
+/**
+ * The done tasks to leave out when done tasks are hidden, under `topId`:
+ * each done task with no open task under it, maps inside included. What is
+ * under one goes with it; one with work still open under it stays, so open
+ * work never disappears. The top itself is never left out.
+ */
+export function doneToHide(vault: Vault, topId: string): Set<string> {
+  const out = new Set<string>();
+  // Whether there is an open task at or under a node.
+  const openAtOrUnder = (node: Node): boolean => {
+    let open = node.task === "open";
+    for (const child of vault.children(node.id)) if (openAtOrUnder(child)) open = true;
+    if (node.task === "done" && !open && node.id !== topId) out.add(node.id);
+    return open;
+  };
+  const top = vault.get(topId);
+  if (top) openAtOrUnder(top);
+  // Only the highest of each: the rest go with them.
+  return new Set([...out].filter((id) => !vault.ancestors(id).some((a) => out.has(a.id))));
+}
+
+/**
+ * Moves the done tasks under `topId` to the trash, as `doneToHide` picks
+ * them, as one step, and returns how many branches went.
+ */
+export function clearDone(vault: Vault, topId: string): number {
+  const ids = [...doneToHide(vault, topId)];
+  if (ids.length) vault.transact(() => ids.forEach((id) => vault.delete(id)));
+  return ids.length;
+}
