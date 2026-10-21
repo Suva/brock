@@ -1,5 +1,6 @@
 import { mount } from "svelte";
 import App from "./App.svelte";
+import { fitWhenOpened } from "./MapView.svelte";
 import { Vault } from "../core/vault.ts";
 import { DEMO_KEY } from "../demo/keys.ts";
 import { MemoryStore } from "../store/memory-store.ts";
@@ -8,6 +9,7 @@ import type { Store } from "../store/store.ts";
 import { inTauri, TauriStore } from "../store/tauri-store.ts";
 import { Live } from "./live.svelte.ts";
 import { savedSession, saveSession } from "./session.ts";
+import { welcome } from "./tour.ts";
 import { applyTheme, savedTheme } from "./theme.ts";
 import "./app.css";
 
@@ -26,17 +28,23 @@ async function start(target: HTMLElement) {
     onChange: (changes) => saver.push(changes),
     onPurge: (ids) => saver.purge(ids),
   });
-  mount(App, { target, props: { live: new Live(vault, saver) } });
-  if (freshTour) {
-    // The whole tour in view, as ⌘0 shows it, once the map has measured its nodes.
-    setTimeout(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "0", ctrlKey: true, bubbles: true })), 300);
+  if (import.meta.env.MODE !== "demo") {
+    // A new vault's first start opens on the tour, added as a map of its own.
+    const tour = welcome(vault);
+    if (tour) {
+      saveSession({ ...savedSession(), map: tour, node: tour, notesOpen: true });
+      freshTour = true;
+    }
   }
+  // The whole tour in view as it opens.
+  if (freshTour) fitWhenOpened();
+  mount(App, { target, props: { live: new Live(vault, saver) } });
   showWindow();
   keepUntilSaved(saver);
   fitTitleBar();
 }
 
-/** Whether the demo opens on the tour as it comes, rather than the visitor's own map. */
+/** Whether the window opens on the tour as it comes: the demo's, or one just added to a new vault. */
 let freshTour = false;
 
 /**

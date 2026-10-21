@@ -89,7 +89,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/Sidebar.svelte` | The sidebar on the left, with the Maps and Tasks tabs; places to go in the vault |
 | `src/ui/MapsList.svelte` | The sidebar's Maps tab: every map of the vault as a tree |
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
-| `src/demo/tour.ts` | The tour map the website's demo opens on |
+| `src/demo/tour.ts` | The tour map: the whole vault of the website's demo, and a map the app adds to a new vault |
+| `src/ui/tour.ts` | The tour in the app: added on a new vault's first start, shown and removed from the Help menu |
 | `site/` | The website's page; `scripts/build-site.mjs` builds it, with the demo, into `_site/` |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
@@ -256,6 +257,17 @@ set up yet; the site is only tried locally (`npm run site`).
   opens as it is; `test/tour.test.ts` checks that, and its links. When the app
   gains something worth showing, add a node for it there, with a short title
   and its hint in the notes.
+- **The app has the tour too.** A new vault's first start adds it as a map
+  under the top and opens it (`welcome` in `src/ui/tour.ts`), as the app's
+  own doing, which ⌘Z does not undo (`forgetUndo`). Whether it was offered,
+  and which map it is, are kept in the window's storage, so a vault emptied
+  later never gets it again. Help › Show the Tour and Remove the Tour are in
+  the menu bar and the ⋯ menu. Its wording differs where a browser and the
+  app differ (`place` in `tour.ts`).
+- **A map opened by itself is fitted as it settles.** `fitWhenOpened` in
+  `MapView.svelte` keeps the next map drawn whole while its nodes' sizes
+  come in, and stops at the first key, click or scroll; one fit at the start
+  would be off by the sizes still to come.
 - **A browser keeps some keys for itself:** ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 never
   reach the page. The tour gives those as keys of the app and shows the way
   that works in a browser.

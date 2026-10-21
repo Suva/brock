@@ -17,6 +17,13 @@
   // Each map keeps where it was looked at, for coming back to it, also after
   // a turn in the outline.
   const cameras = new Map<string, Camera>();
+
+  let fitNextMap = false;
+
+  /** Shows the next map drawn whole, as its nodes' sizes come in: the tour, when it opens by itself. */
+  export function fitWhenOpened(): void {
+    fitNextMap = true;
+  }
 </script>
 
 <script lang="ts">
@@ -725,6 +732,28 @@
     const b = layout.bounds;
     setCamera(fit({ x: b.left, y: b.top, width: b.right - b.left, height: b.bottom - b.top }, width, height), true);
   }
+
+  // Asked for (`fitWhenOpened`): the whole map in view, fitted again as its
+  // nodes are measured and the layout settles, until anything is pressed or a
+  // moment has passed. A fit made once would be off by the sizes still to come.
+  const FIT_FOR_MS = 1500;
+  let fitting = $state(fitNextMap);
+  fitNextMap = false;
+  $effect(() => {
+    if (!fitting) return;
+    const stop = () => (fitting = false);
+    const timer = setTimeout(stop, FIT_FOR_MS);
+    const events = ["pointerdown", "keydown", "wheel"];
+    for (const type of events) window.addEventListener(type, stop, true);
+    return () => {
+      clearTimeout(timer);
+      for (const type of events) window.removeEventListener(type, stop, true);
+    };
+  });
+  $effect(() => {
+    void layout;
+    if (fitting && width > 0 && height > 0) untrack(fitAll);
+  });
 
   // ---- Editing -------------------------------------------------------------
 

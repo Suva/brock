@@ -5,6 +5,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { installMenu, type MenuChecks } from "./app-menu.ts";
+  import { removeTour, showTour } from "./tour.ts";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
   import { History, type Place } from "../core/history.ts";
   import { openText, saveText, type FileKind } from "./files.ts";
@@ -113,6 +114,8 @@
     { label: "Import OPML or JSON…", run: importFile, hint: "under the selected node" },
     "line" as const,
     { label: "Trash", run: () => (trashOpen = true) },
+    { label: "Show the tour", run: openTour },
+    { label: "Remove the tour", run: dropTour },
     { label: "Settings", run: () => (settingsOpen = true), hint: "⌘," },
   ]);
 
@@ -230,6 +233,20 @@
     return navigator.platform.startsWith("Mac") ? e.ctrlKey && e.metaKey && !e.shiftKey : e.ctrlKey && e.shiftKey;
   }
 
+  /** Help › Show the Tour: goes to the tour, adding a fresh one if there is none. */
+  function openTour() {
+    open(showTour(vault));
+    notesOpen = true;
+  }
+
+  /** Help › Remove the Tour. */
+  function dropTour() {
+    if (!removeTour(vault)) return tell("There is no tour in the vault. Show the tour adds one.");
+    // Out of the tour, if it was open: the window falls back to the map around it.
+    if (selected && !vault.isLive(selected)) selected = mapId;
+    tell("The tour is in the trash. ⌘Z brings it back.");
+  }
+
   // The menu bar, in the app: every command, with its key.
   let menuChecks = $state<MenuChecks | null>(null);
   onMount(() => {
@@ -256,6 +273,8 @@
       back: () => step("back"),
       forward: () => step("forward"),
       up,
+      showTour: openTour,
+      removeTour: dropTour,
     })
       .then((checks) => (menuChecks = checks))
       .catch((error) => console.error("The menu bar could not be made:", error));

@@ -1,12 +1,15 @@
-// The tour map the demo on the website opens on: Brock explained in a map of
-// its own. Each node's title is a short hint to try on it, and its notes,
-// which the demo opens beside the map, say more. It is made through the
-// vault's own edits, as anything typed in the app would be, so it is always
+// The tour: Brock explained in a map of its own. Each node's title is a short
+// hint to try on it, and its notes, open beside the map, say more. It is made
+// through the vault's own edits, as anything typed would be, so it is always
 // a vault the app can open.
 //
+// It is in two places, worded for each: the website's demo opens on it, as
+// the whole vault (`tour`), and the app adds it to a new vault on its first
+// start, as a map under the top (`addTour`), to be removed when done.
+//
 // In a browser some keys belong to the browser and never reach the page:
-// ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 among them. The hints give those as keys of the
-// app, and point to the buttons in the notes panel that do the same.
+// ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 among them. There the hints point to the buttons
+// in the notes panel that do the same.
 
 import { newBranch } from "../core/branches.ts";
 import type { Node, NodeFields } from "../core/node.ts";
@@ -14,28 +17,68 @@ import { Vault } from "../core/vault.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** Notes from lines, a blank line between paragraphs. */
+export const TOUR_TITLE = "Welcome to Brock";
+
+/** Where the tour is shown: the website's demo, or the app. */
+type Place = "web" | "app";
+
+/** Notes from paragraphs, a blank line between them. */
 const notes = (...paragraphs: string[]) => paragraphs.join("\n\n");
 
-/** The tour's nodes, with tasks done today, yesterday and last week as seen at `now`. */
+/** The website's demo: the tour as a whole vault, with tasks done today, yesterday and last week as seen at `now`. */
 export function tour(now = Date.now()): Node[] {
   const nodes = new Map<string, Node>();
   const vault = new Vault([], {
     now: () => now,
     onChange: (changes) => changes.forEach((c) => nodes.set(c.after.id, c.after)),
   });
-  const root = vault.rootId;
-  vault.update(root, {
-    title: "Welcome to Brock",
-    body: notes(
-      "This is Brock, running in your browser. The map is a tour of what it does.",
-      "**Click a node** to read its hint here, or move between nodes with the **arrow keys**. Then change anything you like.",
-      "What you change is kept in this browser only. **Start over**, under the demo, brings the tour back.",
-    ),
+  fill(vault, vault.rootId, now, "web");
+  return [...nodes.values()];
+}
+
+/**
+ * The app: the tour added as a map of its own, the last under `parentId`,
+ * as one step. Returns the map's id.
+ */
+export function addTour(vault: Vault, parentId: string, now = Date.now()): string {
+  return vault.transact(() => {
+    const parent = vault.get(parentId)!;
+    // Under a map's centre, it is a branch with a side and a colour.
+    const fields = parent.isMap ? newBranch(vault.children(parentId)) : {};
+    const map = vault.addChild(parentId, { title: TOUR_TITLE, ...fields });
+    vault.setMap(map.id, true);
+    fill(vault, map.id, now, "app");
+    return map.id;
+  });
+}
+
+/** Gives `rootId` the tour's title, notes and branches. */
+function fill(vault: Vault, rootId: string, now: number, place: Place) {
+  const web = place === "web";
+  /** The way to make a task or set a priority: a key in the app, a button in a browser. */
+  const taskWay = web
+    ? "the **Task** button at the top of this panel, or **⌘T** in the app"
+    : "**⌘T**, or the **Task** button at the top of this panel";
+  const priorityWay = web
+    ? "The numbers at the top of this panel set a priority, or **⌘1** to **⌘5** in the app."
+    : "**⌘1** to **⌘5** set a priority, or the numbers at the top of this panel.";
+
+  vault.update(rootId, {
+    title: TOUR_TITLE,
+    body: web
+      ? notes(
+          "This is Brock, running in your browser. The map is a tour of what it does.",
+          "**Click a node** to read its hint here, or move between nodes with the **arrow keys**. Then change anything you like.",
+          "What you change is kept in this browser only. **Start over**, under the demo, brings the tour back.",
+        )
+      : notes(
+          "This map is a tour of Brock, to try things on. **Click a node** to read its hint here, or move between nodes with the **arrow keys**. Change anything you like.",
+          "When you're done, **Help › Remove the Tour** takes it away; it waits in the trash for a while. **Help › Show the Tour** brings it back any time.",
+        ),
   });
 
   const branch = (title: string, fields: Partial<NodeFields> = {}) =>
-    vault.addChild(root, { title, ...newBranch(vault.children(root)), ...fields });
+    vault.addChild(rootId, { title, ...newBranch(vault.children(rootId)), ...fields });
   const add = (parent: Node, title: string, fields: Partial<NodeFields> = {}) =>
     vault.addChild(parent.id, { title, ...fields, ...(vault.get(parent.id)!.isMap ? newBranch(vault.children(parent.id)) : {}) });
 
@@ -60,7 +103,10 @@ export function tour(now = Date.now()): Node[] {
     body: notes("**Delete** or **Backspace** removes a node and everything under it.", "**⌘Z** brings it back; **⇧⌘Z** redoes. Deleted branches also wait in the trash, in the ⋯ menu."),
   });
   add(start, "Drag to move", {
-    body: notes("Drag a node onto another to put it there, or between two to put it beside them.", "From the keyboard: **⌥** with the arrows."),
+    body: notes(
+      "Drag a node onto another to put it there, or between two to put it beside them. Near the edge, the map moves along.",
+      "From the keyboard: **⌥** with the arrows.",
+    ),
   });
 
   const maps = branch("Maps inside maps", {
@@ -92,7 +138,7 @@ export function tour(now = Date.now()): Node[] {
 
   const tasks = branch("Tasks", {
     body: notes(
-      "Any node can be a task with a checkbox: the **Task** button at the top of this panel, or **⌘T** in the app.",
+      `Any node can be a task with a checkbox: ${taskWay}.`,
       "The sidebar's **Tasks** tab, on the left edge, lists the tasks of this map or of all maps. Done ones are grouped by when they were done, handy for a stand-up, and each group can be cleared on its own.",
     ),
   });
@@ -103,9 +149,7 @@ export function tour(now = Date.now()): Node[] {
   add(tasks, "Priorities", {
     task: "open",
     priority: 1,
-    body: notes(
-      "The numbers at the top of this panel set a priority, or **⌘1** to **⌘5** in the app. 1 to 3 come before tasks without a priority, 4 and 5 after them.",
-    ),
+    body: notes(`${priorityWay} 1 to 3 come before tasks without a priority, 4 and 5 after them.`),
   });
   add(tasks, "Hide what's done", {
     task: "open",
@@ -157,7 +201,7 @@ export function tour(now = Date.now()): Node[] {
     body: notes("The **‹ ›** buttons at the top, or **⌘[** and **⌘]**, go back and forward through the maps you've visited."),
   });
   add(finding, "Map or outline", {
-    body: notes("The switch at the top shows the same map as an indented list, for writing quickly. **⌥⌘1** and **⌥⌘2** in the app."),
+    body: notes("The switch at the top shows the same map as an indented list, for writing quickly. **⌥⌘1** and **⌥⌘2** switch between them."),
   });
   add(finding, "Zoom and pan", {
     body: notes("Scroll to move around; pinch, or hold **⌘** and scroll, to zoom. **⌘0** shows the whole map. The minimap shows where you are."),
@@ -172,13 +216,24 @@ export function tour(now = Date.now()): Node[] {
   add(keeping, "Export and import", {
     body: notes("The **⋯** menu exports a map to Markdown, OPML or JSON, and imports OPML from other outliners."),
   });
-  add(keeping, "Here: this browser", {
-    body: notes("In this demo, what you change is kept in this browser only, and nowhere else."),
-  });
-  add(keeping, "Get Brock", {
-    icon: "⬇️",
-    body: notes("Brock is free, for Mac, Windows and Linux. The downloads are on this page, under the demo."),
-  });
-
-  return [...nodes.values()];
+  if (web) {
+    add(keeping, "Here: this browser", {
+      body: notes("In this demo, what you change is kept in this browser only, and nowhere else."),
+    });
+    add(keeping, "Get Brock", {
+      icon: "⬇️",
+      body: notes("Brock is free, for Mac, Windows and Linux. The downloads are on this page, under the demo."),
+    });
+  } else {
+    add(keeping, "Every command, in the menus", {
+      body: notes("The menu bar lists every command with its key, for finding one without knowing the key."),
+    });
+    add(keeping, "Done? Remove the tour", {
+      icon: "👋",
+      body: notes(
+        "**Help › Remove the Tour** takes this whole map away, wherever it is. It waits in the trash, so **⌘Z** or the trash brings it back.",
+        "**Help › Show the Tour** adds a fresh one any time.",
+      ),
+    });
+  }
 }

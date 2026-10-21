@@ -164,6 +164,12 @@ In the app, the menu bar holds every command with its key, for finding them
 without knowing the keys: undo and redo, search, the views and panels, and
 what can be done to the selected node.
 
+The first time Brock starts, with a new vault, it opens on a tour: a map
+called "Welcome to Brock", inside Home, whose nodes say what to try. When
+you're done with it, Help › Remove the Tour takes it away (it waits in the
+trash), and Help › Show the Tour brings it back. A vault with anything in it
+never gets one.
+
 The app starts where you left it: the same map and node, view and panels.
 
 ## Nothing leaves your computer

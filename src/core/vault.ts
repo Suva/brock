@@ -402,6 +402,15 @@ export class Vault {
     return this.#redo.length > 0;
   }
 
+  /**
+   * Forgets every step to undo and redo, for what the app did by itself, such
+   * as the tour added to a new vault, which the first ⌘Z should not take away.
+   */
+  forgetUndo(): void {
+    this.#undo = [];
+    this.#redo = [];
+  }
+
   /** Undoes the last step and returns its changes, or null if there is none. */
   undo(): Change[] | null {
     const step = this.#undo.pop();
