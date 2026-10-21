@@ -593,6 +593,8 @@ mod tests {
         assert_eq!(aside.len(), 1, "the early vault is kept beside it");
         let kept = Db::open(&new_dir.join(&aside[0])).unwrap();
         assert!(kept.get("fresh").unwrap().is_some());
+        // Windows will not remove a file that is open.
+        drop((new, kept));
 
         // One with work in it is left alone.
         let mut busy = Db::open(&root.join("busy").join("vault.sqlite")).unwrap();

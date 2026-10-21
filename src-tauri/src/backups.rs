@@ -127,6 +127,8 @@ mod tests {
         let copy = Connection::open(dir.join(&copies[0].name)).unwrap();
         let x: i64 = copy.query_row("SELECT x FROM t", [], |r| r.get(0)).unwrap();
         assert_eq!(x, 42, "the copy holds the vault");
+        // Windows will not replace or remove a file that is open.
+        drop(copy);
 
         for day in 1..=9 {
             std::fs::write(dir.join(format!("vault-2000-01-{day:02}.sqlite")), b"old").unwrap();
