@@ -3,7 +3,8 @@
   outline, the selected node's notes, and whether everything is saved.
 -->
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
+  import { installMenu, type MenuChecks } from "./app-menu.ts";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
   import { History, type Place } from "../core/history.ts";
   import { openText, saveText, type FileKind } from "./files.ts";
@@ -228,6 +229,43 @@
     if (e.key.toLowerCase() !== "s" || e.altKey) return false;
     return navigator.platform.startsWith("Mac") ? e.ctrlKey && e.metaKey && !e.shiftKey : e.ctrlKey && e.shiftKey;
   }
+
+  // The menu bar, in the app: every command, with its key.
+  let menuChecks = $state<MenuChecks | null>(null);
+  onMount(() => {
+    installMenu({
+      settings: () => (settingsOpen = true),
+      importFile,
+      exportMap,
+      trash: () => (trashOpen = true),
+      undo: () => undo(),
+      redo: () => undo(true),
+      search: () => {
+        editing = null;
+        searching = "go";
+      },
+      link: () => {
+        editing = null;
+        searching = "link";
+      },
+      view: (v) => (view = v),
+      toggleSidebar: () => (sidebarOpen = !sidebarOpen),
+      showTasks: () => showTab("tasks"),
+      toggleNotes: () => (notesOpen = !notesOpen),
+      toggleHideDone: () => (hideDone = !hideDone),
+      back: () => step("back"),
+      forward: () => step("forward"),
+      up,
+    })
+      .then((checks) => (menuChecks = checks))
+      .catch((error) => console.error("The menu bar could not be made:", error));
+  });
+  $effect(() => {
+    menuChecks?.view(view);
+    menuChecks?.sidebar(sidebarOpen);
+    menuChecks?.notes(notesOpen);
+    menuChecks?.hideDone(hideDone);
+  });
 
   function onWindowKey(event: KeyboardEvent) {
     const mod = event.metaKey || event.ctrlKey;

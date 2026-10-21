@@ -139,6 +139,10 @@ as Markdown, OPML (which other outliners and mind map apps read) or JSON
 selected node. It also opens the trash, where deleted branches wait to be put
 back until the trash is emptied, and Settings.
 
+In the app, the menu bar holds every command with its key, for finding them
+without knowing the keys: undo and redo, search, the views and panels, and
+what can be done to the selected node.
+
 The app starts where you left it: the same map and node, view and panels.
 
 ## Nothing leaves your computer

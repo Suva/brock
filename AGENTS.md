@@ -68,6 +68,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/main.ts` | Opens the store and the vault, and the window |
 | `src/ui/live.svelte.ts` | The vault and saver made reactive for Svelte |
 | `src/ui/App.svelte` | The window: breadcrumbs, the view, notes, the undo keys |
+| `src/ui/app-menu.ts` | The menu bar in the app: every command and its key |
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
 | `src/ui/files.ts` | Saving and opening files for export and import: native dialogs in the app, downloads in a browser |
@@ -212,6 +213,14 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.
+- **A new command goes in the menu bar too** (`app-menu.ts`), with its key.
+  Keys reach the page before the menu, so a menu item takes a key only
+  where the page never needs it for text (not Tab, Enter, Space or the
+  arrows); those items name their key in their text, and run by sending
+  that key to what has the focus. Edit › Cut, Copy and Paste are the
+  system's, for text fields; the map listens for their `copy`, `cut` and
+  `paste` events, but WebKit may send none (see the rule on copy and
+  paste above), so on the map they may do nothing; the keys always work.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 
@@ -219,6 +228,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 
 `test/*.test.ts` covers the core, the layout, the camera and the saver with Node's test runner;
 `src-tauri/src/db.rs` has the database's tests. Neither drives the window.
+GitHub runs the type check and both sets of tests on every push to `main`
+and every pull request (`.github/workflows/test.yml`).
 A change to the window should be tried in it, with `npm run dev` or `npm start`,
 and said so. When driving the browser preview with a tool: text it types
 arrives without key presses, so typing on a selected node to start editing
@@ -228,8 +239,6 @@ itself, so send those to the page with `dispatchEvent`.
 ## Working agreements
 
 - Commit and push only when asked.
-GitHub runs the type check and both sets of tests on every push to `main`
-and every pull request (`.github/workflows/test.yml`).
 - Comments say why the code is the way it is. User-facing text avoids jargon.
 - When a change makes something in the README, PLAN.md or this file untrue,
   fix the text in the same change.

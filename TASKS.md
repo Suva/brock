@@ -13,9 +13,6 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   campus map is brockmaps.com).
 - Register getbrock.app (and brockmap.app to hold), and put the website there.
 - The icon is a placeholder drawn in SVG; a designer's would be better.
-- A native menu bar (File, Edit, View) with the commands and their keys, for
-  finding them without knowing the keys. Undo and Redo have no buttons any
-  more; Edit > Undo and Redo is where they belong.
 
 ## The window
 
@@ -26,6 +23,19 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   snap layouts and resizing at the edges.
 - Full screen on the Mac (where the window's buttons hide and the header
   takes back their room) was not tried.
+
+## Left from the menu bar
+
+- The menu bar was only built and checked for errors on the Mac; its items
+  were not clicked through there, and it was not seen on Windows or Linux,
+  where Settings and Quit are in File. On those systems, whether a key the
+  page handles also runs its menu item is not known: `fresh` in
+  `app-menu.ts` guards against it running twice.
+- Edit › Cut, Copy and Paste chosen with the mouse on the map: WebKit may
+  send the page no clipboard events with no text selected, so they may do
+  nothing or be greyed out there (⌘C, ⌘X and ⌘V work). If so, make them
+  items of our own that copy branches on the map and run the system's
+  command in a text field.
 
 ## Left from milestone 7
 

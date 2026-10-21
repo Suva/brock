@@ -893,6 +893,25 @@
     return outdent(vault, id, where);
   }
 
+  /**
+   * Edit › Cut, Copy and Paste in the menu bar, which reach the page as these
+   * events rather than as keys: on the map they copy and paste branches. The
+   * "before" events, cancelled, tell the system the commands can run here.
+   */
+  function onClipboard(e: ClipboardEvent) {
+    if (editing !== null || moving || typingIn(e.target)) return;
+    // Text selected on the page, in the notes say, is copied as text.
+    if (e.type !== "paste" && e.type !== "beforepaste" && !(window.getSelection()?.isCollapsed ?? true)) return;
+    e.preventDefault();
+    if (e.type === "copy" || e.type === "cut") copyChosen(e.type === "cut");
+    else if (e.type === "paste") pasteHere();
+  }
+  $effect(() => {
+    const before = ["beforecopy", "beforecut", "beforepaste"];
+    before.forEach((type) => window.addEventListener(type, onClipboard as EventListener));
+    return () => before.forEach((type) => window.removeEventListener(type, onClipboard as EventListener));
+  });
+
   // The map takes the window's keys, not only its own, so that the keys work
   // wherever the focus is: Tab would otherwise move the focus between buttons.
   function onKey(e: KeyboardEvent) {
@@ -980,7 +999,12 @@
   });
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window
+  onkeydown={onKey}
+  oncopy={onClipboard}
+  oncut={onClipboard}
+  onpaste={onClipboard}
+/>
 
 <div
   class="viewport"
