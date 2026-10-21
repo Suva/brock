@@ -3,16 +3,19 @@
   outline, the selected node's notes, and whether everything is saved.
 -->
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
+  import { toSVG } from "../core/picture.ts";
+  import { clearBackground, toCanvas, toPNG } from "./picture.ts";
+  import { writePicture } from "./system-clipboard.ts";
+  import MapView, { pictureOfMap } from "./MapView.svelte";
   import { installMenu, type MenuChecks } from "./app-menu.ts";
   import { removeTour, showTour } from "./tour.ts";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
   import { History, type Place } from "../core/history.ts";
-  import { openText, saveText, type FileKind } from "./files.ts";
+  import { openText, savePNG, saveText, type FileKind } from "./files.ts";
   import { typingIn } from "./keys.ts";
   import { savedSession, saveSession } from "./session.ts";
   import type { Live } from "./live.svelte.ts";
-  import MapView from "./MapView.svelte";
   import NotesPanel from "./NotesPanel.svelte";
   import Palette from "./Palette.svelte";
   import OutlineView from "./OutlineView.svelte";
@@ -87,6 +90,40 @@
     }
   }
 
+  /**
+   * A picture of the open map: the map as it is drawn, so the outline shows
+   * the map for a moment first.
+   */
+  async function picture() {
+    if (view !== "map") {
+      view = "map";
+      await tick();
+    }
+    const made = pictureOfMap(clearBackground());
+    if (!made) throw new Error("There is no map to take a picture of.");
+    return made;
+  }
+
+  async function exportPicture(kind: "svg" | "png") {
+    const title = vault.get(mapId)?.title || "Mind map";
+    try {
+      const p = await picture();
+      const saved = kind === "svg" ? await saveText(title, toSVG(p), "svg") : await savePNG(title, await toPNG(p));
+      if (saved) tell(`Exported as ${saved}`);
+    } catch (error) {
+      tell(`Not exported: ${reason(error)}`, true);
+    }
+  }
+
+  async function copyPicture() {
+    try {
+      await writePicture(toCanvas(await picture()));
+      tell("A picture of the map is on the clipboard.");
+    } catch (error) {
+      tell(`Not copied: ${reason(error)}`, true);
+    }
+  }
+
   /** Brings an OPML or JSON file in, under the selected node. */
   async function importFile() {
     try {
@@ -110,6 +147,9 @@
     { label: "Export this map as Markdown…", run: () => exportMap("md") },
     { label: "Export this map as OPML…", run: () => exportMap("opml") },
     { label: "Export this map as JSON…", run: () => exportMap("json"), hint: "everything" },
+    { label: "Export this map as a picture (SVG)…", run: () => exportPicture("svg") },
+    { label: "Export this map as a picture (PNG)…", run: () => exportPicture("png") },
+    { label: "Copy this map as a picture", run: copyPicture },
     "line" as const,
     { label: "Import OPML or JSON…", run: importFile, hint: "under the selected node" },
     "line" as const,
@@ -254,6 +294,8 @@
       settings: () => (settingsOpen = true),
       importFile,
       exportMap,
+      exportPicture,
+      copyPicture,
       trash: () => (trashOpen = true),
       undo: () => undo(),
       redo: () => undo(true),

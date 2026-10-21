@@ -109,6 +109,8 @@ fn filter(kind: &str) -> Result<(&'static str, &'static str), String> {
         "json" => Ok(("json", "JSON")),
         "md" => Ok(("md", "Markdown")),
         "opml" => Ok(("opml", "OPML")),
+        "svg" => Ok(("svg", "SVG picture")),
+        "png" => Ok(("png", "PNG picture")),
         _ => Err(format!("Unknown kind of file: {kind}")),
     }
 }
@@ -125,6 +127,18 @@ async fn save_text(app: tauri::AppHandle, name: String, content: String, kind: S
     };
     let path = path.into_path().map_err(|e| e.to_string())?;
     std::fs::write(&path, content).map_err(|e| format!("Cannot write {}: {e}", path.display()))?;
+    Ok(path.file_name().map(|n| n.to_string_lossy().into_owned()))
+}
+
+/// As `save_text`, for a file that is not text: a picture.
+#[tauri::command]
+async fn save_bytes(app: tauri::AppHandle, name: String, bytes: Vec<u8>, kind: String) -> Result<Option<String>, String> {
+    let (ext, label) = filter(&kind)?;
+    let Some(path) = app.dialog().file().set_file_name(&name).add_filter(label, &[ext]).blocking_save_file() else {
+        return Ok(None);
+    };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(&path, bytes).map_err(|e| format!("Cannot write {}: {e}", path.display()))?;
     Ok(path.file_name().map(|n| n.to_string_lossy().into_owned()))
 }
 
@@ -198,6 +212,7 @@ pub fn run() {
             back_up_now,
             show_backups,
             save_text,
+            save_bytes,
             open_text
         ])
         .run(tauri::generate_context!())

@@ -160,6 +160,13 @@ as Markdown, OPML (which other outliners and mind map apps read) or JSON
 selected node. It also opens the trash, where deleted branches wait to be put
 back until the trash is emptied, and Settings.
 
+The open map can also be exported as a picture: SVG, which drawing programs
+and documents open with its text still text, or PNG, at twice the size for
+sharp slides. Copy this map as a picture puts the PNG on the clipboard, to
+paste into a message or a document. Pictures show the whole map as it is
+drawn, folded branches and hidden tasks as they are; Settings chooses
+between the map's background and a clear one.
+
 In the app, the menu bar holds every command with its key, for finding them
 without knowing the keys: undo and redo, search, the views and panels, and
 what can be done to the selected node.

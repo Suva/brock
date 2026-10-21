@@ -6,6 +6,7 @@
 <script lang="ts" module>
   import type { Camera } from "./camera.ts";
   import type { Clip } from "../core/clipboard.ts";
+  import type { Picture } from "../core/picture.ts";
 
   /**
    * What was copied or cut last, with all it carries. The system's clipboard
@@ -19,6 +20,13 @@
   const cameras = new Map<string, Camera>();
 
   let fitNextMap = false;
+
+  let pictureMaker: ((clear: boolean) => Promise<Picture>) | null = null;
+
+  /** A picture of the open map, with the page's background or a clear one; null when no map is drawn. */
+  export function pictureOfMap(clear: boolean): Promise<Picture> | null {
+    return pictureMaker?.(clear) ?? null;
+  }
 
   /** Shows the next map drawn whole, as its nodes' sizes come in: the tour, when it opens by itself. */
   export function fitWhenOpened(): void {
@@ -39,6 +47,7 @@
   import { doneToHide, progressUnder, setPriority, tickAll, toggleTasks } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
+  import { capture } from "./picture.ts";
   import { readText, writeText } from "./system-clipboard.ts";
   import type { Live } from "./live.svelte.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
@@ -727,6 +736,37 @@
     const my = box.y + (e.clientY - r.top) / scale;
     setCamera(centreOn(mx, my, camera.zoom, width, height), e.type === "pointerdown");
   }
+
+  // ---- A picture of the map ---------------------------------------------------
+
+  /**
+   * The map's shapes, read off the page. Zoomed far out the map draws bars in
+   * place of titles, so it is drawn at its full size for a moment; any glide
+   * is ended, so that nothing is caught half way.
+   */
+  async function makePicture(clear: boolean): Promise<Picture> {
+    const before = camera;
+    const far = camera.zoom < FAR_ZOOM;
+    setCamera(far ? { ...camera, zoom: 1 } : camera);
+    await tick();
+    // A frame, for the page to draw the change; a hidden window gets none, so not for long.
+    await new Promise((r) => {
+      requestAnimationFrame(r);
+      setTimeout(r, 50);
+    });
+    try {
+      const background = clear ? null : getComputedStyle(viewport).getPropertyValue("--bg").trim() || "#ffffff";
+      return capture(layer, camera.zoom, layout.bounds, background);
+    } finally {
+      if (far) setCamera(before);
+    }
+  }
+  $effect(() => {
+    pictureMaker = makePicture;
+    return () => {
+      if (pictureMaker === makePicture) pictureMaker = null;
+    };
+  });
 
   function fitAll() {
     const b = layout.bounds;

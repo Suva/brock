@@ -19,6 +19,8 @@ export interface MenuActions {
   settings(): void;
   importFile(): void;
   exportMap(kind: FileKind): void;
+  exportPicture(kind: "svg" | "png"): void;
+  copyPicture(): void;
   trash(): void;
   undo(): void;
   redo(): void;
@@ -109,6 +111,9 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
             await item("As Markdown…", () => a.exportMap("md")),
             await item("As OPML…", () => a.exportMap("opml")),
             await item("As JSON (Everything)…", () => a.exportMap("json")),
+            await line(),
+            await item("As Picture (SVG)…", () => a.exportPicture("svg")),
+            await item("As Picture (PNG)…", () => a.exportPicture("png")),
           ],
         }),
         await line(),
@@ -127,6 +132,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         await system("Copy"),
         await system("Paste"),
         await system("SelectAll"),
+        await item("Copy Map as Picture", a.copyPicture),
         await line(),
         await item("Search…", a.search, "CmdOrCtrl+K"),
         await item("Link To…", a.link, "CmdOrCtrl+L"),

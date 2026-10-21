@@ -42,6 +42,15 @@ stolen laptop. A few days' work:
 - While unlocked the maps are in memory as in any app; this protects the
   file, not the running app.
 
+## Pictures of a map
+
+- Pictures were not opened in other programs (Figma, Inkscape, Keynote,
+  Word) to see that they read the SVG as it is meant. Exporting and copying
+  work in the app on a Mac.
+- A PNG goes to Rust as a list of numbers; a very large map makes a large
+  list. Send the bytes as they are if that turns out slow.
+- Only the open map; a whole tree of maps as pages, or PDF, if wanted.
+
 ## The window
 
 - In a very narrow window the breadcrumbs shrink until the open map's own

@@ -6,19 +6,33 @@
 import { invoke } from "@tauri-apps/api/core";
 import { inTauri } from "../store/tauri-store.ts";
 
-export type FileKind = "json" | "md" | "opml";
+export type FileKind = "json" | "md" | "opml" | "svg";
 
-const TYPES: Record<FileKind, string> = {
+const TYPES: Record<FileKind | "png", string> = {
   json: "application/json",
   md: "text/markdown",
   opml: "text/x-opml",
+  svg: "image/svg+xml",
+  png: "image/png",
 };
 
 /** Saves text as a file named `name` (without its extension). Returns the name saved as, or null if cancelled. */
 export async function saveText(name: string, content: string, kind: FileKind): Promise<string | null> {
   const file = `${safeName(name)}.${kind}`;
   if (inTauri()) return invoke<string | null>("save_text", { name: file, content, kind });
-  const url = URL.createObjectURL(new Blob([content], { type: TYPES[kind] }));
+  return download(new Blob([content], { type: TYPES[kind] }), file);
+}
+
+/** Saves a PNG picture, as `saveText` saves text. */
+export async function savePNG(name: string, bytes: Uint8Array): Promise<string | null> {
+  const file = `${safeName(name)}.png`;
+  if (inTauri()) return invoke<string | null>("save_bytes", { name: file, bytes: Array.from(bytes), kind: "png" });
+  return download(new Blob([bytes as BlobPart], { type: TYPES.png }), file);
+}
+
+/** In a browser: the file downloaded. */
+function download(blob: Blob, file: string): string {
+  const url = URL.createObjectURL(blob);
   const a = Object.assign(document.createElement("a"), { href: url, download: file });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);

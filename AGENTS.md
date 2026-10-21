@@ -61,6 +61,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel, done tasks by the day they were done, clearing them |
 | `src/core/history.ts` | The maps visited, for back and forward |
 | `src/core/clipboard.ts` | Copy, cut and paste of branches: copies as outlines, cuts moved whole |
+| `src/core/picture.ts` | A picture of a map as plain shapes, and writing it as SVG |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
@@ -72,6 +73,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/app-menu.ts` | The menu bar in the app: every command and its key |
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
+| `src/ui/picture.ts` | A picture of the open map, read off the page; drawn on a canvas for PNG and the clipboard |
 | `src/ui/files.ts` | Saving and opening files for export and import: native dialogs in the app, downloads in a browser |
 | `src/ui/TasksList.svelte` | The sidebar's Tasks tab: the open map's or all maps' tasks, the done ones by when they were done |
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
@@ -225,6 +227,14 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   system's, for text fields; the map listens for their `copy`, `cut` and
   `paste` events, but WebKit may send none (see the rule on copy and
   paste above), so on the map they may do nothing; the keys always work.
+- **Pictures are read off the map as drawn.** `capture` in `ui/picture.ts`
+  walks the map's nodes and lines in the page and turns each box, line of
+  text and curve into a shape (`core/picture.ts`), so a picture matches the
+  screen without a second way of drawing it. A new part of a node is drawn
+  without anything more; a part that is a control, not content, is left out
+  in `skipped`. The PNG is drawn from the shapes on a canvas, not by drawing
+  the SVG into one, which WebKit may then refuse to read back. SVG never
+  holds HTML (no `foreignObject`), so other programs open it.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

@@ -1,11 +1,13 @@
 <!--
-  Settings (⌘,): how the app looks, and the daily copies of the vault: where
+  Settings (⌘,): how the app looks, the background of pictures of a map, and
+  the daily copies of the vault: where
   they are, which there are, and making one now.
 -->
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { inTauri } from "../store/tauri-store.ts";
   import { applyTheme, savedTheme, type Theme } from "./theme.ts";
+  import { clearBackground, setClearBackground } from "./picture.ts";
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -16,6 +18,7 @@
   }
 
   let theme = $state<Theme>(savedTheme());
+  let clear = $state(clearBackground());
   let backups = $state<Backups | null>(null);
   let working = $state(false);
   let problem = $state<string | null>(null);
@@ -82,6 +85,26 @@
           </button>
         {/each}
       </div>
+    </section>
+
+    <section>
+      <h3>Pictures of a map</h3>
+      <div class="choices" role="radiogroup" aria-label="Background of pictures">
+        {#each [[false, "Map's background"], [true, "Clear background"]] as const as [value, label] (label)}
+          <button
+            role="radio"
+            aria-checked={clear === value}
+            class:on={clear === value}
+            onclick={() => {
+              clear = value;
+              setClearBackground(value);
+            }}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
+      <p class="muted">For pictures exported or copied from the ⋯ menu. A clear background suits slides and pages with a colour of their own.</p>
     </section>
 
     <section>
