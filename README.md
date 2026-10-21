@@ -44,6 +44,9 @@ few minutes; later ones take seconds.
 with the vault kept in the browser's storage. It is quicker for working on the
 interface.
 
+`npm run site` builds the website, with the demo of the app on it, and serves
+it at http://127.0.0.1:4321.
+
 ## Trying it
 
 The open map is drawn around its centre. Select a node by clicking it or with

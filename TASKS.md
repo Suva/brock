@@ -132,18 +132,18 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   memory. Keep it for vaults too big for that, or for a web version.
 - Try the app on Windows and Linux.
 
-## Later: a demo on the website
+## The website
 
-The window already runs in a browser, keeping the vault in local storage
-(`npm run dev`), so the website can let people try it:
+The page and its demo are made and tried locally (`npm run site`).
 
-- A demo build that starts from an example vault when storage is empty, with
-  a button to start over and a line saying nothing leaves the browser.
-- Embedded in an iframe: the app takes the keyboard of its whole window, so
-  mounted straight into a page it would take the page's arrows and Tab.
-  A "click to try" cover hands the keyboard over.
-- Other keys for what browsers keep for themselves: ⌘1 to ⌘5 switch tabs,
-  ⇧⌘N opens a private window, and ⌘← ⌘→ may go back and forward in the
-  browser rather than the app (⌘[ ⌘] are the dependable ones there).
+- Publish it: a workflow that builds `_site/` and puts it on GitHub Pages,
+  for every release and every change to `site/`. Pages needs the repository
+  to be public, or a paid GitHub plan for a private one; the download links
+  only work for visitors once the releases are public too.
+- Register getbrock.app and point it at the site.
+- Other keys in the demo for what browsers keep for themselves (⌘T makes a
+  task, ⌘1 to ⌘5 set priorities), or buttons for them in the notes panel, so
+  that everything in the tour can be done there.
 - Firefox edits titles in place only from version 136; phones and tablets
-  have no pinch or on-screen keyboard editing yet.
+  have no pinch or on-screen keyboard editing yet. The demo was only tried
+  in Chrome.

@@ -11,6 +11,8 @@
     "test:core": "node --test test/*.test.ts",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "package": "tauri build",
+    "site": "node scripts/build-site.mjs --serve",
+    "build:site": "node scripts/build-site.mjs",
     "version": "node scripts/sync-version.mjs",
     "tauri": "tauri"
   },

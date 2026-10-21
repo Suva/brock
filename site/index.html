@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Brock: mind maps inside mind maps</title>
+    <meta
+      name="description"
+      content="Brock is a desktop mind-mapping app where any node can become a map of its own. Fast from the keyboard, saved as you go, and your maps stay on your computer."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="#">
+        <img src="icon.png" alt="" width="36" height="36" />
+        <span>Brock</span>
+      </a>
+      <nav>
+        <a href="#try">Try it</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/Suva/brock">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <img class="hero-logo" src="logo.svg" alt="A badger holding a mind map" width="300" height="300" />
+        <div class="hero-text">
+          <h1>Mind maps inside mind maps.</h1>
+          <p class="lead">
+            Brock is a mind-mapping app for your desktop. Any node can become a map of its own, so one vault holds
+            everything you're thinking about, from the big picture down to the smallest detail, and you're never more than
+            a few keys from any of it.
+          </p>
+          <div class="cta">
+            <a class="button primary" id="download-main" href="#download">Download Brock</a>
+            <a class="button" href="#try">Try it here</a>
+          </div>
+          <p class="small">Free, for Mac, Windows and Linux. Version {{VERSION}}.</p>
+        </div>
+      </section>
+
+      <section class="features" aria-label="What Brock does">
+        <div>
+          <h2>Maps in maps</h2>
+          <p>Turn any branch into a map of its own and open it, as deep as you like. The breadcrumbs always show the way back out.</p>
+        </div>
+        <div>
+          <h2>Quick from the keyboard</h2>
+          <p>Tab, Enter and the arrow keys build a map as fast as you can think. ⌘K finds any node in any map.</p>
+        </div>
+        <div>
+          <h2>Tasks where they belong</h2>
+          <p>Make any node a task with a priority. The Tasks panel gathers them from every map, and groups what you did by day.</p>
+        </div>
+        <div>
+          <h2>Notes and links</h2>
+          <p>Every node has notes in Markdown. Link nodes across maps, and see what links to each.</p>
+        </div>
+        <div>
+          <h2>Saved as you go</h2>
+          <p>There's no Save button. Every change is kept as you make it, a copy is made each day, and everything you delete waits in the trash.</p>
+        </div>
+        <div>
+          <h2>Yours, on your computer</h2>
+          <p>No account, no cloud, no internet needed. Your maps are in a database on your computer, and export to Markdown, OPML and JSON.</p>
+        </div>
+      </section>
+
+      <section class="try" id="try">
+        <div class="section-head">
+          <h2>Try it here</h2>
+          <p>
+            This is the real app, running in your browser. The map is a tour of what it does: click a node and follow its
+            hints. A few keys, such as ⌘T, belong to your browser here; in the app they work.
+          </p>
+        </div>
+        <div class="demo">
+          <iframe id="demo" src="demo/" title="Brock, running in the page" loading="lazy"></iframe>
+          <button type="button" class="cover" id="cover"><span>Click to try it</span></button>
+          <picture class="demo-picture">
+            <source srcset="demo-dark.png" media="(prefers-color-scheme: dark)" />
+            <img src="demo.png" alt="Brock showing its tour map, with a node's notes beside it" />
+          </picture>
+        </div>
+        <div class="demo-bar">
+          <span class="small">What you change stays in this browser.</span>
+          <span>
+            <a href="demo/" target="_blank">Open it full size</a>
+            <button type="button" id="start-over">Start over</button>
+          </span>
+        </div>
+        <p class="phone-note small">The demo needs a keyboard and a bigger screen: try it on a computer.</p>
+      </section>
+
+      <section class="download" id="download">
+        <div class="section-head">
+          <h2>Download</h2>
+          <p>Brock {{VERSION}}, free.</p>
+        </div>
+        <div class="downloads">
+          <a class="download-card" data-os="mac" href="{{RELEASE}}/Brock_{{VERSION}}_universal.dmg">
+            <strong>Mac</strong>
+            <span>For Apple silicon and Intel. .dmg</span>
+          </a>
+          <a class="download-card" data-os="windows" href="{{RELEASE}}/Brock_{{VERSION}}_x64-setup.exe">
+            <strong>Windows</strong>
+            <span>Windows 10 and 11. Installer, .exe</span>
+          </a>
+          <a class="download-card" data-os="linux" href="{{RELEASE}}/Brock_{{VERSION}}_amd64.AppImage">
+            <strong>Linux</strong>
+            <span>AppImage, or the <span class="inline-link" data-href="{{RELEASE}}/Brock_{{VERSION}}_amd64.deb">.deb</span> for Debian and Ubuntu</span>
+          </a>
+        </div>
+        <details class="first-open">
+          <summary>Opening it the first time</summary>
+          <p>
+            Brock isn't signed by Apple or Microsoft yet, so your computer asks before opening it the first time.
+          </p>
+          <ul>
+            <li><strong>Mac:</strong> open the .dmg and drag Brock to Applications. When macOS says it can't check the app, open System Settings › Privacy &amp; Security and click <em>Open Anyway</em>.</li>
+            <li><strong>Windows:</strong> if SmartScreen stops the installer, click <em>More info</em>, then <em>Run anyway</em>.</li>
+            <li><strong>Linux:</strong> make the AppImage executable and run it, or install the .deb.</li>
+          </ul>
+        </details>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Brock keeps your maps on your computer and sends nothing anywhere. The demo on this page keeps what you change in
+        your browser.
+      </p>
+      <p><a href="https://github.com/Suva/brock">Brock on GitHub</a> · <a href="https://github.com/Suva/brock/releases">All releases</a></p>
+    </footer>
+
+    <script>
+      // The download button suits the visitor's computer.
+      const os = /Mac/.test(navigator.platform) ? "mac" : /Win/.test(navigator.platform) ? "windows" : /Linux/.test(navigator.platform) ? "linux" : null;
+      const card = os && document.querySelector(`.download-card[data-os="${os}"]`);
+      if (card) {
+        card.classList.add("yours");
+        const main = document.getElementById("download-main");
+        main.href = card.href;
+        main.textContent = "Download for " + card.querySelector("strong").textContent;
+      }
+
+      // A link inside a link is not allowed, so the .deb is a span that goes there.
+      for (const span of document.querySelectorAll(".inline-link")) {
+        span.addEventListener("click", (event) => {
+          event.preventDefault();
+          location.href = span.dataset.href;
+        });
+      }
+
+      // The cover keeps the demo from taking the page's scrolling until it is
+      // clicked: over the map, scrolling moves the map instead of the page.
+      const cover = document.getElementById("cover");
+      cover.addEventListener("click", () => {
+        cover.hidden = true;
+        document.getElementById("demo").focus();
+      });
+
+      // Start over: the demo keeps its map and where it was left in this
+      // browser (src/demo/keys.ts names the map's key); removing them and
+      // loading it again brings the tour back.
+      document.getElementById("start-over").addEventListener("click", () => {
+        for (const key of ["brock-demo-vault", "mindmap-session"]) localStorage.removeItem(key);
+        const frame = document.getElementById("demo");
+        frame.src = "about:blank";
+        setTimeout(() => (frame.src = "demo/"), 50);
+      });
+    </script>
+  </body>
+</html>

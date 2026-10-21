@@ -1,0 +1,421 @@
+/* The website's look: the app's colours, light or dark as the system is. */
+
+:root {
+  --bg: #fbfbfa;
+  --fg: #1d1f23;
+  --muted: #62666d;
+  --line: #e2e2df;
+  --card: #ffffff;
+  --accent: #1c7ed6;
+  --accent-fg: #ffffff;
+  --soft: #eef3fa;
+  --radius: 14px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1d21;
+    --fg: #ececec;
+    --muted: #a0a4ab;
+    --line: #30333a;
+    --card: #23262b;
+    --accent: #4dabf7;
+    --accent-fg: #0d1117;
+    --soft: #262c36;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1,
+h2 {
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.small {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ---- Header ---- */
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 18px 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.top nav {
+  display: flex;
+  gap: 22px;
+}
+
+.top nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.top nav a:hover {
+  color: var(--fg);
+}
+
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---- Hero ---- */
+
+.hero {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 48px;
+  align-items: center;
+  padding: 40px 0 56px;
+}
+
+.hero-logo {
+  width: 100%;
+  height: auto;
+  border-radius: 28px;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+}
+
+.lead {
+  margin: 0 0 24px;
+  font-size: 1.15rem;
+  color: var(--muted);
+  max-width: 36em;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.button {
+  display: inline-block;
+  padding: 11px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--fg);
+  background: var(--card);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.button:hover {
+  filter: brightness(1.06);
+}
+
+/* ---- Features ---- */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding-bottom: 64px;
+}
+
+.features div {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.features h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.features p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ---- Sections ---- */
+
+.section-head {
+  max-width: 44em;
+  margin-bottom: 20px;
+}
+
+.section-head h2 {
+  margin: 0 0 8px;
+  font-size: 1.8rem;
+}
+
+.section-head p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* ---- The demo ---- */
+
+.try {
+  padding-bottom: 64px;
+}
+
+/* The demo is wider than the page, so that the map has room beside its notes. */
+.demo,
+.demo-bar {
+  position: relative;
+  left: 50%;
+  width: min(1360px, calc(100vw - 48px));
+  transform: translateX(-50%);
+}
+
+.demo {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+}
+
+.cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 40px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cover span {
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.cover:hover span {
+  filter: brightness(1.08);
+}
+
+.cover[hidden] {
+  display: none;
+}
+
+.demo iframe {
+  display: block;
+  width: 100%;
+  height: min(760px, 82vh);
+  border: 0;
+}
+
+.demo-picture,
+.phone-note {
+  display: none;
+}
+
+.demo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.demo-bar > span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.demo-bar button {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--fg);
+  background: var(--card);
+  cursor: pointer;
+}
+
+/* ---- Downloads ---- */
+
+.download {
+  padding-bottom: 64px;
+}
+
+.downloads {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.download-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.download-card strong {
+  font-size: 1.15rem;
+}
+
+.download-card span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.download-card.yours {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+
+.download-card:hover {
+  border-color: var(--accent);
+}
+
+.inline-link {
+  color: var(--accent) !important;
+  text-decoration: underline;
+}
+
+.first-open {
+  margin-top: 20px;
+  padding: 14px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.first-open summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.first-open li {
+  margin: 6px 0;
+}
+
+/* ---- Footer ---- */
+
+footer {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+footer p {
+  margin: 4px 0;
+}
+
+/* ---- Small screens: a picture in place of the demo ---- */
+
+@media (max-width: 760px) {
+  .top nav {
+    gap: 14px;
+    font-size: 0.95rem;
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-top: 16px;
+  }
+
+  .hero-logo {
+    width: 180px;
+  }
+
+  .features,
+  .downloads {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .demo iframe,
+  .demo-bar,
+  .cover {
+    display: none;
+  }
+
+  .demo {
+    left: 0;
+    width: auto;
+    transform: none;
+  }
+
+  .demo-picture,
+  .demo-picture img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .phone-note {
+    display: block;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 980px) {
+  .features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

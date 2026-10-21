@@ -1,28 +1,54 @@
 import { mount } from "svelte";
 import App from "./App.svelte";
 import { Vault } from "../core/vault.ts";
+import { DEMO_KEY } from "../demo/keys.ts";
 import { MemoryStore } from "../store/memory-store.ts";
 import { Saver } from "../store/saver.ts";
 import type { Store } from "../store/store.ts";
 import { inTauri, TauriStore } from "../store/tauri-store.ts";
 import { Live } from "./live.svelte.ts";
+import { savedSession, saveSession } from "./session.ts";
 import { applyTheme, savedTheme } from "./theme.ts";
 import "./app.css";
 
 applyTheme(savedTheme());
 
 async function start(target: HTMLElement) {
-  // In a browser, outside the app, the vault is kept in local storage.
-  const store: Store = inTauri() ? new TauriStore() : new MemoryStore([], localStorage);
+  // In a browser, outside the app, the vault is kept in local storage. The
+  // demo on the website (built with `--mode demo`) starts from the tour.
+  const store: Store = inTauri()
+    ? new TauriStore()
+    : import.meta.env.MODE === "demo"
+      ? await demoStore()
+      : new MemoryStore([], localStorage);
   const saver = new Saver(store);
   const vault = new Vault(await store.load(), {
     onChange: (changes) => saver.push(changes),
     onPurge: (ids) => saver.purge(ids),
   });
   mount(App, { target, props: { live: new Live(vault, saver) } });
+  if (freshTour) {
+    // The whole tour in view, as ⌘0 shows it, once the map has measured its nodes.
+    setTimeout(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "0", ctrlKey: true, bubbles: true })), 300);
+  }
   showWindow();
   keepUntilSaved(saver);
   fitTitleBar();
+}
+
+/** Whether the demo opens on the tour as it comes, rather than the visitor's own map. */
+let freshTour = false;
+
+/**
+ * The demo's store: the visitor's map if there is one, or else the tour,
+ * opened with the notes beside it, where the tour's hints are.
+ */
+async function demoStore(): Promise<Store> {
+  freshTour = localStorage.getItem(DEMO_KEY) === null;
+  if (freshTour) {
+    saveSession({ ...savedSession(), map: null, node: null, notesOpen: true });
+  }
+  return new MemoryStore((await import("../demo/tour.ts")).tour(), localStorage, DEMO_KEY);
 }
 
 /**

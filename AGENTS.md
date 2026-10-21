@@ -14,6 +14,7 @@ npm test             # TypeScript tests, then Rust tests
 npm run test:core    # TypeScript tests only, in a second
 npm run check        # svelte-check: types of the TypeScript and Svelte
 npm run package      # an installer for this system, in src-tauri/target/release/bundle
+npm run site         # build the website into _site/ and serve it at http://127.0.0.1:4321
 ```
 
 Node 24 or newer and Rust are needed.
@@ -88,6 +89,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/Sidebar.svelte` | The sidebar on the left, with the Maps and Tasks tabs; places to go in the vault |
 | `src/ui/MapsList.svelte` | The sidebar's Maps tab: every map of the vault as a tree |
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
+| `src/demo/tour.ts` | The tour map the website's demo opens on |
+| `site/` | The website's page; `scripts/build-site.mjs` builds it, with the demo, into `_site/` |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
 | `brand/` | The logo and the icon, kept out of the app's package. `brock-logo.svg` and `brock-logo-plain.svg` are the logo with its wordmark, on a tile with a grey surround and on plain black. `brock-icon.svg` is the app icon: the logo without the wordmark, with two more branches where the word was. Every size is made from it with `npx tauri icon brand/brock-icon.svg -o src-tauri/icons`; delete the `android` and `ios` folders that makes, and copy `64x64.png` to `static/favicon.png` |
@@ -235,6 +238,32 @@ and said so. When driving the browser preview with a tool: text it types
 arrives without key presses, so typing on a selected node to start editing
 must be tried with key presses; and the preview keeps some ⌘ shortcuts for
 itself, so send those to the page with `dispatchEvent`.
+
+## The website
+
+`site/` holds the website: one page, with the downloads and a demo of the
+app. `scripts/build-site.mjs` builds it into `_site/`: the page, with this
+version's download links filled in from `package.json`, and the demo, which
+is the window built for a browser with `--mode demo`. GitHub Pages is not
+set up yet; the site is only tried locally (`npm run site`).
+
+- **The demo is the real window.** In demo mode `main.ts` keeps the map in
+  the browser's storage under its own key (`src/demo/keys.ts`) and, when
+  there is none yet, starts from the tour (`src/demo/tour.ts`) with the notes
+  open, where its hints are, and the whole map in view. The page's Start over
+  removes those keys.
+- **The tour is made with the vault's own edits**, so it is a vault the app
+  opens as it is; `test/tour.test.ts` checks that, and its links. When the app
+  gains something worth showing, add a node for it there, with a short title
+  and its hint in the notes.
+- **A browser keeps some keys for itself:** ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 never
+  reach the page. The tour gives those as keys of the app and shows the way
+  that works in a browser.
+- **The demo sits under a cover** until it is clicked, so that scrolling the
+  page over it does not move the map instead.
+- **Phones get a picture**, `site/demo.png` and `demo-dark.png`, in place of
+  the demo. `node scripts/build-site.mjs --pictures` takes them again with
+  Chrome; do it when the window or the tour changes, and look at them.
 
 ## Releasing a version
 
