@@ -3,10 +3,12 @@
   outline, the selected node's notes, and whether everything is saved.
 -->
 <script lang="ts">
+  import { untrack } from "svelte";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
   import { History, type Place } from "../core/history.ts";
   import { openText, saveText, type FileKind } from "./files.ts";
   import { typingIn } from "./keys.ts";
+  import { savedSession, saveSession } from "./session.ts";
   import type { Live } from "./live.svelte.ts";
   import MapView from "./MapView.svelte";
   import NotesPanel from "./NotesPanel.svelte";
@@ -21,18 +23,33 @@
   const vault = $derived(live.vault);
   const version = $derived(live.version);
 
+  // The window starts where it was left: the map and node, if they are still
+  // there, the view and the panels (session.ts).
+  const start = (() => {
+    const saved = savedSession();
+    const v = untrack(() => live.vault);
+    const map = saved.map && v.isLive(saved.map) && v.get(saved.map)!.isMap ? saved.map : null;
+    const node = map && saved.node && v.isLive(saved.node) ? saved.node : null;
+    return { ...saved, map, node };
+  })();
+
   // Null until a map is opened: the top of the vault.
-  let openedMap = $state<string | null>(null);
-  let selected = $state<string | null>(null);
+  let openedMap = $state<string | null>(start.map);
+  let selected = $state<string | null>(start.node ?? start.map);
   /** The node whose title is being edited on the map. */
   let editing = $state<string | null>(null);
-  let view = $state<"map" | "outline">("map");
-  let notesOpen = $state(false);
+  let view = $state<"map" | "outline">(start.view);
+  let notesOpen = $state(start.notesOpen);
   /** The search palette, open to go somewhere or to link the selected node. */
   let searching = $state<false | "go" | "link">(false);
   /** The sidebar on the left, and which of its tabs shows; it opens on the tab used last. */
-  let sidebarOpen = $state(false);
-  let sidebarTab = $state<Tab>("maps");
+  let sidebarOpen = $state(start.sidebarOpen);
+  let sidebarTab = $state<Tab>(start.sidebarTab);
+
+  // Remembered as it changes, for the next start.
+  $effect(() => {
+    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen });
+  });
 
   /** A tab's button or key: opens the sidebar on it, or closes it if it is showing. */
   function showTab(tab: Tab) {

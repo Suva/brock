@@ -132,6 +132,8 @@ as Markdown, OPML (which other outliners and mind map apps read) or JSON
 selected node. It also opens the trash, where deleted branches wait to be put
 back until the trash is emptied, and Settings.
 
+The app starts where you left it: the same map and node, view and panels.
+
 ## Nothing leaves your computer
 
 The app works without a network. The only thing that reaches outside it is a
