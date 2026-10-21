@@ -141,9 +141,6 @@ The page and its demo are made and tried locally (`npm run site`).
   to be public, or a paid GitHub plan for a private one; the download links
   only work for visitors once the releases are public too.
 - Register getbrock.app and point it at the site.
-- Other keys in the demo for what browsers keep for themselves (⌘T makes a
-  task, ⌘1 to ⌘5 set priorities), or buttons for them in the notes panel, so
-  that everything in the tour can be done there.
 - Firefox edits titles in place only from version 136; phones and tablets
   have no pinch or on-screen keyboard editing yet. The demo was only tried
   in Chrome.

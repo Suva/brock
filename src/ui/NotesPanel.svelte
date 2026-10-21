@@ -1,5 +1,6 @@
 <!--
-  The selected node beside the map: its notes, drawn from their Markdown and
+  The selected node beside the map: whether it is a task and its priority,
+  its colour and icon; its notes, drawn from their Markdown and
   edited as text on a click (saved as typed, undone a run of typing at a
   time); and the nodes it links to and those linking to it, each a way there.
   Links in the notes go to nodes or open web addresses; ⌘L while writing puts
@@ -11,6 +12,8 @@
   import { nodeLink, parse, setChecked, type LinkTarget } from "../core/markdown.ts";
   import type { Node } from "../core/node.ts";
   import { findByTitle } from "../core/search.ts";
+  import { PRIORITIES, setPriority } from "../core/tasks.ts";
+  import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
   import Markdown from "./Markdown.svelte";
   import { openUrl } from "./open-url.ts";
@@ -124,6 +127,35 @@
     <button class="close" onclick={onClose} title="Hide notes (⇧⌘N)" aria-label="Hide notes">›</button>
   </div>
   {#if node}
+    <!-- The mouse's way to what ⌘T and ⌘1 to ⌘5 do, which a browser keeps for itself. -->
+    <div class="task-row">
+      <button
+        class="task-toggle"
+        class:on={node.task !== null}
+        aria-pressed={node.task !== null}
+        onclick={() => vault.toggleTask(nodeId)}
+        title={node.task === null ? "Make it a task, with a checkbox (⌘T)" : "Make it an ordinary node again (⌘T)"}
+      >
+        <span class="box" class:done={node.task === "done"}>{node.task === "done" ? "✓" : ""}</span>
+        Task
+      </button>
+      <div class="priorities" role="radiogroup" aria-label="Priority">
+        {#each PRIORITIES as p (p)}
+          <button
+            role="radio"
+            aria-checked={node.priority === p}
+            class:on={node.priority === p}
+            onclick={() => setPriority(vault, [nodeId], p)}
+            title={node.priority === p
+              ? `Take priority ${p} away (⌘${p})`
+              : `Priority ${p}${p <= 3 ? ", before what has none" : ", after what has none"} (⌘${p})`}
+            aria-label="Priority {p}"
+          >
+            <PriorityBadge priority={p} described={false} />
+          </button>
+        {/each}
+      </div>
+    </div>
     <div class="style">
       {#if !centre}
         <div class="swatches" role="radiogroup" aria-label="Colour">
@@ -328,6 +360,66 @@
     font-size: 1.1rem;
     color: var(--muted);
     padding: 0 0.4rem;
+  }
+
+  .task-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .task-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.5rem 0.15rem 0.35rem;
+    border: 1px solid var(--line);
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .task-toggle.on {
+    color: var(--fg);
+    border-color: var(--accent);
+  }
+
+  .box {
+    display: inline-grid;
+    place-items: center;
+    width: 0.95em;
+    height: 0.95em;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  .box.done {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .priorities {
+    display: flex;
+    gap: 1px;
+    margin-left: auto;
+  }
+
+  .priorities button {
+    padding: 0.2rem;
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.4;
+  }
+
+  .priorities button:hover {
+    opacity: 0.8;
+  }
+
+  .priorities button.on {
+    opacity: 1;
+    background: var(--accent-soft);
   }
 
   .style {

@@ -149,8 +149,9 @@ which moves its tasks to the trash, so last week's can go while this week's
 stay. Tick tasks there, or click one to go to it. The panel on the right is about the selected
 node, so a task's notes show beside the list.
 
-The notes panel also sets a node's colour, which carries down everything
-under it, and an icon shown before its title.
+The notes panel also makes a node a task and sets its priority, as ⌘T and
+⌘1 to ⌘5 do, its colour, which carries down everything under it, and an icon
+shown before its title.
 
 The ⋯ menu at the top right exports the open map, with everything under it,
 as Markdown, OPML (which other outliners and mind map apps read) or JSON

@@ -3,7 +3,8 @@
   what comes first, grey for 4 and 5, which come after what has none.
 -->
 <script lang="ts">
-  let { priority }: { priority: number } = $props();
+  /** `described` false leaves the tooltip and name to a button around it. */
+  let { priority, described = true }: { priority: number; described?: boolean } = $props();
 
   const COLOURS: Record<number, string> = {
     1: "#e03131",
@@ -14,7 +15,11 @@
   };
 </script>
 
-<span class="badge" style:--colour={COLOURS[priority]} title="Priority {priority} (⌘{priority})" aria-label="Priority {priority}"
+<span
+  class="badge"
+  style:--colour={COLOURS[priority]}
+  title={described ? `Priority ${priority} (⌘${priority})` : undefined}
+  aria-label={described ? `Priority ${priority}` : undefined}
   >{priority}</span
 >
 

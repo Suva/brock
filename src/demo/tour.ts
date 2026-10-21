@@ -6,7 +6,7 @@
 //
 // In a browser some keys belong to the browser and never reach the page:
 // ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 among them. The hints give those as keys of the
-// app, and show the way that works here.
+// app, and point to the buttons in the notes panel that do the same.
 
 import { newBranch } from "../core/branches.ts";
 import type { Node, NodeFields } from "../core/node.ts";
@@ -92,7 +92,7 @@ export function tour(now = Date.now()): Node[] {
 
   const tasks = branch("Tasks", {
     body: notes(
-      "Any node can be a task with a checkbox: **⌘T** in the app.",
+      "Any node can be a task with a checkbox: the **Task** button at the top of this panel, or **⌘T** in the app.",
       "The sidebar's **Tasks** tab, on the left edge, lists the tasks of this map or of all maps. Done ones are grouped by when they were done, handy for a stand-up, and each group can be cleared on its own.",
     ),
   });
@@ -104,8 +104,7 @@ export function tour(now = Date.now()): Node[] {
     task: "open",
     priority: 1,
     body: notes(
-      "**⌘1** to **⌘5** in the app. 1 to 3 come before tasks without a priority, 4 and 5 after them.",
-      "A browser keeps ⌘1 to ⌘5 for its own tabs, so here they only work in the app.",
+      "The numbers at the top of this panel set a priority, or **⌘1** to **⌘5** in the app. 1 to 3 come before tasks without a priority, 4 and 5 after them.",
     ),
   });
   add(tasks, "Hide what's done", {
