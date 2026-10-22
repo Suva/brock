@@ -30,12 +30,25 @@ export function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
-/** Folded titles and texts, kept until a node changes. */
-const folded = new WeakMap<Node, { title: string; body: string }>();
+interface Folded {
+  title: string;
+  body: string;
+  /** The first letter of each word of the title, and where each is. */
+  initials: string;
+  starts: number[];
+}
 
-function foldedOf(node: Node) {
+/** Folded titles and texts, kept until a node changes. */
+const folded = new WeakMap<Node, Folded>();
+
+function foldedOf(node: Node): Folded {
   let f = folded.get(node);
-  if (!f) folded.set(node, (f = { title: fold(node.title), body: fold(node.body) }));
+  if (!f) {
+    const title = fold(node.title);
+    const starts = [...title.matchAll(/(?<![\p{L}\p{N}])[\p{L}\p{N}]/gu)].map((m) => m.index);
+    const initials = starts.map((i) => title[i]).join("");
+    folded.set(node, (f = { title, body: fold(node.body), initials, starts }));
+  }
   return f;
 }
 
@@ -119,7 +132,7 @@ function match(
   words: string[],
   detail = false,
 ): { score: number; marks: [number, number][]; snippet: string | null } | null {
-  const { title, body } = foldedOf(node);
+  const { title, body, initials, starts } = foldedOf(node);
   let score = 0;
   const marks: [number, number][] = [];
   let bodyAt = -1;
@@ -130,6 +143,15 @@ function match(
       const startsWord = t === 0 || /[^\p{L}\p{N}]/u.test(title[t - 1]);
       score += startsWord ? 3 : 1;
       marks.push([t, t + word.length]);
+      continue;
+    }
+    // "pp" for "Product plan": the first letters of words in a row. Weaker
+    // than a word of the title, unless it names them all; one letter would
+    // find too much.
+    const i = word.length >= 2 ? initials.indexOf(word) : -1;
+    if (i >= 0) {
+      score += word.length === initials.length ? 3 : 1.5;
+      for (const at of starts.slice(i, i + word.length)) marks.push([at, at + 1]);
       continue;
     }
     const b = body.indexOf(word);

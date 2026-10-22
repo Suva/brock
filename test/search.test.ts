@@ -41,6 +41,19 @@ test("an exact title comes first, then titles starting with it, then words insid
   assert.deepEqual(titles(search(v, "garden")), ["Garden", "Gardening tools", "Project Garden", "Wintergarden"]);
 });
 
+test("the first letters of a title's words find it, before letters inside a word", () => {
+  const { v } = vault();
+  v.addChild(v.rootId, { title: "Product plan" });
+  v.addChild(v.rootId, { title: "The big product plan" });
+  v.addChild(v.rootId, { title: "Apps", body: "Shopping lists" });
+  const pp = search(v, "pp");
+  assert.deepEqual(titles(pp), ["Product plan", "The big product plan", "Apps"], "all the words, then some of them, then inside a word");
+  assert.deepEqual(pp[0].marks, [[0, 1], [8, 9]], "the letters found are marked");
+  assert.deepEqual(titles(search(v, "bpp")), ["The big product plan"]);
+  assert.deepEqual(titles(search(v, "pz")), [], "letters in a row only");
+  assert.deepEqual(titles(search(v, "pg plants")), [], "every word must still be found");
+});
+
 test("titles count for more than text", () => {
   const { v } = vault();
   v.addChild(v.rootId, { title: "Tomatoes" });
