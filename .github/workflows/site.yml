@@ -41,7 +41,7 @@ jobs:
         run: |
           tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)"
           [ -n "$tag" ] && echo "SITE_VERSION=${tag#v}" >> "$GITHUB_ENV"
-          echo "Linking to: ${tag:-package.json's version}"
+          echo "Linking to: ${tag:-the version in package.json}"
         env:
           GH_TOKEN: ${{ github.token }}
       - run: node scripts/build-site.mjs
