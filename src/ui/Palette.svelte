@@ -7,6 +7,7 @@
 <script lang="ts">
   import { search, type Hit, type Scope } from "../core/search.ts";
   import type { Live } from "./live.svelte.ts";
+  import { usage } from "./usage.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
 
   let {
@@ -19,7 +20,8 @@
   }: {
     live: Live;
     mapId: string;
-    onChoose: (id: string) => void;
+    /** The node chosen, and what was typed to find it. */
+    onChoose: (id: string, query: string) => void;
     onClose: () => void;
     /** Going to a node, or choosing one to link to. */
     purpose?: "go" | "link";
@@ -38,7 +40,7 @@
   const hits: Hit[] = $derived.by(() => {
     void live.version;
     const s: Scope = scope === "within" ? { kind: "within", mapId } : { kind: scope };
-    return search(live.vault, query, s).filter((h) => h.node.id !== exclude);
+    return search(live.vault, query, s, { here: mapId, boost: usage.boostFor(query) }).filter((h) => h.node.id !== exclude);
   });
 
   // A new search starts at its best match.
@@ -58,7 +60,7 @@
       if (hits.length) active = (active + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length;
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (hits[active]) onChoose(hits[active].node.id);
+      if (hits[active]) onChoose(hits[active].node.id, query);
     } else if (e.key === "Escape") {
       e.preventDefault();
       onClose();
@@ -132,7 +134,7 @@
           class:active={i === active}
           onmousemove={() => (active = i)}
           onmousedown={(e) => e.preventDefault()}
-          onclick={() => onChoose(hit.node.id)}
+          onclick={() => onChoose(hit.node.id, query)}
         >
           <div class="title">
             {#if hit.node.isMap}<span class="map" title="A map">⧉</span>{/if}
@@ -152,7 +154,7 @@
       {/each}
     </ul>
     {#if !query}
-      <div class="foot">Changed most recently</div>
+      <div class="foot">Gone to lately, then changed lately</div>
     {/if}
   </div>
 </div>

@@ -18,6 +18,7 @@
   import type { Live } from "./live.svelte.ts";
   import NotesPanel from "./NotesPanel.svelte";
   import Palette from "./Palette.svelte";
+  import { saveUsage, usage } from "./usage.ts";
   import OutlineView from "./OutlineView.svelte";
   import MoreMenu from "./MoreMenu.svelte";
   import Settings from "./Settings.svelte";
@@ -201,6 +202,9 @@
     if (map !== mapId) {
       history.leave({ map: mapId, node: selected });
       historyVersion++;
+      // Maps opened often come first in search.
+      usage.visit(map);
+      saveUsage();
     }
     openedMap = map;
     selected = node;
@@ -239,12 +243,25 @@
     searching = false;
     const node = vault.get(id);
     if (!node || !vault.isLive(id)) return;
+    if (!node.isMap) {
+      // A map is counted as it opens, in moveTo.
+      usage.visit(id);
+      saveUsage();
+    }
     if (node.isMap) return open(id);
     const map = vault.mapOf(id)!;
     const above = vault.ancestors(id);
     const foldedAbove = above.slice(above.findIndex((n) => n.id === map) + 1).filter((n) => n.collapsed);
     if (foldedAbove.length) vault.transact(() => foldedAbove.forEach((n) => vault.update(n.id, { collapsed: false })));
     moveTo(map, id);
+  }
+
+  /** Goes to a node chosen in the palette, remembering it was chosen for `query`. */
+  function chosen(id: string, query: string) {
+    usage.pick(query, id);
+    saveUsage();
+    if (searching === "link") linkTo(id);
+    else goTo(id);
   }
 
   /** Links the selected node to `id`, chosen in the palette. */
@@ -525,7 +542,7 @@
       {mapId}
       purpose={searching}
       exclude={searching === "link" ? (selected ?? mapId) : null}
-      onChoose={searching === "link" ? linkTo : goTo}
+      onChoose={chosen}
       onClose={() => (searching = false)}
     />
   {/if}

@@ -134,6 +134,10 @@ elements. Try it there early, not at the end.
 - A palette (⌘K) that matches titles and bodies as you type. Each result shows
   its path; choosing one opens its map and selects it.
 - Filters: only this map, only maps.
+- Ranking: the words first, then the node's place (maps and branches before
+  leaves, near the top or the open map before deep elsewhere), then use: the
+  nodes gone to often lately, and the one chosen before for the same query.
+  Use is kept on the computer, not in the vault, and fades with time.
 - Search runs over the vault in memory, which is all loaded anyway: about
   15–35 ms over 100,000 nodes. The SQLite full-text index is kept up to date
   for when a vault is too big for that, or for a web version that does not

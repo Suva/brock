@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findByTitle, fold, search } from "../src/core/search.ts";
+import { Usage } from "../src/core/usage.ts";
 import { Vault } from "../src/core/vault.ts";
 
 function vault() {
@@ -53,7 +54,8 @@ test("hits know their path, where the title matched, and a piece of the text", (
   assert.deepEqual(hit.path.map((n) => n.title), ["Home", "Work", "Project Garden"]);
   assert.match(hit.snippet!, /basil/);
   assert.match(hit.snippet!, /^…\S*\s|^[^…]/, "a snippet starts at a word");
-  assert.deepEqual(search(v, "den gar")[0].marks, [[0, 6]], "overlapping marks join");
+  const garden = search(v, "den gar").find((h) => h.node.title === "Garden")!;
+  assert.deepEqual(garden.marks, [[0, 6]], "overlapping marks join");
 });
 
 test("deleted nodes are not found", () => {
@@ -73,6 +75,73 @@ test("with nothing typed, the most recently changed come first", () => {
   const { v, plants } = vault();
   v.update(plants.id, { title: "Plants and seeds" });
   assert.equal(search(v, "")[0].node.id, plants.id);
+});
+
+test("among matches alike, maps come before other nodes, and nodes near the top before deep ones", () => {
+  const { v, work } = vault();
+  const deep = v.addChild(work.id, { title: "Deep" });
+  const notes = v.addChild(deep.id, { title: "Notes" });
+  const map = v.addChild(v.rootId, { title: "Notes" });
+  v.setMap(map.id, true);
+  const shallow = v.addChild(v.rootId, { title: "Notes" });
+  assert.deepEqual(search(v, "notes").map((h) => h.node.id), [map.id, shallow.id, notes.id]);
+});
+
+test("nodes in the open map, then in the maps just under it, come first among equals", () => {
+  const { v, project } = vault();
+  const elsewhere = v.addChild(v.rootId, { title: "Seeds" });
+  const sub = v.addChild(project.id, { title: "Beds" });
+  v.setMap(sub.id, true);
+  const under = v.addChild(sub.id, { title: "Seeds" });
+  const inside = v.addChild(project.id, { title: "Seeds" });
+  const ids = (here: string) => search(v, "seeds", { kind: "all" }, { here }).map((h) => h.node.id);
+  assert.deepEqual(ids(project.id), [inside.id, under.id, elsewhere.id]);
+  assert.equal(ids(v.rootId)[0], elsewhere.id);
+});
+
+test("the words still decide first: a map matched in its text comes after a title", () => {
+  const { v } = vault();
+  const map = v.addChild(v.rootId, { title: "Holidays", body: "Remember the passports." });
+  v.setMap(map.id, true);
+  v.addChild(v.rootId, { title: "Passports" });
+  assert.deepEqual(titles(search(v, "passports")), ["Passports", "Holidays"]);
+});
+
+test("a node chosen for a query comes first the next time, and for queries it starts", () => {
+  const { v } = vault();
+  let time = 0;
+  const usage = new Usage(undefined, () => time);
+  const plot = v.addChild(v.rootId, { title: "Garden plot" });
+  const ranked = (q: string) => titles(search(v, q, { kind: "all" }, { boost: usage.boostFor(q) }));
+  assert.equal(ranked("garden")[0], "Garden");
+  usage.pick("garden", plot.id);
+  usage.pick("Garden ", plot.id);
+  assert.equal(ranked("garden")[0], "Garden plot", "chosen twice, it passes the exact title");
+  assert.equal(ranked("gard")[0], "Garden plot", "a shorter query takes it too");
+  time += 365 * 24 * 60 * 60 * 1000;
+  assert.equal(ranked("garden")[0], "Garden", "a year later the choice has faded");
+});
+
+test("with nothing typed, the nodes gone to lately come first", () => {
+  const { v, cafe, plants } = vault();
+  const usage = new Usage();
+  usage.visit(cafe.id);
+  v.update(plants.id, { title: "Plants and seeds" });
+  const hits = search(v, "", { kind: "all" }, { boost: usage.boostFor("") });
+  assert.deepEqual([hits[0].node.id, hits[1].node.id], [cafe.id, plants.id]);
+});
+
+test("usage read back from storage keeps what makes sense, and stays small", () => {
+  const usage = new Usage({ visits: { a: { count: 2, last: 5 }, b: "nonsense" }, picks: { x: { a: { count: 1 } } } });
+  assert.deepEqual(usage.toJSON(), { visits: { a: { count: 2, last: 5 } }, picks: {} });
+  assert.deepEqual(new Usage("garbage").toJSON(), { visits: {}, picks: {} });
+  let time = 0;
+  const many = new Usage(undefined, () => time++);
+  for (let i = 0; i < 1000; i++) many.visit(`n${i}`);
+  many.visit("n999");
+  const kept = Object.keys(many.toJSON().visits);
+  assert.equal(kept.length, 300);
+  assert.ok(kept.includes("n999") && !kept.includes("n0"), "the oldest go first");
 });
 
 test("a large vault is searched quickly", () => {

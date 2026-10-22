@@ -169,7 +169,7 @@
       // browser (src/demo/keys.ts names the map's key); removing them and
       // loading it again brings the tour back.
       document.getElementById("start-over").addEventListener("click", () => {
-        for (const key of ["brock-demo-vault", "mindmap-session"]) localStorage.removeItem(key);
+        for (const key of ["brock-demo-vault", "mindmap-session", "brock-usage"]) localStorage.removeItem(key);
         const frame = document.getElementById("demo");
         frame.src = "about:blank";
         setTimeout(() => (frame.src = "demo/"), 50);

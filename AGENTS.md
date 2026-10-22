@@ -52,7 +52,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures |
 | `src/core/navigate.ts` | Which node an arrow key moves to |
 | `src/core/branches.ts` | The side and colour a new branch of a map's centre is given, and the palette |
-| `src/core/search.ts` | Searching titles and notes, in memory |
+| `src/core/search.ts` | Searching titles and notes, in memory, and ranking what is found |
+| `src/core/usage.ts` | What search learns from use: nodes gone to often, and the one chosen for a query |
 | `src/core/overview.ts` | The vault's maps as a tree, with what each holds |
 | `src/core/drop.ts` | Where a node dragged on a map would land |
 | `src/core/urls.ts` | Web addresses in text, and trimming the sentence off them |
@@ -79,6 +80,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
 | `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |
+| `src/ui/usage.ts` | Search's usage, kept in the window's storage |
 | `src/ui/session.ts` | Where the window was left (map, node, view, panels), to start there |
 | `src/ui/theme.ts` | Light, dark or as the system, kept in the window's storage |
 | `src/ui/system-clipboard.ts` | The system's clipboard as text: Tauri's plugin in the app, the browser's elsewhere |

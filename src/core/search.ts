@@ -1,7 +1,8 @@
 // Finding nodes by what they say. The whole vault is in memory, so search
 // reads it there: every word typed must appear in a node's title or text,
-// ignoring case and accents, and titles count for more than text. Nothing is
-// sent anywhere; this runs on each key press.
+// ignoring case and accents, and titles count for more than text. Among
+// matches alike, a node's place in the vault and how it has been used decide.
+// Nothing is sent anywhere; this runs on each key press.
 
 import type { Node } from "./node.ts";
 import type { Vault } from "./vault.ts";
@@ -40,30 +41,71 @@ function foldedOf(node: Node) {
 
 const SNIPPET = 70;
 
+/** What, besides the words, decides which of the nodes found comes first. */
+export interface Ranking {
+  /** The open map: nodes in it, then in the maps just under it, come first among equals. */
+  here?: string | null;
+  /** What use adds to a node's score (`boostFor` in `usage.ts`). */
+  boost?: (id: string) => number;
+}
+
+/**
+ * What a node's place in the vault adds to its score. A map, or a branch
+ * with more under it, is more often what is looked for than a leaf; so is a
+ * node near the top, or near the open map, rather than one deep in another.
+ * It stays within what a title match is worth over a match in the text, so
+ * that the words still decide first.
+ */
+function placeScore(node: Node, hasChildren: boolean, depth: number, nearHere: number | undefined): number {
+  let score = 0;
+  if (node.isMap) score += 1.5;
+  else if (hasChildren) score += 0.25;
+  if (nearHere === 0) score += 1;
+  else if (nearHere === 1) score += 0.5;
+  score -= Math.min(depth, 5) * 0.1;
+  if (node.task === "done") score -= 0.5;
+  return Math.max(-1, Math.min(2, score));
+}
+
 /**
  * The nodes matching `query`, best first. An empty query gives the nodes
- * changed most recently, to go back to.
+ * gone to most lately, then those changed most recently, to go back to.
  */
-export function search(vault: Vault, query: string, scope: Scope = { kind: "all" }, limit = 50): Hit[] {
+export function search(vault: Vault, query: string, scope: Scope = { kind: "all" }, ranking: Ranking = {}, limit = 50): Hit[] {
   const words = fold(query).split(/\s+/).filter(Boolean);
   const top = scope.kind === "within" ? scope.mapId : vault.rootId;
-  const found: { node: Node; score: number }[] = [];
+  const boost = ranking.boost ?? (() => 0);
+  const found: { node: Node; score: number; boost: number }[] = [];
 
   // Walk the tree rather than the list of nodes: it holds only what is not
   // deleted. Only scores are kept on the way; paths, marks and snippets are
-  // made for the hits that are shown.
-  const visit = (node: Node) => {
+  // made for the hits that are shown. `nearHere` counts the maps between the
+  // open map and the one a node is in: 0 in the open map itself.
+  const visit = (node: Node, depth: number, nearHere: number | undefined) => {
+    const children = vault.children(node.id);
     if (scope.kind !== "maps" || node.isMap) {
-      const score = words.length === 0 ? node.updatedAt : match(node, words)?.score;
-      if (score !== undefined) found.push({ node, score });
+      if (words.length === 0) {
+        found.push({ node, score: node.updatedAt, boost: boost(node.id) });
+      } else {
+        const text = match(node, words)?.score;
+        if (text !== undefined) {
+          const score = text + placeScore(node, children.length > 0, depth, nearHere) + boost(node.id);
+          found.push({ node, score, boost: 0 });
+        }
+      }
     }
-    for (const child of vault.children(node.id)) visit(child);
+    const below = !node.isMap ? nearHere : node.id === ranking.here ? 0 : nearHere === undefined ? undefined : nearHere + 1;
+    for (const child of children) visit(child, depth + 1, below);
   };
   const start = vault.get(top);
-  if (start) visit(start);
+  if (start) visit(start, start.id === vault.rootId ? 0 : vault.ancestors(start.id).length, undefined);
 
   found.sort(
-    (a, b) => b.score - a.score || a.node.title.length - b.node.title.length || b.node.updatedAt - a.node.updatedAt,
+    (a, b) =>
+      b.boost - a.boost ||
+      b.score - a.score ||
+      a.node.title.length - b.node.title.length ||
+      b.node.updatedAt - a.node.updatedAt,
   );
   return found.slice(0, limit).map(({ node }) => {
     const detail = words.length === 0 ? null : match(node, words, true);
