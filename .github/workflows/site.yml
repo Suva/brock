@@ -10,10 +10,7 @@ on:
       - src/**
       - static/**
       - brand/**
-      - package.json
       - .github/workflows/site.yml
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -38,6 +35,15 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The downloads are those of the newest published release, not of the
+      # version in package.json, whose installers may still be building.
+      - name: Find the newest release
+        run: |
+          tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)"
+          [ -n "$tag" ] && echo "SITE_VERSION=${tag#v}" >> "$GITHUB_ENV"
+          echo "Linking to: ${tag:-package.json's version}"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: node scripts/build-site.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

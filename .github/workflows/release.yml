@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build:
@@ -103,5 +104,12 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --title "Brock $GITHUB_REF_NAME" --generate-notes
           fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # A release made with the workflow's own token does not start the
+      # website's build (GitHub does not chain workflows that way), so ask for it.
+      - name: Update the website's downloads
+        run: gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main
         env:
           GH_TOKEN: ${{ github.token }}

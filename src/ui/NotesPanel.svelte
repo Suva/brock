@@ -484,8 +484,10 @@
     color: var(--muted);
   }
 
+  /* Grows with the text and never shrinks under it: the panel scrolls, so
+     long notes do not spill over what comes below them. */
   .read {
-    flex: 1;
+    flex: 1 0 auto;
     min-height: 8rem;
     padding: 0.6rem 0.7rem;
     border: 1px solid transparent;

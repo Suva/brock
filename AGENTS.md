@@ -255,10 +255,14 @@ itself, so send those to the page with `dispatchEvent`.
 
 `site/` holds the website: one page, with the downloads and a demo of the
 app. `scripts/build-site.mjs` builds it into `_site/`: the page, with this
-version's download links filled in from `package.json`, and the demo, which
+download links filled in (from `package.json` locally; in CI from the newest
+published release, `SITE_VERSION`, since `package.json` is bumped before the
+installers are built), and the demo, which
 is the window built for a browser with `--mode demo`. It is published at
 brock.clysuva.com by `.github/workflows/site.yml` on GitHub Pages, on every
-push to `main` that changes the site or the demo, and on every release; the
+push to `main` that changes the site or the demo, and when the release
+workflow has put the installers on a release (it starts the site's build
+itself, as a release made with its own token starts nothing); the
 build writes the `CNAME` for that domain. Try it locally with `npm run site`.
 
 - **The demo is the real window.** In demo mode `main.ts` keeps the map in

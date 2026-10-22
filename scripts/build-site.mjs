@@ -18,7 +18,10 @@ const PORT = 4321;
 const REPOSITORY = "https://github.com/Suva/brock";
 const DOMAIN = "brock.clysuva.com";
 
-const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+// The page links to the newest release that has its installers. CI says which
+// that is (SITE_VERSION): package.json is bumped before the installers are
+// built, and links made from it would lead nowhere until they are.
+const version = process.env.SITE_VERSION || JSON.parse(readFileSync("package.json", "utf8")).version;
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
