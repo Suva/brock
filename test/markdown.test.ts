@@ -79,3 +79,20 @@ test("a node link is written so it reads back", () => {
   const [link] = inline(written);
   assert.deepEqual(link.kind === "link" && link.to, { kind: "node", id: "01XYZ" });
 });
+
+test("tables: header, alignment, ragged rows, and a paragraph before one", () => {
+  const blocks = parse("Intro\n| a | b |\n|:--|--:|\n| 1 | **2** |\n| 3 |");
+  assert.equal(blocks[0].kind, "paragraph");
+  const t = blocks[1];
+  assert.equal(t.kind, "table");
+  if (t.kind !== "table") return;
+  assert.deepEqual(t.align, ["left", "right"]);
+  assert.equal(t.head.length, 2);
+  assert.equal(t.rows.length, 2);
+  assert.equal(t.rows[1].length, 2);
+  assert.equal(t.rows[0][1][0].kind, "strong");
+});
+
+test("a line with a bar but no dashes under it is not a table", () => {
+  assert.equal(parse("a | b\nc | d")[0].kind, "paragraph");
+});
