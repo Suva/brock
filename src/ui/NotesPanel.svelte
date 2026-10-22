@@ -25,6 +25,7 @@
     centre,
     onClose,
     onGoTo,
+    width,
   }: {
     live: Live;
     nodeId: string;
@@ -32,6 +33,7 @@
     centre: boolean;
     onClose: () => void;
     onGoTo: (id: string) => void;
+    width: number;
   } = $props();
 
   /** Icons to choose from: a short list that covers what notes usually mark. */
@@ -121,7 +123,7 @@
   }
 </script>
 
-<aside aria-label="Notes">
+<aside aria-label="Notes" style:width="{width}px">
   <div class="head">
     <h2>{node?.title || "Untitled"}</h2>
     <button class="close" onclick={onClose} title="Hide notes (⇧⌘N)" aria-label="Hide notes">›</button>
@@ -311,7 +313,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-    width: 320px;
+    flex: none;
     padding: 0.75rem 1rem 1rem;
     border-left: 1px solid var(--line);
     min-height: 0;

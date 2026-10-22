@@ -3,7 +3,8 @@
 // put markup or scripts in the window.
 //
 // What it knows: headings (#, ##, ###), paragraphs, lists (-, *, 1.) with
-// checkboxes ([ ] and [x]), quotes (>), code blocks (```), rules (---), and
+// checkboxes ([ ] and [x]), quotes (>), code blocks (```), rules (---), tables
+// (| a | b | over a |---|---| line), and
 // in a line: **bold**, *italic* or _italic_, `code`, [text](address), web
 // addresses written out, and links to nodes, as [text](node:id) or [[Title]].
 
@@ -30,13 +31,16 @@ export interface ListItem {
   line: number;
 }
 
+export type Align = "left" | "center" | "right" | null;
+
 export type Block =
   | { kind: "heading"; level: 1 | 2 | 3; children: Inline[] }
   | { kind: "paragraph"; children: Inline[] }
   | { kind: "list"; ordered: boolean; items: ListItem[] }
   | { kind: "quote"; children: Inline[] }
   | { kind: "code"; text: string }
-  | { kind: "rule" };
+  | { kind: "rule" }
+  | { kind: "table"; align: Align[]; head: Inline[][]; rows: Inline[][][] };
 
 const LIST_ITEM = /^\s*(?:([-*+])|(\d+)[.)])\s+(.*)$/;
 const CHECKBOX = /^\[([ xX])\]\s+(.*)$/;
@@ -55,6 +59,18 @@ export function parse(text: string): Block[] {
       while (i < lines.length && !lines[i].trimStart().startsWith("```")) code.push(lines[i++]);
       i++; // The closing fence, if there is one.
       blocks.push({ kind: "code", text: code.join("\n") });
+    } else if (isTableStart(lines, i)) {
+      const align = cells(lines[i + 1]).map(alignment);
+      const head = cells(line).map(inline);
+      i += 2;
+      const rows: Inline[][][] = [];
+      while (i < lines.length && lines[i].trim() !== "" && lines[i].includes("|")) {
+        const row = cells(lines[i++]).map(inline);
+        // Rows are made as wide as the header: short ones padded, long ones cut.
+        while (row.length < head.length) row.push([]);
+        rows.push(row.slice(0, head.length));
+      }
+      blocks.push({ kind: "table", align, head, rows });
     } else if (/^#{1,3}\s/.test(line)) {
       const level = line.match(/^#+/)![0].length as 1 | 2 | 3;
       blocks.push({ kind: "heading", level, children: inline(line.slice(level).trim()) });
@@ -85,11 +101,34 @@ export function parse(text: string): Block[] {
       blocks.push({ kind: "list", ordered, items });
     } else {
       const para: string[] = [];
-      while (i < lines.length && lines[i].trim() !== "" && !startsBlock(lines[i])) para.push(lines[i++].trim());
+      while (i < lines.length && lines[i].trim() !== "" && !startsBlock(lines[i]) && !isTableStart(lines, i)) para.push(lines[i++].trim());
       blocks.push({ kind: "paragraph", children: inline(para.join(" ")) });
     }
   }
   return blocks;
+}
+
+const TABLE_RULE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+/** A table starts with a line of cells, then a line of dashes with as many. */
+function isTableStart(lines: string[], i: number): boolean {
+  const next = lines[i + 1];
+  if (next === undefined || !lines[i].includes("|") || !next.includes("-") || !TABLE_RULE.test(next)) return false;
+  return cells(lines[i]).length === cells(next).length;
+}
+
+/** The text of each cell of a table's line; a \| is a bar in the text. */
+function cells(line: string): string[] {
+  let t = line.trim();
+  if (t.startsWith("|")) t = t.slice(1);
+  if (t.endsWith("|") && !t.endsWith("\\|")) t = t.slice(0, -1);
+  return t.split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|"));
+}
+
+function alignment(rule: string): Align {
+  const left = rule.startsWith(":");
+  const right = rule.endsWith(":");
+  return left && right ? "center" : right ? "right" : left ? "left" : null;
 }
 
 function startsBlock(line: string): boolean {

@@ -116,11 +116,12 @@ link to somewhere else shows as ↗ on the node, which goes there.
 The notes panel on the right, opened by the small tab on the right edge or
 ⇧⌘N, shows the selected node's notes, written in Markdown:
 `# headings`, `**bold**`, `*italic*`, `` `code` ``, lists, `- [ ]` to-dos you
-can tick, `> quotes`. Click them, or press Enter on them, to write; Escape
+can tick, `> quotes` and tables. Click them, or press Enter on them, to write; Escape
 shows them formatted again. Web addresses in them open in your browser.
 Links to nodes and maps go there: press ⌘L while writing to choose a node, or
 type `[[a node's title]]`. Under the notes are the node's links and the nodes
-linking to it.
+linking to it. Drag the edge of the notes or of the sidebar to make them
+wider or narrower.
 
 Drag the background or scroll to move around; pinch, or scroll with ⌘ held,
 to zoom. Zoomed out, the deeper levels turn into bars in their branch's colour,

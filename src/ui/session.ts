@@ -12,11 +12,19 @@ export interface Session {
   notesOpen: boolean;
   /** Whether done tasks are hidden on the map and in the outline. */
   hideDone: boolean;
+  /** The widths of the side panels, in pixels. */
+  sidebarWidth: number;
+  notesWidth: number;
 }
 
 const KEY = "mindmap-session";
 
-const DEFAULTS: Session = { map: null, node: null, view: "map", sidebarOpen: false, sidebarTab: "maps", notesOpen: false, hideDone: false };
+const DEFAULTS: Session = { map: null, node: null, view: "map", sidebarOpen: false, sidebarTab: "maps", notesOpen: false, hideDone: false, sidebarWidth: 270, notesWidth: 320 };
+
+/** A saved width, if it is a sensible one. */
+function width(v: unknown, fallback: number): number {
+  return typeof v === "number" && v >= 200 && v <= 800 ? v : fallback;
+}
 
 /** The session last saved, every field checked: storage can hold anything, or nothing. */
 export function savedSession(): Session {
@@ -31,6 +39,8 @@ export function savedSession(): Session {
       sidebarTab: raw.sidebarTab === "tasks" ? "tasks" : "maps",
       notesOpen: raw.notesOpen === true,
       hideDone: raw.hideDone === true,
+      sidebarWidth: width(raw.sidebarWidth, DEFAULTS.sidebarWidth),
+      notesWidth: width(raw.notesWidth, DEFAULTS.notesWidth),
     };
   } catch {
     return { ...DEFAULTS };

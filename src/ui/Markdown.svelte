@@ -61,6 +61,23 @@
       <pre><code>{block.text}</code></pre>
     {:else if block.kind === "rule"}
       <hr />
+    {:else if block.kind === "table"}
+      <div class="table">
+        <table>
+          <thead>
+            <tr>
+              {#each block.head as cell, c (c)}<th style:text-align={block.align[c]}>{@render spans(cell)}</th>{/each}
+            </tr>
+          </thead>
+          <tbody>
+            {#each block.rows as row, r (r)}
+              <tr>
+                {#each row as cell, c (c)}<td style:text-align={block.align[c]}>{@render spans(cell)}</td>{/each}
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     {:else if block.kind === "list"}
       <svelte:element this={block.ordered ? "ol" : "ul"} class:checklist={block.items.some((it) => it.checked !== null)}>
         {#each block.items as item (item.line)}
@@ -168,6 +185,30 @@
   pre code {
     padding: 0;
     background: none;
+  }
+
+  /* A wide table scrolls in its own box instead of widening the panel. */
+  .table {
+    margin: 0.5em 0;
+    overflow-x: auto;
+  }
+
+  table {
+    border-collapse: collapse;
+    font-size: 0.92em;
+  }
+
+  th,
+  td {
+    padding: 0.25em 0.6em;
+    border: 1px solid var(--line);
+    text-align: left;
+    overflow-wrap: normal;
+  }
+
+  th {
+    background: var(--accent-soft);
+    font-weight: 600;
   }
 
   hr {

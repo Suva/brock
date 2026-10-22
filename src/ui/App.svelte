@@ -21,6 +21,7 @@
   import OutlineView from "./OutlineView.svelte";
   import MoreMenu from "./MoreMenu.svelte";
   import Settings from "./Settings.svelte";
+  import Resizer from "./Resizer.svelte";
   import Sidebar, { type Tab } from "./Sidebar.svelte";
   import TrashDialog from "./TrashDialog.svelte";
 
@@ -50,12 +51,15 @@
   /** The sidebar on the left, and which of its tabs shows; it opens on the tab used last. */
   let sidebarOpen = $state(start.sidebarOpen);
   let sidebarTab = $state<Tab>(start.sidebarTab);
+  /** How wide the side panels are, as dragged. */
+  let sidebarWidth = $state(start.sidebarWidth);
+  let notesWidth = $state(start.notesWidth);
   /** Done tasks hidden on the map and in the outline (⇧⌘H); nothing is changed in the vault. */
   let hideDone = $state(start.hideDone);
 
   // Remembered as it changes, for the next start.
   $effect(() => {
-    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen, hideDone });
+    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen, hideDone, sidebarWidth, notesWidth });
   });
 
   /** A tab's button or key: opens the sidebar on it, or closes it if it is showing. */
@@ -465,12 +469,14 @@
       <Sidebar
         {live}
         {mapId}
+        width={sidebarWidth}
         tab={sidebarTab}
         onTab={(tab) => (sidebarTab = tab)}
         onClose={() => (sidebarOpen = false)}
         onOpen={open}
         onGoTo={goTo}
       />
+      <Resizer width={sidebarWidth} edge="left" onResize={(w) => (sidebarWidth = w)} />
     {/if}
     <main>
       {#if view === "map"}
@@ -507,7 +513,9 @@
         centre={(selected ?? mapId) === mapId}
         onClose={() => (notesOpen = false)}
         onGoTo={goTo}
+        width={notesWidth}
       />
+      <Resizer width={notesWidth} edge="right" onResize={(w) => (notesWidth = w)} />
     {/if}
   </div>
 
@@ -548,7 +556,8 @@
 <style>
   .app {
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    /* minmax(0, …) lets the body shrink to the window; long notes scroll in their panel. */
+    grid-template-rows: auto minmax(0, 1fr) auto;
     /* The column may be narrower than the header's content, which shrinks to fit. */
     grid-template-columns: minmax(0, 1fr);
     height: 100%;

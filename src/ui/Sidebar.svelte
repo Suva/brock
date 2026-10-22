@@ -14,6 +14,7 @@
   let {
     live,
     mapId,
+    width,
     tab,
     onTab,
     onClose,
@@ -22,6 +23,7 @@
   }: {
     live: Live;
     mapId: string;
+    width: number;
     tab: Tab;
     onTab: (tab: Tab) => void;
     onClose: () => void;
@@ -31,7 +33,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<aside aria-label="Sidebar" onmousedown={(e) => e.preventDefault()}>
+<aside aria-label="Sidebar" style:width="{width}px" onmousedown={(e) => e.preventDefault()}>
   <div class="tabs" role="tablist" aria-label="Show">
     <button role="tab" aria-selected={tab === "maps"} class:on={tab === "maps"} tabindex="-1" onclick={() => onTab("maps")} title="All maps (⌃⌘S)"
       >Maps</button
@@ -54,7 +56,7 @@
   aside {
     display: flex;
     flex-direction: column;
-    width: 270px;
+    flex: none;
     border-right: 1px solid var(--line);
     min-height: 0;
     user-select: none;
