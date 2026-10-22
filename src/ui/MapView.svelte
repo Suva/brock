@@ -1110,7 +1110,10 @@
   }
 
   $effect(() => {
-    viewport.focus();
+    // Focus inside a frame scrolls the page around it to the frame, which
+    // would carry the website down to its demo as it loads; the cover's
+    // click gives the demo the focus instead.
+    if (window.parent === window) viewport.focus();
   });
 </script>
 
