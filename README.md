@@ -27,6 +27,11 @@ yet, so the system asks before opening the app the first time:
 - **Linux**: the `.AppImage` runs as it is (make it executable first); the
   `.deb` installs on Debian and Ubuntu.
 
+After that, the app keeps itself up to date: when a new version is out, it
+offers it in a corner of the window, and Install and restart puts it in
+place. Help › Check for Updates… looks at once. On Linux, a copy installed
+from the `.deb` asks for your password to install the new one.
+
 ## Running it from the source
 
 You need Node 24 or newer, Rust (from [rustup.rs](https://rustup.rs)), and on a
@@ -182,9 +187,20 @@ The app starts where you left it: the same map and node, view and panels.
 
 ## Nothing leaves your computer
 
-The app works without a network. The only thing that reaches outside it is a
-web address in your notes that you click, which opens in your browser. The
-clipboard is read only when you paste.
+The app works without a network, and your vault never leaves your computer.
+Two things reach outside it:
+
+- A web address in your notes that you click, which opens in your browser.
+- Looking for updates: a few seconds after it starts, and once a day while it
+  stays open, the app asks GitHub for `latest.json` from the newest release
+  on [its releases page](https://github.com/Suva/brock/releases). That
+  request says nothing about you or your vault, though GitHub, like any web
+  server, sees your network address. An update is downloaded from there only
+  when you click Install and restart, and is checked against the signature
+  the app was built with before it is installed. Settings › Updates turns
+  the looking off; Help › Check for Updates… still looks when asked.
+
+The clipboard is read only when you paste.
 
 ## Where the vault is kept
 

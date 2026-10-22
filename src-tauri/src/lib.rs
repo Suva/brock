@@ -175,6 +175,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         // Copy and paste of branches: text only, read only when ⌘V is pressed.
         .plugin(tauri_plugin_clipboard_manager::init())
+        // The app's own updates: the window asks for the newest release's
+        // latest.json, and installs it only when the person agrees; then
+        // restarts the app with the process plugin.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let path = vault_path(app)?;
             let db = Db::open(&path)?;

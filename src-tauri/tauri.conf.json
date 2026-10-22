@@ -43,5 +43,13 @@
     "macOS": {
       "signingIdentity": "-"
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY0QjVFMkYwN0E4RUUyMzUKUldRMTRvNTY4T0sxWkpIUlRzWkk5V0c5eVpESkpQenJ6UW83b1JTS3VJVlk4TkRjSU53NndJbEsK",
+      "endpoints": [
+        "https://github.com/Suva/brock/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

@@ -1,6 +1,6 @@
 <!--
-  Settings (⌘,): how the app looks, the background of pictures of a map, and
-  the daily copies of the vault: where
+  Settings (⌘,): how the app looks, the background of pictures of a map,
+  whether the app looks for updates, and the daily copies of the vault: where
   they are, which there are, and making one now.
 -->
 <script lang="ts">
@@ -8,8 +8,9 @@
   import { inTauri } from "../store/tauri-store.ts";
   import { applyTheme, savedTheme, type Theme } from "./theme.ts";
   import { clearBackground, setClearBackground } from "./picture.ts";
+  import { setUpdatesOn, updatesOn } from "./updates.ts";
 
-  let { onClose }: { onClose: () => void } = $props();
+  let { onClose, onCheck }: { onClose: () => void; /** Looks for an update now. */ onCheck: () => void } = $props();
 
   interface Backups {
     folder: string;
@@ -19,6 +20,8 @@
 
   let theme = $state<Theme>(savedTheme());
   let clear = $state(clearBackground());
+  let updates = $state(updatesOn());
+  let version = $state("");
   let backups = $state<Backups | null>(null);
   let working = $state(false);
   let problem = $state<string | null>(null);
@@ -26,6 +29,7 @@
 
   $effect(() => {
     if (app) invoke<Backups>("list_backups").then((b) => (backups = b), (e) => (problem = String(e)));
+    if (app) import("@tauri-apps/api/app").then(({ getVersion }) => getVersion()).then((v) => (version = v));
   });
 
   function choose(t: Theme) {
@@ -106,6 +110,39 @@
       </div>
       <p class="muted">For pictures exported or copied from the ⋯ menu. A clear background suits slides and pages with a colour of their own.</p>
     </section>
+
+    {#if app}
+      <section>
+        <h3>Updates</h3>
+        <div class="choices" role="radiogroup" aria-label="Updates">
+          {#each [[true, "Look for updates"], [false, "Don't look"]] as const as [value, label] (label)}
+            <button
+              role="radio"
+              aria-checked={updates === value}
+              class:on={updates === value}
+              onclick={() => {
+                updates = value;
+                setUpdatesOn(value);
+              }}
+            >
+              {label}
+            </button>
+          {/each}
+        </div>
+        <p class="muted">
+          {version ? `This is Brock ${version}. ` : ""}Brock asks GitHub, where its releases are, whether there is a newer
+          version when it starts and once a day, and offers it. Nothing is installed until you say so.
+        </p>
+        <div class="actions">
+          <button
+            onclick={() => {
+              onClose();
+              onCheck();
+            }}>Check now</button
+          >
+        </div>
+      </section>
+    {/if}
 
     <section>
       <h3>Copies of the vault</h3>

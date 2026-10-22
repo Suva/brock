@@ -22,6 +22,8 @@
   import OutlineView from "./OutlineView.svelte";
   import MoreMenu from "./MoreMenu.svelte";
   import Settings from "./Settings.svelte";
+  import UpdateOffer from "./UpdateOffer.svelte";
+  import { canUpdate, findUpdate, watchForUpdates, type Update } from "./updates.ts";
   import Resizer from "./Resizer.svelte";
   import Sidebar, { type Tab } from "./Sidebar.svelte";
   import TrashDialog from "./TrashDialog.svelte";
@@ -82,6 +84,24 @@
   }
 
   const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+  /** A newer version of the app, offered until it is installed or put off. */
+  let offered = $state<Update | null>(null);
+
+  /** Help › Check for Updates…: looks now, whether or not updates are on, and says what it found. */
+  async function checkForUpdates() {
+    if (!canUpdate()) return tell("Updates come with the desktop app; a browser always has the newest.");
+    tell("Looking for a newer version…");
+    try {
+      const update = await findUpdate();
+      if (update) {
+        offered = update;
+        notice = null;
+      } else tell("This is the newest version of Brock.");
+    } catch (error) {
+      tell(`Could not look for updates: ${reason(error)}`, true);
+    }
+  }
 
   /** Exports the open map, everything under it included. */
   async function exportMap(kind: FileKind) {
@@ -161,6 +181,7 @@
     { label: "Trash", run: () => (trashOpen = true) },
     { label: "Show the tour", run: openTour },
     { label: "Remove the tour", run: dropTour },
+    ...(canUpdate() ? [{ label: "Check for updates…", run: checkForUpdates }] : []),
     { label: "Settings", run: () => (settingsOpen = true), hint: "⌘," },
   ]);
 
@@ -308,6 +329,9 @@
     tell("The tour is in the trash. ⌘Z brings it back.");
   }
 
+  // A quiet look for a newer version, in the app only, unless turned off.
+  onMount(() => watchForUpdates((update) => (offered ??= update)));
+
   // The menu bar, in the app: every command, with its key.
   let menuChecks = $state<MenuChecks | null>(null);
   onMount(() => {
@@ -338,6 +362,7 @@
       up,
       showTour: openTour,
       removeTour: dropTour,
+      checkForUpdates,
     })
       .then((checks) => (menuChecks = checks))
       .catch((error) => console.error("The menu bar could not be made:", error));
@@ -554,7 +579,10 @@
       }} />
   {/if}
   {#if settingsOpen}
-    <Settings onClose={() => (settingsOpen = false)} />
+    <Settings onClose={() => (settingsOpen = false)} onCheck={checkForUpdates} />
+  {/if}
+  {#if offered}
+    <UpdateOffer update={offered} saved={live.saved} onLater={() => (offered = null)} />
   {/if}
 
   <footer class:failed={live.saveStatus === "failed" || notice?.bad}>

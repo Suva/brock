@@ -79,7 +79,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/TasksList.svelte` | The sidebar's Tasks tab: the open map's or all maps' tasks, the done ones by when they were done |
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
-| `src/ui/Settings.svelte` | Settings (⌘,): appearance, the daily copies |
+| `src/ui/Settings.svelte` | Settings (⌘,): appearance, updates, the daily copies |
+| `src/ui/updates.ts` | The app's own updates: looking for one quietly, installing it and starting again; whether to look, kept in the window's storage |
+| `src/ui/UpdateOffer.svelte` | A newer version offered in a corner of the window, installed only on a click |
 | `src/ui/usage.ts` | Search's usage, kept in the window's storage |
 | `src/ui/session.ts` | Where the window was left (map, node, view, panels), to start there |
 | `src/ui/theme.ts` | Light, dark or as the system, kept in the window's storage |
@@ -164,6 +166,12 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **Links in notes count as links.** `[text](node:id)` in a node's notes
   makes it appear under "Linked from" on that node (`linksTo` in
   `vault.ts`); `[[Title]]` does not, as what it means can change.
+- **Updates are offered, never forced.** The app looks for a newer version
+  by itself (`watchForUpdates` in `updates.ts`, unless turned off in
+  Settings), but downloads and installs one only when Install and restart
+  is clicked, after everything is saved: on Windows the installer closes
+  the app without asking it. The README says where the app looks, as it
+  promises that nothing else reaches the network.
 - **Only web addresses may be opened, and only on a click.** The capability
   in `src-tauri/capabilities/default.json` lets the opener open http and
   https addresses and nothing else. The README promises that nothing leaves
@@ -314,12 +322,32 @@ git push --follow-tags
 - Use `minor` for new features and `patch` for fixes only.
 - The release workflow can be run by hand from the Actions tab, which builds
   the installers without publishing anything, kept with the run.
+- **Updates are signed.** Installed copies read `latest.json` from the newest
+  release (`plugins.updater` in `tauri.conf.json`), which the workflow makes
+  with `scripts/latest-json.mjs`, and install a file only if its signature
+  matches the public key there. The release builds sign with the private
+  key in the `TAURI_SIGNING_PRIVATE_KEY` secret. The key made so far has no
+  password, so there is no `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secret
+  (GitHub refuses an empty one); a missing secret reaches the build as an
+  empty password, which is what such a key needs. Its
+  copy is kept off the repository, in `~/.tauri/brock.key` on the
+  maintainer's Mac and a backup. Without it no release can update existing
+  copies again, and a new key means everyone installs one version by hand.
+  Never commit it, and never change the public key unless the old one is lost.
+- The files the updater installs (`.app.tar.gz`, the Windows setup, the
+  AppImage and the `.deb`) and their signatures are made only by the release workflow,
+  through `src-tauri/tauri.updates.conf.json`, so that `npm run package`
+  needs no key. To make them locally, pass that file with `--config` and set
+  `TAURI_SIGNING_PRIVATE_KEY` to the key's path.
+- `latest.json` is uploaded last, once the installers are on the release,
+  so a copy that finds a new version can always download it. A release
+  whose `latest.json` failed to upload is skipped by updates until the next.
 - Nothing is signed. The Mac app is signed ad hoc (`signingIdentity: "-"`),
   without which a downloaded copy on Apple silicon is called damaged and
   will not open at all; macOS still asks before opening it.
-- While the repository is private, so are its releases: only people with
-  access to it can download them. Building on macOS uses ten times the
-  Actions minutes of Linux; a release takes about fifteen minutes there.
+- The repository and its releases are public: anyone can download the
+  installers. A release takes about fifteen minutes, most of it the Mac's
+  build.
 
 ## Working agreements
 

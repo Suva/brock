@@ -25,6 +25,9 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2"
+# The app's own updates, from the newest release, and the restart after one.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 # https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

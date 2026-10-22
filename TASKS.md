@@ -4,9 +4,10 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
 
 ## Milestone 8: releases
 
-- The app's own updates (Tauri's updater). It reads what is newest from the
-  releases, which a private repository keeps from it: it waits until the
-  repository is public, or the installers are put somewhere public.
+- The app's own updates are made but not yet tried from a real release: the
+  first release with them (after 0.3.1) is installed by hand once; the next
+  one after it is the first an installed copy can update to. Try that on
+  each system, Windows and Linux included.
 - Signing: an Apple Developer ID and notarisation, so macOS opens the app
   without asking; a certificate for Windows, against SmartScreen.
 - The installers were only built here for the Mac; the Windows and Linux
@@ -166,14 +167,8 @@ stolen laptop. A few days' work:
 
 ## The website
 
-The page and its demo are made and tried locally (`npm run site`).
+The page and its demo are published at brock.clysuva.com.
 
-- Switch it on: in the repository's Settings › Pages, set the source to
-  GitHub Actions and the custom domain to brock.clysuva.com, then enforce
-  HTTPS once the certificate is issued (Cloudflare's proxy off until then).
-  Pages needs the repository to be public, or a paid GitHub plan for a
-  private one; the download links only work for visitors once the releases
-  are public too.
 - Firefox edits titles in place only from version 136; phones and tablets
   have no pinch or on-screen keyboard editing yet. The demo was only tried
   in Chrome.

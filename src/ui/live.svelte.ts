@@ -10,11 +10,14 @@ export class Live {
   version = $state(0);
   saveStatus = $state<SaveStatus>("saved");
   saveError = $state<string | null>(null);
+  /** Waits until every change so far is saved. */
+  readonly saved: () => Promise<void>;
 
   constructor(vault: Vault, saver: Saver) {
     this.vault = vault;
     this.version = vault.version;
     this.saveStatus = saver.status;
+    this.saved = () => saver.flush();
     vault.onChange(() => (this.version = vault.version));
     saver.onStatus(() => {
       this.saveStatus = saver.status;

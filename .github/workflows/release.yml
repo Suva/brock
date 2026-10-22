@@ -1,6 +1,10 @@
 # Builds the installers for macOS, Windows and Linux and publishes them as a
 # release when a version tag such as v0.2.0 is pushed. It can also be started
 # by hand from the Actions tab, which builds them all without publishing.
+#
+# Each build also makes the file the app's updater installs, signed with the
+# private key in the TAURI_SIGNING_PRIVATE_KEY secret, and the release gets a
+# latest.json naming them, which installed copies read to find new versions.
 name: Release
 
 on:
@@ -20,21 +24,24 @@ jobs:
       matrix:
         include:
           # One app for both Apple silicon and Intel Macs.
+          # The app bundle is what the updater installs, packed as .app.tar.gz.
           - name: macOS
             os: macos-latest
-            args: --target universal-apple-darwin --bundles dmg
+            args: --target universal-apple-darwin --bundles app,dmg
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-            installers: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            installers: |
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz*
           - name: Windows
             os: windows-latest
             args: --bundles nsis
-            installers: src-tauri/target/release/bundle/nsis/*.exe
+            installers: src-tauri/target/release/bundle/nsis/*-setup.exe*
           - name: Linux
             os: ubuntu-latest
             args: --bundles appimage,deb
             installers: |
-              src-tauri/target/release/bundle/appimage/*.AppImage
-              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/appimage/*.AppImage*
+              src-tauri/target/release/bundle/deb/*.deb*
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -73,7 +80,34 @@ jobs:
 
       - run: npm run check
       - run: npm test
-      - run: npm run package -- ${{ matrix.args }}
+      # The updater's files are made, and signed, only here, so that building
+      # elsewhere needs no key (tauri.updates.conf.json).
+      - run: npm run package -- ${{ matrix.args }} --config src-tauri/tauri.updates.conf.json
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      # Copies installed from the .deb update with a .deb. Signed here if the
+      # build did not sign it itself.
+      - name: Sign the .deb for the updater
+        if: matrix.name == 'Linux'
+        run: |
+          for f in src-tauri/target/release/bundle/deb/*.deb; do
+            [ -f "$f.sig" ] || npx tauri signer sign "$f"
+          done
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      # The Mac's update is called Brock.app.tar.gz; give it the version, as
+      # the other files have, so each release's is told apart.
+      - name: Name the Mac's update by its version
+        if: matrix.name == 'macOS'
+        working-directory: src-tauri/target/universal-apple-darwin/release/bundle/macos
+        run: |
+          version="$(node -p "require(process.env.GITHUB_WORKSPACE + '/package.json').version")"
+          mv Brock.app.tar.gz "Brock_${version}_universal.app.tar.gz"
+          mv Brock.app.tar.gz.sig "Brock_${version}_universal.app.tar.gz.sig"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -87,6 +121,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           pattern: installer-*
@@ -95,15 +130,28 @@ jobs:
       # A tag made on GitHub's "new release" page already has its release; one
       # pushed from a terminal does not. Either way the installers end up on it.
       # They come in folders (Linux's two kinds each have one), so they are
-      # gathered as files.
+      # gathered as files. The signatures are not put on the release: they
+      # go into latest.json.
       - name: Put the installers on the release
         run: |
-          mapfile -t files < <(find installers -type f)
+          mkdir release
+          find installers -type f -exec mv {} release/ \;
+          mapfile -t files < <(find release -type f ! -name '*.sig')
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --title "Brock $GITHUB_REF_NAME" --generate-notes
           fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Last, once everything it names is there: installed copies follow
+      # latest.json from the newest release, with its notes to show.
+      - name: Tell installed copies of the new version
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          node scripts/latest-json.mjs release "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" notes.md
+          gh release upload "$GITHUB_REF_NAME" release/latest.json --repo "$GITHUB_REPOSITORY" --clobber
         env:
           GH_TOKEN: ${{ github.token }}
 

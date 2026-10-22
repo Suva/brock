@@ -36,6 +36,7 @@ export interface MenuActions {
   up(): void;
   showTour(): void;
   removeTour(): void;
+  checkForUpdates(): void;
 }
 
 /** What the window tells the menu as it changes, for its check marks. */
@@ -182,7 +183,12 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
     }),
     await Submenu.new({
       text: "Help",
-      items: [await item("Show the Tour", a.showTour), await item("Remove the Tour", a.removeTour)],
+      items: [
+        await item("Show the Tour", a.showTour),
+        await item("Remove the Tour", a.removeTour),
+        await line(),
+        await item("Check for Updates…", a.checkForUpdates),
+      ],
     }),
   ];
 
