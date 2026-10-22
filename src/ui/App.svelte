@@ -476,7 +476,7 @@
         onOpen={open}
         onGoTo={goTo}
       />
-      <Resizer width={sidebarWidth} edge="left" onResize={(w) => (sidebarWidth = w)} />
+      <Resizer width={sidebarWidth} edge="left" onResize={(w) => (sidebarWidth = w)} onClose={() => (sidebarOpen = false)} />
     {/if}
     <main>
       {#if view === "map"}
@@ -515,7 +515,7 @@
         onGoTo={goTo}
         width={notesWidth}
       />
-      <Resizer width={notesWidth} edge="right" onResize={(w) => (notesWidth = w)} />
+      <Resizer width={notesWidth} edge="right" onResize={(w) => (notesWidth = w)} onClose={() => (notesOpen = false)} />
     {/if}
   </div>
 

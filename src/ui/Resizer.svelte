@@ -11,13 +11,19 @@
     min = 220,
     max = 640,
     onResize,
+    onClose,
   }: {
     width: number;
     edge: "left" | "right";
     min?: number;
     max?: number;
     onResize: (width: number) => void;
+    /** Dragged well past the narrowest the panel goes: it is put away. */
+    onClose: () => void;
   } = $props();
+
+  /** How far under the narrowest width a drag goes before it closes the panel. */
+  const CLOSE_BEYOND = 60;
 
   let dragging = $state(false);
   let from = { x: 0, width: 0 };
@@ -35,7 +41,11 @@
     if (!dragging) return;
     // Placed from the window's left edge (the sidebar), going right widens; from the right edge (the notes), going left does.
     const dx = e.clientX - from.x;
-    onResize(clamp(from.width + (edge === "left" ? dx : -dx)));
+    const wanted = from.width + (edge === "left" ? dx : -dx);
+    if (wanted < min - CLOSE_BEYOND) {
+      dragging = false;
+      onClose();
+    } else onResize(clamp(wanted));
   }
 
   function key(e: KeyboardEvent) {

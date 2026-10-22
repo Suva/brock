@@ -121,7 +121,7 @@ shows them formatted again. Web addresses in them open in your browser.
 Links to nodes and maps go there: press ⌘L while writing to choose a node, or
 type `[[a node's title]]`. Under the notes are the node's links and the nodes
 linking to it. Drag the edge of the notes or of the sidebar to make them
-wider or narrower.
+wider or narrower; drag it all the way in to close the panel.
 
 Drag the background or scroll to move around; pinch, or scroll with ⌘ held,
 to zoom. Zoomed out, the deeper levels turn into bars in their branch's colour,
