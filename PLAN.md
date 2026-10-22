@@ -6,7 +6,7 @@ is saved as you go to a local database. It should be fast to navigate and search
 clean to look at, and give a good overview of everything in it.
 
 The app is called Brock: a brock is a badger, which digs burrows of tunnels and
-chambers. Its web address is to be getbrock.app.
+chambers. Its web address is brock.clysuva.com.
 
 ## Decisions so far
 

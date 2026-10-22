@@ -205,3 +205,9 @@ Every day the app is used, a copy of the vault is made in the `Backups` folder
 beside it, and the last seven are kept. Settings shows them and makes one on
 request. To go back to a copy, quit the app and put the copy in place of
 `vault.sqlite`.
+
+## Licence
+
+Brock is free software: you can use, change and share it under the terms of the
+[GNU General Public License](LICENSE), version 3 or (at your option) any later
+version.

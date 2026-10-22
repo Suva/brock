@@ -16,6 +16,7 @@ import { extname, join, normalize } from "node:path";
 const OUT = "_site";
 const PORT = 4321;
 const REPOSITORY = "https://github.com/Suva/brock";
+const DOMAIN = "brock.clysuva.com";
 
 const { version } = JSON.parse(readFileSync("package.json", "utf8"));
 
@@ -33,6 +34,8 @@ const page = readFileSync("site/index.html", "utf8")
   .replaceAll("{{RELEASE}}", `${REPOSITORY}/releases/download/v${version}`);
 if (page.includes("{{")) throw new Error("site/index.html has a {{…}} the build does not know");
 writeFileSync(join(OUT, "index.html"), page);
+// Keeps the custom domain if the site is ever published from a branch.
+writeFileSync(join(OUT, "CNAME"), `${DOMAIN}\n`);
 
 const files = {
   "site/style.css": "style.css",

@@ -16,7 +16,6 @@ The milestones are in [PLAN.md](PLAN.md). Milestones 1 to 7 are done; these are 
   in software: the web search done when choosing the name found none, but
   could not reach the registers. Avoid "Brock Maps" (Brock University's
   campus map is brockmaps.com).
-- Register getbrock.app (and brockmap.app to hold), and put the website there.
 
 ## A locked vault
 
@@ -169,11 +168,12 @@ stolen laptop. A few days' work:
 
 The page and its demo are made and tried locally (`npm run site`).
 
-- Publish it: a workflow that builds `_site/` and puts it on GitHub Pages,
-  for every release and every change to `site/`. Pages needs the repository
-  to be public, or a paid GitHub plan for a private one; the download links
-  only work for visitors once the releases are public too.
-- Register getbrock.app and point it at the site.
+- Switch it on: in the repository's Settings › Pages, set the source to
+  GitHub Actions and the custom domain to brock.clysuva.com, then enforce
+  HTTPS once the certificate is issued (Cloudflare's proxy off until then).
+  Pages needs the repository to be public, or a paid GitHub plan for a
+  private one; the download links only work for visitors once the releases
+  are public too.
 - Firefox edits titles in place only from version 136; phones and tablets
   have no pinch or on-screen keyboard editing yet. The demo was only tried
   in Chrome.
