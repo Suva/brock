@@ -5,7 +5,7 @@
   not there is drawn struck through.
 -->
 <script lang="ts">
-  import type { Block, Inline, LinkTarget } from "../core/markdown.ts";
+  import { COMMANDS, type Block, type Inline, type LinkTarget } from "../core/markdown.ts";
 
   let {
     blocks,
@@ -23,6 +23,7 @@
 
   function describe(to: LinkTarget): string {
     if (to.kind === "web") return `Open ${to.url} in the browser`;
+    if (to.kind === "command") return COMMANDS[to.command];
     if (!found(to)) return to.kind === "title" ? `No node is called “${to.title}”` : "That node is gone";
     return "Go there";
   }
@@ -40,7 +41,7 @@
         onclick={(e) => {
           e.stopPropagation();
           if (found(span.to)) onLink(span.to);
-        }}>{#if span.to.kind !== "web"}<span class="arrow" aria-hidden="true">↗</span>{/if}{@render spans(
+        }}>{#if span.to.kind === "node" || span.to.kind === "title"}<span class="arrow" aria-hidden="true">↗</span>{/if}{@render spans(
           span.children,
         )}</button
       >{/if}

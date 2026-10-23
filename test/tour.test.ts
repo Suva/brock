@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { addTour, tour, TOUR_TITLE } from "../src/demo/tour.ts";
 import { removeTour, showTour, tourMap, welcome } from "../src/ui/tour.ts";
 import { groupDone, tasksUnder } from "../src/core/tasks.ts";
+import { inline } from "../src/core/markdown.ts";
 import { search } from "../src/core/search.ts";
 import { Vault } from "../src/core/vault.ts";
 
@@ -22,6 +23,10 @@ test("the demo's tour is a vault the app opens as it is", () => {
   for (const node of nodes) {
     for (const id of node.links) assert.ok(vault.isLive(id), `${node.title} links to a node`);
     for (const [, id] of node.body.matchAll(/\(node:([^)]+)\)/g)) assert.ok(vault.isLive(id), `${node.title}'s notes`);
+    for (const [raw] of node.body.matchAll(/\(brock:\w+\)/g)) {
+      const to = inline(`[x]${raw}`)[0];
+      assert.ok(to.kind === "link" && to.to.kind === "command", `${node.title}: ${raw} is a command`);
+    }
   }
 
   const done = tasksUnder(vault, vault.rootId).done;

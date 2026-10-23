@@ -104,7 +104,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("With a node selected, just start typing to replace its title, or press **Space** or **F2** to change it.", "**Enter** finishes."),
   });
   add(start, "Delete, then ⌘Z", {
-    body: notes("**Delete** or **Backspace** removes a node and everything under it.", "**⌘Z** brings it back; **⇧⌘Z** redoes. Deleted branches also wait in the trash, in the ⋯ menu."),
+    body: notes("**Delete** or **Backspace** removes a node and everything under it.", "**⌘Z** brings it back; **⇧⌘Z** redoes. Deleted branches also wait in the [trash](brock:trash), in the ⋯ menu."),
   });
   add(start, "Drag to move", {
     body: notes(
@@ -137,13 +137,14 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("There is no limit to how deep they go."),
   });
   add(deeper, "All maps: the Maps tab", {
-    body: notes("The **›** tab on the left edge of the map, or **⌃⌘S**, opens the sidebar. Its **Maps** tab lists every map as a tree, to jump to any of them."),
+    body: notes("The **›** tab on the left edge of the map, or **⌃⌘S**, opens the sidebar. Its **Maps** tab lists every map as a tree, to jump to any of them.", "Or click here: [show all maps](brock:maps)."),
   });
 
   const tasks = branch("Tasks", {
     body: notes(
       `Any node can be a task with a checkbox: ${taskWay}.`,
       `${tasksWay}: its **Tasks** tab lists the tasks of this map or of all maps. Done ones are grouped by when they were done, handy for a stand-up, and each group can be cleared on its own.`,
+      "Or click here: [show the tasks](brock:tasks).",
     ),
   });
   add(tasks, "Tick me", {
@@ -160,7 +161,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     priority: 4,
     body: notes("The checkbox button at the top, beside the magnifier, hides done tasks on the map, or **⇧⌘H**. Nothing is deleted."),
   });
-  add(tasks, "Open the Tasks tab", { task: "done", doneAt: now, body: notes("Done today: it's under **Today** in the sidebar's Tasks tab.") });
+  add(tasks, "Open the Tasks tab", { task: "done", doneAt: now, body: notes("Done today: it's under **Today** in the sidebar's [Tasks tab](brock:tasks).") });
   add(tasks, "Grouped by day", { task: "done", doneAt: now - DAY, body: notes("Done yesterday.") });
   add(tasks, "Clear a group", {
     task: "done",
@@ -187,6 +188,12 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     ),
   });
   vault.link(linked.id, tasks.id);
+  add(notesBranch, "Links to the app", {
+    body: notes(
+      "A link in notes can also open part of Brock: `[show the tasks](brock:tasks)` becomes [show the tasks](brock:tasks).",
+      "The others are `brock:maps`, `brock:search`, `brock:settings` and `brock:trash`.",
+    ),
+  });
   add(notesBranch, "Colours and icons", {
     icon: "🎨",
     body: notes("Pick a colour or an icon for the selected node at the top of this panel. A colour carries down the whole branch."),
@@ -199,7 +206,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("However many maps you have, any node is a few keys away."),
   });
   add(finding, "⌘K searches", {
-    body: notes("**⌘K**, or the magnifier at the top, searches the titles and notes of every map. Pick a result to go straight there.", "**Tab** in the search narrows it to this map, then to maps only."),
+    body: notes("**⌘K**, or the magnifier at the top, searches the titles and notes of every map. Pick a result to go straight there.", "**Tab** in the search narrows it to this map, then to maps only. [Try it](brock:search)."),
   });
   add(finding, "First letters find it", {
     body: notes(
@@ -241,7 +248,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     add(keeping, "Updates, when you say", {
       body: notes(
         "Brock looks for a newer version now and then and offers it in a corner of the window. Nothing is installed until you click **Install and restart**.",
-        "**Help › Check for Updates…** looks at once. **Settings** (**⌘,**) turns the looking off.",
+        "**Help › Check for Updates…** looks at once. [Settings](brock:settings) (**⌘,**) turns the looking off.",
       ),
     });
     add(keeping, "Done? Remove the tour", {

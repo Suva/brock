@@ -73,6 +73,19 @@ test("other kinds of link are left as text", () => {
   assert.deepEqual(inline("[file](file:///etc/passwd)"), [{ kind: "text", text: "[file](file:///etc/passwd)" }]);
 });
 
+test("brock: links open the window's panels, and only those named", () => {
+  const links = inline("[tasks](brock:tasks), [all](BROCK:Maps) and [x](brock:quit)");
+  assert.deepEqual(
+    links.filter((s) => s.kind === "link").map((l) => l.kind === "link" && l.to),
+    [
+      { kind: "command", command: "tasks" },
+      { kind: "command", command: "maps" },
+    ],
+  );
+  assert.deepEqual(links.at(-1), { kind: "text", text: " and [x](brock:quit)" }, "an unknown one stays text");
+  assert.equal(inline("[x](brock:toString)")[0].kind, "text", "nothing inherited counts as a command");
+});
+
 test("a node link is written so it reads back", () => {
   const written = nodeLink("Trip [draft]", "01XYZ");
   assert.equal(written, "[Trip draft](node:01XYZ)");

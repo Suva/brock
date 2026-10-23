@@ -3,13 +3,13 @@
   its colour and icon; its notes, drawn from their Markdown and
   edited as text on a click (saved as typed, undone a run of typing at a
   time); and the nodes it links to and those linking to it, each a way there.
-  Links in the notes go to nodes or open web addresses; ⌘L while writing puts
+  Links in the notes go to nodes, open web addresses or the window's panels; ⌘L while writing puts
   in a link to a node chosen as in search.
 -->
 <script lang="ts">
   import { tick } from "svelte";
   import { PALETTE } from "../core/branches.ts";
-  import { nodeLink, parse, setChecked, type LinkTarget } from "../core/markdown.ts";
+  import { nodeLink, parse, setChecked, type Command, type LinkTarget } from "../core/markdown.ts";
   import type { Node } from "../core/node.ts";
   import { findByTitle } from "../core/search.ts";
   import { PRIORITIES, setPriority } from "../core/tasks.ts";
@@ -25,6 +25,7 @@
     centre,
     onClose,
     onGoTo,
+    onCommand,
     width,
   }: {
     live: Live;
@@ -33,6 +34,8 @@
     centre: boolean;
     onClose: () => void;
     onGoTo: (id: string) => void;
+    /** A brock: link in the notes was clicked. */
+    onCommand: (command: Command) => void;
     width: number;
   } = $props();
 
@@ -86,6 +89,7 @@
 
   function follow(to: LinkTarget) {
     if (to.kind === "web") openUrl(to.url);
+    else if (to.kind === "command") onCommand(to.command);
     else {
       const target = nodeOf(to);
       if (target) onGoTo(target.id);
@@ -247,7 +251,7 @@
         {#if node.body.trim()}
           <Markdown
             {blocks}
-            found={(to) => to.kind === "web" || nodeOf(to) !== null}
+            found={(to) => to.kind === "web" || to.kind === "command" || nodeOf(to) !== null}
             onLink={follow}
             onCheck={(line, checked) => save(setChecked(node!.body, line, checked))}
           />

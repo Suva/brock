@@ -6,7 +6,8 @@
 // checkboxes ([ ] and [x]), quotes (>), code blocks (```), rules (---), tables
 // (| a | b | over a |---|---| line), and
 // in a line: **bold**, *italic* or _italic_, `code`, [text](address), web
-// addresses written out, and links to nodes, as [text](node:id) or [[Title]].
+// addresses written out, links to nodes, as [text](node:id) or [[Title]], and
+// links to the window's own panels, as [text](brock:tasks).
 
 import { trimUrl } from "./urls.ts";
 
@@ -21,7 +22,22 @@ export type LinkTarget =
   /** A node by its id: stays right when the node is renamed. */
   | { kind: "node"; id: string }
   /** A node by its title, as typed in [[ ]]; found when drawn. */
-  | { kind: "title"; title: string };
+  | { kind: "title"; title: string }
+  /** One of the window's panels, from a fixed list: a note can show a way around the app, never run anything else. */
+  | { kind: "command"; command: Command };
+
+/** What a brock: link opens, by the name written after it. */
+export const COMMANDS = {
+  tasks: "Show the tasks in the sidebar",
+  maps: "Show every map in the sidebar",
+  search: "Search everything",
+  settings: "Open the settings",
+  trash: "Open the trash",
+} as const;
+
+export type Command = keyof typeof COMMANDS;
+
+const isCommand = (name: string): name is Command => Object.hasOwn(COMMANDS, name);
 
 export interface ListItem {
   children: Inline[];
@@ -193,10 +209,12 @@ function spans(text: string): Inline[] {
   return out;
 }
 
-/** What a [text](target) leads to; null for anything but web addresses and nodes. */
+/** What a [text](target) leads to; null for anything but web addresses, nodes and the commands known. */
 function target(raw: string): LinkTarget | null {
   if (/^https?:\/\//i.test(raw)) return { kind: "web", url: raw };
   if (raw.startsWith("node:") && raw.length > 5) return { kind: "node", id: raw.slice(5) };
+  const command = raw.match(/^brock:(\w+)$/i)?.[1].toLowerCase();
+  if (command && isCommand(command)) return { kind: "command", command };
   return null;
 }
 

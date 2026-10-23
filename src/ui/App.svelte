@@ -10,6 +10,7 @@
   import MapView, { pictureOfMap } from "./MapView.svelte";
   import { installMenu, type MenuChecks } from "./app-menu.ts";
   import { removeTour, showTour } from "./tour.ts";
+  import type { Command } from "../core/markdown.ts";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
   import { History, type Place } from "../core/history.ts";
   import { openText, savePNG, saveText, type FileKind } from "./files.ts";
@@ -69,6 +70,16 @@
   function showTab(tab: Tab) {
     sidebarOpen = !(sidebarOpen && sidebarTab === tab);
     sidebarTab = tab;
+  }
+
+  /** A brock: link in a node's notes: opens what it names, as its button or key would, but never closes it. */
+  function run(command: Command) {
+    if (command === "tasks" || command === "maps") {
+      sidebarOpen = true;
+      sidebarTab = command;
+    } else if (command === "search") searching = "go";
+    else if (command === "settings") settingsOpen = true;
+    else trashOpen = true;
   }
   let moreOpen = $state(false);
   let trashOpen = $state(false);
@@ -555,6 +566,7 @@
         centre={(selected ?? mapId) === mapId}
         onClose={() => (notesOpen = false)}
         onGoTo={goTo}
+        onCommand={run}
         width={notesWidth}
       />
       <Resizer width={notesWidth} edge="right" onResize={(w) => (notesWidth = w)} onClose={() => (notesOpen = false)} />

@@ -162,7 +162,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   A link to a deleted node is kept and ignored until the node comes back.
 - **Notes are never HTML.** `markdown.ts` reads them into a structure and
   `Markdown.svelte` draws it with ordinary elements; nothing uses `{@html}`.
-  Only http, https and `node:` links become links; anything else stays text.
+  Only http, https, `node:` and `brock:` links become links; anything else
+  stays text. A `brock:` link names one of `COMMANDS` in `markdown.ts` and
+  only opens a panel or dialog (`run` in `App.svelte`); keep it to things
+  that change nothing, as a link in a pasted note is clicked without thought.
 - **Links in notes count as links.** `[text](node:id)` in a node's notes
   makes it appear under "Linked from" on that node (`linksTo` in
   `vault.ts`); `[[Title]]` does not, as what it means can change.

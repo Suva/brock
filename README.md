@@ -124,7 +124,9 @@ The notes panel on the right, opened by the small tab on the right edge or
 can tick, `> quotes` and tables. Click them, or press Enter on them, to write; Escape
 shows them formatted again. Web addresses in them open in your browser.
 Links to nodes and maps go there: press ⌘L while writing to choose a node, or
-type `[[a node's title]]`. Under the notes are the node's links and the nodes
+type `[[a node's title]]`. A link can also open part of Brock:
+`[show the tasks](brock:tasks)`, and likewise `brock:maps`, `brock:search`,
+`brock:settings` and `brock:trash`. Under the notes are the node's links and the nodes
 linking to it. Drag the edge of the notes or of the sidebar to make them
 wider or narrower; drag it all the way in to close the panel.
 
