@@ -1,6 +1,8 @@
 // Builds the website into _site/: the page in site/, with this version's
-// download links filled in, and the demo, which is the app's window built
-// for a browser (`--mode demo`, opening on the tour in src/demo/tour.ts).
+// download links filled in, the "What's new" page made from the released part
+// of CHANGELOG.md (scripts/changelog.mjs), and the demo, which is the app's
+// window built for a browser (`--mode demo`, opening on the tour in
+// src/demo/tour.ts).
 //
 //   node scripts/build-site.mjs           build
 //   node scripts/build-site.mjs --serve   build, then serve it at http://127.0.0.1:4321
@@ -12,6 +14,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
+import { changesHtml } from "./changelog.mjs";
 
 const OUT = "_site";
 const PORT = 4321;
@@ -37,6 +40,13 @@ const page = readFileSync("site/index.html", "utf8")
   .replaceAll("{{RELEASE}}", `${REPOSITORY}/releases/download/v${version}`);
 if (page.includes("{{")) throw new Error("site/index.html has a {{…}} the build does not know");
 writeFileSync(join(OUT, "index.html"), page);
+// What's new: the releases in CHANGELOG.md up to the one linked to; what is
+// newer waits for its installers, as the downloads do.
+const changes = readFileSync("site/changes.html", "utf8")
+  .replaceAll("{{VERSION}}", version)
+  .replace("{{CHANGES}}", changesHtml(readFileSync("CHANGELOG.md", "utf8"), version));
+if (changes.includes("{{")) throw new Error("site/changes.html has a {{…}} the build does not know");
+writeFileSync(join(OUT, "changes.html"), changes);
 // Keeps the custom domain if the site is ever published from a branch.
 writeFileSync(join(OUT, "CNAME"), `${DOMAIN}\n`);
 

@@ -29,7 +29,8 @@ yet, so the system asks before opening the app the first time:
 
 After that, the app keeps itself up to date: when a new version is out, it
 offers it in a corner of the window, and Install and restart puts it in
-place. Help › Check for Updates… looks at once. On Linux, a copy installed
+place; What's new opens [the list of changes](https://brock.clysuva.com/changes.html)
+in your browser. Help › Check for Updates… looks at once. On Linux, a copy installed
 from the `.deb` asks for your password to install the new one.
 
 ## Running it from the source
@@ -201,7 +202,8 @@ The app starts where you left it: the same map and node, view and panels.
 The app works without a network, and your vault never leaves your computer.
 Two things reach outside it:
 
-- A web address in your notes that you click, which opens in your browser.
+- A web address in your notes that you click, which opens in your browser,
+  as does What's new when an update is offered.
 - Looking for updates: a few seconds after it starts, and once a day while it
   stays open, the app asks GitHub for `latest.json` from the newest release
   on [its releases page](https://github.com/Suva/brock/releases). That

@@ -63,6 +63,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   max-width: 1120px;
   margin: 0 auto;
   padding: 18px 24px;
@@ -86,6 +87,7 @@ h2 {
 .top nav a {
   color: var(--muted);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .top nav a:hover {
@@ -352,6 +354,55 @@ h1 {
   margin: 6px 0;
 }
 
+/* ---- What's new ---- */
+
+.changes {
+  max-width: 760px;
+  padding-top: 24px;
+  padding-bottom: 48px;
+}
+
+.changes section {
+  padding: 8px 0 16px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 16px;
+}
+
+.changes h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 18px 0 8px;
+  font-size: 1.5rem;
+}
+
+.changes h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.changes .date {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.changes li {
+  margin: 0 0 8px;
+}
+
+.changes code {
+  font-size: 0.9em;
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--soft);
+}
+
+/* The release an update offer linked to. */
+.changes section:target h2 {
+  color: var(--accent);
+}
+
 /* ---- Footer ---- */
 
 footer {
@@ -373,6 +424,11 @@ footer p {
   .top nav {
     gap: 14px;
     font-size: 0.95rem;
+  }
+
+  /* Phones have a picture in place of the demo, and too little room for four links. */
+  .top nav .try {
+    display: none;
   }
 
   .hero {

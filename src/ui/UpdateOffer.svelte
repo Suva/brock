@@ -2,17 +2,18 @@
   A newer version, offered in a corner of the window without stopping
   anything: installing it, then starting again, waits until it is clicked.
   Worked by mouse, like the sidebar, and it keeps the focus where it was, so
-  the map's keys go on working.
+  the map's keys go on working. What's new opens the website's list of
+  changes at that version, in the browser.
 -->
 <script lang="ts">
-  import { installUpdate, type Update } from "./updates.ts";
+  import { openUrl } from "./open-url.ts";
+  import { installUpdate, whatsNew, type Update } from "./updates.ts";
 
   let { update, saved, onLater }: { update: Update; /** Waits until everything is saved. */ saved: () => Promise<void>; onLater: () => void } = $props();
 
   let stage = $state<"offered" | "installing" | "failed">("offered");
   let share = $state<number | null>(null);
   let problem = $state("");
-  let notesOpen = $state(false);
 
   async function install() {
     stage = "installing";
@@ -41,12 +42,9 @@
         Brock {update.version} is out. You have {update.currentVersion}.
       {/if}
     </p>
-    {#if notesOpen && update.body}<div class="notes">{update.body}</div>{/if}
     <div class="actions">
       <button class="primary" onclick={install}>{stage === "failed" ? "Try again" : "Install and restart"}</button>
-      {#if update.body}
-        <button onclick={() => (notesOpen = !notesOpen)}>{notesOpen ? "Hide what's new" : "What's new"}</button>
-      {/if}
+      <button onclick={() => openUrl(whatsNew(update.version))} title="Open the list of changes on the website">What's new</button>
       <button onclick={onLater}>Later</button>
     </div>
   {/if}
@@ -78,16 +76,6 @@
 
   .problem {
     color: var(--danger);
-  }
-
-  .notes {
-    max-height: 30vh;
-    overflow-y: auto;
-    margin: 0 0 0.6rem;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    color: var(--muted);
-    font-size: 0.85rem;
   }
 
   .actions {

@@ -61,7 +61,10 @@ jobs:
           recorded="$(node -p "require('./package.json').version")"
           if [ "$tagged" != "$recorded" ]; then
             echo "::warning::package.json says $recorded but the tag is $tagged. Building as $tagged; use 'npm version' to release so the two agree."
-            npm version --no-git-tag-version --allow-same-version "$tagged"
+            # Without the version script, which would date CHANGELOG.md: only
+            # the Rust side needs the same version for the build.
+            npm version --no-git-tag-version --allow-same-version --ignore-scripts "$tagged"
+            node scripts/sync-version.mjs
           fi
 
       - name: Libraries Tauri builds against
@@ -128,28 +131,31 @@ jobs:
           path: installers
           merge-multiple: true
       # A tag made on GitHub's "new release" page already has its release; one
-      # pushed from a terminal does not. Either way the installers end up on it.
-      # They come in folders (Linux's two kinds each have one), so they are
-      # gathered as files. The signatures are not put on the release: they
-      # go into latest.json.
+      # pushed from a terminal does not. Either way the installers end up on it,
+      # with the version's section of CHANGELOG.md as its notes (written there
+      # before `npm version`, which stops without them). They come in folders
+      # (Linux's two kinds each have one), so they are gathered as files. The
+      # signatures are not put on the release: they go into latest.json.
       - name: Put the installers on the release
         run: |
+          node scripts/changelog.mjs notes "$GITHUB_REF_NAME" > notes.md
           mkdir release
           find installers -type f -exec mv {} release/ \;
           mapfile -t files < <(find release -type f ! -name '*.sig')
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
           else
-            gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --title "Brock $GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --title "Brock $GITHUB_REF_NAME" --notes-file notes.md
           fi
         env:
           GH_TOKEN: ${{ github.token }}
 
       # Last, once everything it names is there: installed copies follow
-      # latest.json from the newest release, with its notes to show.
+      # latest.json from the newest release, with its notes, which copies
+      # before 0.5.0 show in the offer; later ones link to the website.
       - name: Tell installed copies of the new version
         run: |
-          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
           node scripts/latest-json.mjs release "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" notes.md
           gh release upload "$GITHUB_REF_NAME" release/latest.json --repo "$GITHUB_REPOSITORY" --clobber
         env:

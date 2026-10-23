@@ -7,6 +7,8 @@ on:
     paths:
       - site/**
       - scripts/build-site.mjs
+      - scripts/changelog.mjs
+      - CHANGELOG.md
       - src/**
       - static/**
       - brand/**

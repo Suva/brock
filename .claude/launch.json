@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "--", "--port", "1430", "--strictPort"], "port": 1430 }
+    { "name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "--", "--port", "1430", "--strictPort"], "port": 1430 },
+    { "name": "site", "runtimeExecutable": "npm", "runtimeArgs": ["run", "site"], "port": 4321 }
   ]
 }

@@ -14,7 +14,8 @@
     "package": "tauri build",
     "site": "node scripts/build-site.mjs --serve",
     "build:site": "node scripts/build-site.mjs",
-    "version": "node scripts/sync-version.mjs",
+    "preversion": "node scripts/changelog.mjs check",
+    "version": "node scripts/changelog.mjs release && node scripts/sync-version.mjs",
     "tauri": "tauri"
   },
   "engines": {

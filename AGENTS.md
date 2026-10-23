@@ -101,6 +101,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/demo/tour.ts` | The tour map: the whole vault of the website's demo, and a map the app adds to a new vault |
 | `src/ui/tour.ts` | The tour in the app: added on a new vault's first start, shown and removed from the Help menu |
 | `site/` | The website's page; `scripts/build-site.mjs` builds it, with the demo, into `_site/` |
+| `CHANGELOG.md` | What each release changes, for the people using it; the website's "What's new" and the releases' notes |
+| `scripts/changelog.mjs` | Reads `CHANGELOG.md`: dates a release, gives a version's notes, writes the "What's new" page |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
 | `brand/` | The logo and the icon, kept out of the app's package. `brock-logo.svg` and `brock-logo-plain.svg` are the logo with its wordmark, on a tile with a grey surround and on plain black. `brock-icon.svg` is the app icon: the logo without the wordmark, with two more branches where the word was. Every size is made from it with `npx tauri icon brand/brock-icon.svg -o src-tauri/icons`; delete the `android` and `ios` folders that makes, and copy `64x64.png` to `static/favicon.png` |
@@ -279,18 +281,24 @@ itself, so send those to the page with `dispatchEvent`.
 
 ## The website
 
-`site/` holds the website: one page, with the downloads and a demo of the
-app. `scripts/build-site.mjs` builds it into `_site/`: the page, with this
+`site/` holds the website: a page with the downloads and a demo of the
+app, and "What's new" (`changes.html`), made from the released part of
+`CHANGELOG.md` by `scripts/changelog.mjs`. `scripts/build-site.mjs` builds
+it into `_site/`: the page, with this
 download links filled in (from `package.json` locally; in CI from the newest
 published release, `SITE_VERSION`, since `package.json` is bumped before the
 installers are built), and the demo, which
 is the window built for a browser with `--mode demo`. It is published at
 brock.clysuva.com by `.github/workflows/site.yml` on GitHub Pages, on every
-push to `main` that changes the site or the demo, and when the release
+push to `main` that changes the site, the demo or `CHANGELOG.md`, and when the release
 workflow has put the installers on a release (it starts the site's build
 itself, as a release made with its own token starts nothing); the
 build writes the `CNAME` for that domain. Try it locally with `npm run site`.
 
+- **What's new waits for the downloads.** It lists the releases up to the
+  one the page links to (`SITE_VERSION`), so a version tagged but still
+  being built appears with its installers. The app's update offer links to
+  it, at the offered version (`whatsNew` in `updates.ts`).
 - **The demo is the real window.** In demo mode `main.ts` keeps the map in
   the browser's storage under its own key (`src/demo/keys.ts`) and, when
   there is none yet, starts from the tour (`src/demo/tour.ts`) with the notes
@@ -324,17 +332,22 @@ build writes the `CNAME` for that domain. Try it locally with `npm run site`.
 
 The version lives in `package.json`; `tauri.conf.json` reads it from there,
 and `npm version` also writes it into `Cargo.toml` and `Cargo.lock`
-(`scripts/sync-version.mjs`), commits and makes the tag. Pushing the tag
-makes GitHub build the installers and publish them as a release
-(`.github/workflows/release.yml`), with notes made from the commits since
-the last one.
+(`scripts/sync-version.mjs`), turns "Not released yet" in `CHANGELOG.md`
+into the new version, dated (`scripts/changelog.mjs release`), commits and
+makes the tag. Pushing the tag makes GitHub build the installers and
+publish them as a release (`.github/workflows/release.yml`), with that
+version's section of `CHANGELOG.md` as its notes, which `latest.json`
+carries too.
 
 ```bash
 npm version minor -m "Release %s"   # or: patch, major, or an exact number
 git push --follow-tags
 ```
 
-- The working folder has to be clean first.
+- The working folder has to be clean first, and `CHANGELOG.md` has to have
+  something under "Not released yet": `npm version` stops without it,
+  before the version is raised. Read
+  it over first; it is what people see on the website and on GitHub.
 - Use `minor` for new features and `patch` for fixes only.
 - The release workflow can be run by hand from the Actions tab, which builds
   the installers without publishing anything, kept with the run.
@@ -372,3 +385,8 @@ git push --follow-tags
 - When a change makes something in the README, PLAN.md or this file untrue,
   fix the text in the same change.
 - When a task in TASKS.md is done, remove it from there.
+- When a change is something a person using the app would notice, add a line
+  for it under "Not released yet" in `CHANGELOG.md`, written for them rather
+  than for developers: what it does and how to use it, a bold lead for a
+  larger change. The website's "What's new" page, each release's notes and
+  the update offer's link all come from that file.

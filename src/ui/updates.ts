@@ -31,6 +31,12 @@ export function setUpdatesOn(on: boolean): void {
   }
 }
 
+/**
+ * The website's "What's new", made from CHANGELOG.md, at a version's changes:
+ * the offer links there, in the browser, rather than showing notes itself.
+ */
+export const whatsNew = (version: string) => `https://brock.clysuva.com/changes.html#v${version}`;
+
 /** Whether this window can update itself at all: only the app can. */
 export const canUpdate = () => inTauri();
 
