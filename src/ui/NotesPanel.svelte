@@ -1,23 +1,23 @@
 <!--
   The selected node beside the map: whether it is a task and its priority,
-  its colour and icon; its notes, drawn from their Markdown and
-  edited as text on a click (saved as typed, undone a run of typing at a
-  time); and the nodes it links to and those linking to it, each a way there.
+  its colour and icon; its notes, edited where their Markdown is drawn or as
+  its source (saved as typed, undone a run of typing at a time); and the
+  nodes it links to and those linking to it, each a way there.
   Links in the notes go to nodes, open web addresses, files or the window's panels; ⌘L while writing puts
   in a link to a node chosen as in search. Files and folders dropped on it
-  from Finder or Explorer are linked in the notes, where the caret is while
+  from Finder or Explorer are linked in the notes, where the cursor is while
   writing or at the end.
 -->
 <script lang="ts">
   import { tick } from "svelte";
   import { PALETTE } from "../core/branches.ts";
-  import { fileLink, nodeLink, parse, setChecked, type Command, type LinkTarget } from "../core/markdown.ts";
+  import { COMMANDS, fileLink, filePath, nodeLink, type Command, type LinkTarget } from "../core/markdown.ts";
   import type { Node } from "../core/node.ts";
   import { findByTitle } from "../core/search.ts";
   import { PRIORITIES, setPriority } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
-  import Markdown from "./Markdown.svelte";
+  import NoteEditor from "./NoteEditor.svelte";
   import { watchFileDrops } from "./file-drop.ts";
   import { openFile, openUrl, opensFiles } from "./open-url.ts";
   import Palette from "./Palette.svelte";
@@ -30,6 +30,8 @@
     onGoTo,
     onCommand,
     onProblem,
+    source,
+    onToggleSource,
     width,
   }: {
     live: Live;
@@ -42,6 +44,9 @@
     onCommand: (command: Command) => void;
     /** Something went wrong that the person should hear of, such as a linked file not being there. */
     onProblem: (text: string) => void;
+    /** Notes shown as their Markdown source, with nothing drawn. */
+    source: boolean;
+    onToggleSource: () => void;
     width: number;
   } = $props();
 
@@ -62,26 +67,21 @@
     void live.version;
     return vault.linksTo(nodeId);
   });
-  const blocks = $derived(parse(node?.body ?? ""));
-
-  /** Whether the notes are being written, as text, rather than read. */
+  /** Whether the notes have the keyboard. */
   let writing = $state(false);
-  /** Choosing a node to link to from the notes, and where the caret was. */
+  /** Choosing a node to link to from the notes, and what was chosen in them. */
   let picking = $state<{ start: number; end: number } | null>(null);
-  let textarea = $state<HTMLTextAreaElement>();
+  let editor = $state<ReturnType<typeof NoteEditor>>();
 
-  // Another node's notes start out read.
   $effect(() => {
     void nodeId;
-    writing = false;
     picking = null;
   });
 
+  /** Puts the cursor in the notes, once the text just saved has reached them. */
   async function write(caret?: number) {
-    writing = true;
     await tick();
-    textarea?.focus();
-    if (textarea && caret !== undefined) textarea.setSelectionRange(caret, caret);
+    editor?.focus(caret);
   }
 
   const save = (body: string) => vault.update(nodeId, { body }, `body:${nodeId}`);
@@ -103,18 +103,14 @@
     }
   }
 
-  function onWriteKey(e: KeyboardEvent) {
-    const mod = e.metaKey || e.ctrlKey;
-    if (e.key === "Escape") {
-      // Escape shows the notes read, and hands the keyboard back to the map.
-      e.currentTarget && (e.currentTarget as HTMLElement).blur();
-    } else if (mod && e.key.toLowerCase() === "l" && !e.shiftKey) {
-      // A link to a node, put in here: not the node's own link (⌘L elsewhere).
-      e.preventDefault();
-      e.stopPropagation();
-      const t = e.currentTarget as HTMLTextAreaElement;
-      picking = { start: t.selectionStart, end: t.selectionEnd };
-    }
+  const found = (to: LinkTarget) => to.kind === "web" || to.kind === "command" || (to.kind === "file" && opensFiles()) || nodeOf(to) !== null;
+
+  function describe(to: LinkTarget): string {
+    if (to.kind === "web") return `Open ${to.url} in the browser`;
+    if (to.kind === "command") return COMMANDS[to.command];
+    if (to.kind === "file") return found(to) ? `Open ${filePath(to.url)}` : "Files open in the app, not in a browser";
+    if (!found(to)) return to.kind === "title" ? `No node is called “${to.title}”` : "That node is gone";
+    return "Go there";
   }
 
   function insertLink(id: string) {
@@ -138,8 +134,8 @@
         if (!node || !paths.length || !under || !panel?.contains(under)) return;
         const links = paths.map(fileLink);
         // Its own step to undo, not part of the typing around it.
-        if (writing && textarea) {
-          const { selectionStart: start, selectionEnd: end } = textarea;
+        if (writing && editor) {
+          const { from: start, to: end } = editor.selection();
           const text = links.join("\n");
           vault.update(nodeId, { body: node.body.slice(0, start) + text + node.body.slice(end) });
           write(start + text.length);
@@ -223,6 +219,16 @@
       <button class="icon-button" onclick={() => (choosingIcon = !choosingIcon)} title="Icon" aria-expanded={choosingIcon}>
         {node.icon ?? "☺︎"}
       </button>
+      <!-- Leaves the focus in the notes, if they had it. -->
+      <button
+        class="source-toggle"
+        class:on={source}
+        aria-pressed={source}
+        onmousedown={(e) => e.preventDefault()}
+        onclick={onToggleSource}
+        title={source ? "Draw the notes again (⌘E)" : "Show the notes' Markdown source (⌘E)"}
+        aria-label="Markdown source">M↓</button
+      >
     </div>
     {#if choosingIcon}
       <div class="icons" role="radiogroup" aria-label="Icon">
@@ -246,51 +252,24 @@
         >
       </div>
     {/if}
-    {#if writing}
-      <textarea
-        bind:this={textarea}
+    <!-- A fresh editor for each node, so its notes start at the top. -->
+    {#key nodeId}
+      <NoteEditor
+        bind:this={editor}
         value={node.body}
-        placeholder="Notes, in Markdown"
-        aria-label="Notes"
-        oninput={(e) => save(e.currentTarget.value)}
-        onkeydown={onWriteKey}
-        onblur={() => {
-          // Choosing a link takes the focus for a moment; that is not leaving.
-          if (!picking) writing = false;
-        }}
-      ></textarea>
+        {source}
+        hooks={{ found, describe, follow }}
+        version={live.version}
+        onChange={save}
+        onPick={(start, end) => (picking = { start, end })}
+        onFocus={(focused) => (writing = focused)}
+      />
+    {/key}
+    {#if writing}
       <p class="hint">
-        **bold**, *italic*, # heading, - list, - [ ] to do, [[a node's title]].
-        ⌘L puts in a link to a node; Escape shows the notes.
+        **bold** (⌘B), *italic* (⌘I), # heading, - list, - [ ] to do, [[a node's title]].
+        ⌘L puts in a link to a node; Escape hands the keys back to the map.
       </p>
-    {:else}
-      <!-- A click anywhere but on a link starts writing; Enter does from the keyboard. -->
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-      <div
-        class="read"
-        class:empty={!node.body.trim()}
-        role="document"
-        tabindex="0"
-        title="Click to write"
-        onclick={() => write(node!.body.length)}
-        onkeydown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            write(node!.body.length);
-          }
-        }}
-      >
-        {#if node.body.trim()}
-          <Markdown
-            {blocks}
-            found={(to) => to.kind === "web" || to.kind === "command" || (to.kind === "file" && opensFiles()) || nodeOf(to) !== null}
-            onLink={follow}
-            onCheck={(line, checked) => save(setChecked(node!.body, line, checked))}
-          />
-        {:else}
-          Notes
-        {/if}
-      </div>
     {/if}
 
     <section>
@@ -473,6 +452,19 @@
     gap: 0.5rem;
   }
 
+  .source-toggle {
+    margin-left: auto;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    border-radius: 6px;
+  }
+
+  .source-toggle.on {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
   .swatches {
     display: flex;
     flex-wrap: wrap;
@@ -525,45 +517,6 @@
     grid-column: span 2;
     font-size: 0.8rem;
     color: var(--muted);
-  }
-
-  /* Grows with the text and never shrinks under it: the panel scrolls, so
-     long notes do not spill over what comes below them. */
-  .read {
-    flex: 1 0 auto;
-    min-height: 8rem;
-    padding: 0.6rem 0.7rem;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    cursor: text;
-    outline: none;
-  }
-
-  .read:hover,
-  .read:focus-visible {
-    border-color: var(--line);
-  }
-
-  .read.empty {
-    color: var(--muted);
-  }
-
-  textarea {
-    flex: 1;
-    min-height: 8rem;
-    resize: none;
-    font: inherit;
-    line-height: 1.5;
-    color: inherit;
-    background: none;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 0.6rem 0.7rem;
-  }
-
-  textarea:focus {
-    outline: none;
-    border-color: var(--accent);
   }
 
   ul {

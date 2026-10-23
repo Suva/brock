@@ -91,8 +91,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/file-drop.ts` | Files and folders dragged onto the window, with their paths, in the app only |
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
-| `src/ui/NotesPanel.svelte` | The selected node's notes, read or written, its links and the nodes linking to it |
-| `src/ui/Markdown.svelte` | Draws notes from `markdown.ts`'s blocks; links are buttons |
+| `src/ui/NotesPanel.svelte` | The selected node: task, priority, colour, icon, its notes, its links and the nodes linking to it |
+| `src/ui/NoteEditor.svelte` | The notes' editor (CodeMirror), drawn as they are written or as their Markdown source |
+| `src/ui/live-preview.ts` | What the editor draws in place of the Markdown: marks hidden but where the cursor is, checkboxes, links, tables |
 | `src/ui/Sidebar.svelte` | The sidebar on the left, with the Maps and Tasks tabs; places to go in the vault |
 | `src/ui/MapsList.svelte` | The sidebar's Maps tab: every map of the vault as a tree |
 | `src/ui/Resizer.svelte` | The handle that drags a side panel's edge to change its width; widths are kept in the session |
@@ -161,12 +162,20 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **Links live on the node they start from** (`links`, a list of ids), so
   they are saved, undone and synced with it; there is no table of their own.
   A link to a deleted node is kept and ignored until the node comes back.
-- **Notes are never HTML.** `markdown.ts` reads them into a structure and
-  `Markdown.svelte` draws it with ordinary elements; nothing uses `{@html}`.
+- **Notes are never HTML.** They are edited as text, in CodeMirror, and
+  `live-preview.ts` draws them with ordinary elements: marks and widgets
+  built with `textContent`, tables from `markdown.ts`'s structure; nothing
+  uses `{@html}` or `innerHTML`.
   Only http, https, `file:`, `node:` and `brock:` links become links; anything else
   stays text. A `brock:` link names one of `COMMANDS` in `markdown.ts` and
   only opens a panel or dialog (`run` in `App.svelte`); keep it to things
   that change nothing, as a link in a pasted note is clicked without thought.
+- **The notes' editor never rewrites notes.** The live preview only hides
+  marks and draws over them; what is saved is what was typed, so a note
+  edited in one place stays as it was everywhere else. What it draws as a
+  link follows `markdown.ts` (`linkTarget`, `bareLinks`), so the editor and
+  everything else reading notes agree. It has no undo of its own: ⌘Z is
+  the vault's, and a change from outside is taken into the editor.
 - **Links in notes count as links.** `[text](node:id)` in a node's notes
   makes it appear under "Linked from" on that node (`linksTo` in
   `vault.ts`); `[[Title]]` does not, as what it means can change.

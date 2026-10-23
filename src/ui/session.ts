@@ -10,6 +10,8 @@ export interface Session {
   sidebarOpen: boolean;
   sidebarTab: "maps" | "tasks";
   notesOpen: boolean;
+  /** Whether notes show their Markdown source rather than drawn. */
+  notesSource: boolean;
   /** Whether done tasks are hidden on the map and in the outline. */
   hideDone: boolean;
   /** The widths of the side panels, in pixels. */
@@ -19,7 +21,7 @@ export interface Session {
 
 const KEY = "mindmap-session";
 
-const DEFAULTS: Session = { map: null, node: null, view: "map", sidebarOpen: false, sidebarTab: "maps", notesOpen: false, hideDone: false, sidebarWidth: 270, notesWidth: 320 };
+const DEFAULTS: Session = { map: null, node: null, view: "map", sidebarOpen: false, sidebarTab: "maps", notesOpen: false, notesSource: false, hideDone: false, sidebarWidth: 270, notesWidth: 320 };
 
 /** A saved width, if it is a sensible one. */
 function width(v: unknown, fallback: number): number {
@@ -38,6 +40,7 @@ export function savedSession(): Session {
       sidebarOpen: raw.sidebarOpen === true,
       sidebarTab: raw.sidebarTab === "tasks" ? "tasks" : "maps",
       notesOpen: raw.notesOpen === true,
+      notesSource: raw.notesSource === true,
       hideDone: raw.hideDone === true,
       sidebarWidth: width(raw.sidebarWidth, DEFAULTS.sidebarWidth),
       notesWidth: width(raw.notesWidth, DEFAULTS.notesWidth),

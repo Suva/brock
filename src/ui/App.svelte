@@ -50,6 +50,7 @@
   let editing = $state<string | null>(null);
   let view = $state<"map" | "outline">(start.view);
   let notesOpen = $state(start.notesOpen);
+  let notesSource = $state(start.notesSource);
   /** The search palette, open to go somewhere or to link the selected node. */
   let searching = $state<false | "go" | "link">(false);
   /** The sidebar on the left, and which of its tabs shows; it opens on the tab used last. */
@@ -63,7 +64,7 @@
 
   // Remembered as it changes, for the next start.
   $effect(() => {
-    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen, hideDone, sidebarWidth, notesWidth });
+    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen, notesSource, hideDone, sidebarWidth, notesWidth });
   });
 
   /** A tab's button or key: opens the sidebar on it, or closes it if it is showing. */
@@ -367,6 +368,7 @@
       toggleSidebar: () => (sidebarOpen = !sidebarOpen),
       showTasks: () => showTab("tasks"),
       toggleNotes: () => (notesOpen = !notesOpen),
+      toggleSource: () => (notesSource = !notesSource),
       toggleHideDone: () => (hideDone = !hideDone),
       back: () => step("back"),
       forward: () => step("forward"),
@@ -382,6 +384,7 @@
     menuChecks?.view(view);
     menuChecks?.sidebar(sidebarOpen);
     menuChecks?.notes(notesOpen);
+    menuChecks?.source(notesSource);
     menuChecks?.hideDone(hideDone);
   });
 
@@ -421,6 +424,8 @@
       showTab("tasks");
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
+    } else if (key === "e" && !event.shiftKey && !event.altKey) {
+      notesSource = !notesSource;
     } else if (event.altKey && event.code === "Digit1" && !event.shiftKey) {
       // ⌥⌘1 and ⌥⌘2: ⌘1 to ⌘5 set priorities.
       view = "map";
@@ -568,6 +573,8 @@
         onGoTo={goTo}
         onCommand={run}
         onProblem={(text) => tell(text, true)}
+        source={notesSource}
+        onToggleSource={() => (notesSource = !notesSource)}
         width={notesWidth}
       />
       <Resizer width={notesWidth} edge="right" onResize={(w) => (notesWidth = w)} onClose={() => (notesOpen = false)} />

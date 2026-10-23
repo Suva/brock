@@ -172,7 +172,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   // ---- Left: finding and keeping --------------------------------------------
 
   const notesBranch = branch("Notes and links", {
-    body: notes("Every node has notes, like these. Click the notes to write; they're Markdown."),
+    body: notes("Every node has notes, like these. Click the notes to write; they're Markdown, drawn as you write. **M↓** at the top of the notes, or **⌘E**, shows the Markdown itself."),
   });
   const markdown = add(notesBranch, "Markdown notes", {
     body: notes(

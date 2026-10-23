@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fileLink, filePath, inline, nodeLink, parse, setChecked } from "../src/core/markdown.ts";
+import { bareLinks, fileLink, filePath, inline, nodeLink, parse } from "../src/core/markdown.ts";
 
 test("blocks: headings, paragraphs, lists, quotes, code and rules", () => {
   const blocks = parse(
@@ -19,7 +19,7 @@ test("blocks: headings, paragraphs, lists, quotes, code and rules", () => {
   assert.deepEqual(blocks[5], { kind: "code", text: "**not bold**" }, "nothing is read inside code");
 });
 
-test("checkboxes know their line, and can be ticked", () => {
+test("checkboxes know their line", () => {
   const text = "Packing\n- [ ] passport\n- [x] tickets";
   const [, list] = parse(text);
   assert.ok(list.kind === "list");
@@ -30,8 +30,6 @@ test("checkboxes know their line, and can be ticked", () => {
       [true, 2],
     ],
   );
-  assert.equal(setChecked(text, 1, true), "Packing\n- [x] passport\n- [x] tickets");
-  assert.equal(setChecked(text, 2, false), "Packing\n- [ ] passport\n- [ ] tickets");
 });
 
 test("inside a line: bold, italic, code", () => {
@@ -137,4 +135,16 @@ test("a dropped file's link names it and reads back to its path", () => {
     assert.ok(link.kind === "link" && link.to.kind === "file");
     assert.equal(filePath(link.to.url), path);
   }
+});
+
+test("bare links are found where they are, outside code and outside [text](target)", () => {
+  const text = "See [[Plan B]], https://a.org/x. and `https://no.pe` or [y](https://link.ed) and file:///tmp/a%20b";
+  assert.deepEqual(
+    bareLinks(text).map((f) => [text.slice(f.from, f.to), f.target]),
+    [
+      ["[[Plan B]]", { kind: "title", title: "Plan B" }],
+      ["https://a.org/x", { kind: "web", url: "https://a.org/x" }],
+      ["file:///tmp/a%20b", { kind: "file", url: "file:///tmp/a%20b" }],
+    ],
+  );
 });

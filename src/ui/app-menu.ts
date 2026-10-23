@@ -30,6 +30,7 @@ export interface MenuActions {
   toggleSidebar(): void;
   showTasks(): void;
   toggleNotes(): void;
+  toggleSource(): void;
   toggleHideDone(): void;
   back(): void;
   forward(): void;
@@ -44,6 +45,7 @@ export interface MenuChecks {
   view(view: "map" | "outline"): void;
   sidebar(open: boolean): void;
   notes(open: boolean): void;
+  source(on: boolean): void;
   hideDone(on: boolean): void;
 }
 
@@ -90,6 +92,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
   const outlineItem = await check("Outline", () => a.view("outline"), "Alt+CmdOrCtrl+2");
   const sidebarItem = await check("Sidebar", a.toggleSidebar, mac() ? "Ctrl+Cmd+S" : "Ctrl+Shift+S");
   const notesItem = await check("Notes", a.toggleNotes, "CmdOrCtrl+Shift+N");
+  const sourceItem = await check("Notes as Markdown Source", a.toggleSource, "CmdOrCtrl+E");
   const hideDoneItem = await check("Hide Done Tasks", a.toggleHideDone, "CmdOrCtrl+Shift+H");
 
   const priorities = await Submenu.new({
@@ -164,6 +167,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         sidebarItem,
         await item("Tasks", a.showTasks, "CmdOrCtrl+Shift+T"),
         notesItem,
+        sourceItem,
         hideDoneItem,
         await line(),
         await item("Back", a.back, "CmdOrCtrl+["),
@@ -230,6 +234,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
     },
     sidebar: (open) => sidebarItem.setChecked(open),
     notes: (open) => notesItem.setChecked(open),
+    source: (on) => sourceItem.setChecked(on),
     hideDone: (on) => hideDoneItem.setChecked(on),
   };
 }

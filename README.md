@@ -120,9 +120,11 @@ link to somewhere else shows as ↗ on the node, which goes there.
 
 The notes panel on the right, opened by the small tab on the right edge or
 ⇧⌘N, shows the selected node's notes, written in Markdown:
-`# headings`, `**bold**`, `*italic*`, `` `code` ``, lists, `- [ ]` to-dos you
-can tick, `> quotes` and tables. Click them, or press Enter on them, to write; Escape
-shows them formatted again. Web addresses in them open in your browser.
+`# headings`, `**bold**` (⌘B), `*italic*` (⌘I), `` `code` ``, lists, `- [ ]`
+to-dos you can tick, `> quotes` and tables. They are drawn as you write: the
+marks around what you typed show only where the cursor is. The M↓ button, or
+⌘E, shows the plain Markdown instead, and again draws it. Escape hands the
+keyboard back to the map. Web addresses in them open in your browser.
 Files and folders on your computer can be linked too: drag them from Finder
 or Explorer onto the notes, or write them as `file:///` addresses,
 such as `file:///Users/me/Clients/Acme/Designs`; put one with spaces in its

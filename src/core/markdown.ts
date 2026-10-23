@@ -197,7 +197,7 @@ function spans(text: string): Inline[] {
       const title = m[1].trim();
       out.push({ kind: "link", to: { kind: "title", title }, children: [{ kind: "text", text: title }] });
     } else if (m[2] !== undefined) {
-      const to = target((m[3] ?? m[4]).trim());
+      const to = linkTarget((m[3] ?? m[4]).trim());
       if (to) out.push({ kind: "link", to, children: inline(m[2]) });
       else append(out, { kind: "text", text: m[0] });
     } else if (m[5] !== undefined) out.push({ kind: "strong", children: inline(m[5]) });
@@ -205,7 +205,7 @@ function spans(text: string): Inline[] {
     else if (m[8] !== undefined) {
       // Punctuation after an address is the sentence's: give it back.
       const url = trimUrl(m[8]);
-      const to = target(url)!;
+      const to = linkTarget(url)!;
       out.push({ kind: "link", to, children: [{ kind: "text", text: to.kind === "file" ? filePath(url) : url }] });
       at -= m[8].length - url.length;
     }
@@ -215,13 +215,43 @@ function spans(text: string): Inline[] {
 }
 
 /** What a [text](target) leads to; null for anything but web addresses, files, nodes and the commands known. */
-function target(raw: string): LinkTarget | null {
+export function linkTarget(raw: string): LinkTarget | null {
   if (/^https?:\/\//i.test(raw)) return { kind: "web", url: raw };
   if (/^file:\/\/\S/i.test(raw)) return { kind: "file", url: raw };
   if (raw.startsWith("node:") && raw.length > 5) return { kind: "node", id: raw.slice(5) };
   const command = raw.match(/^brock:(\w+)$/i)?.[1].toLowerCase();
   if (command && isCommand(command)) return { kind: "command", command };
   return null;
+}
+
+export interface Found {
+  from: number;
+  to: number;
+  target: LinkTarget;
+}
+
+/**
+ * Where `text` has links that are not [text](target): [[Title]]s and
+ * addresses written out, by their place in it, for the notes' editor to draw
+ * them where they are. Code spans hold none.
+ */
+export function bareLinks(text: string): Found[] {
+  const found: Found[] = [];
+  const code = [...text.matchAll(/`[^`]+`/g)].map((m) => [m.index, m.index + m[0].length]);
+  const inCode = (at: number) => code.some(([from, to]) => at >= from && at < to);
+  for (const m of text.matchAll(/\[\[([^\]]+)\]\]|(?:https?|file):\/\/[^\s<>"'`]+/gu)) {
+    if (inCode(m.index)) continue;
+    // An address in a [text](address) is the link's, not one of its own.
+    if (m[1] === undefined && text[m.index - 1] === "(" && text[m.index - 2] === "]") continue;
+    if (m[1] === undefined && text[m.index - 1] === "<" && text[m.index - 2] === "(") continue;
+    if (m[1] !== undefined) {
+      found.push({ from: m.index, to: m.index + m[0].length, target: { kind: "title", title: m[1].trim() } });
+    } else {
+      const url = trimUrl(m[0]);
+      found.push({ from: m.index, to: m.index + url.length, target: linkTarget(url)! });
+    }
+  }
+  return found;
 }
 
 /**
@@ -235,13 +265,6 @@ export function filePath(url: string): string {
   } catch {
     return path; // A % that starts no escape: show it as written.
   }
-}
-
-/** The text with the checkbox on `line` ticked or not. */
-export function setChecked(text: string, line: number, checked: boolean): string {
-  const lines = text.split("\n");
-  lines[line] = lines[line]?.replace(/^(\s*(?:[-*+]|\d+[.)])\s+)\[[ xX]\]/, `$1[${checked ? "x" : " "}]`);
-  return lines.join("\n");
 }
 
 /** A link to a node, to put in notes: [Title](node:id). */
