@@ -79,7 +79,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/TasksList.svelte` | The sidebar's Tasks tab: the open map's or all maps' tasks, the done ones by when they were done |
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
-| `src/ui/Settings.svelte` | Settings (⌘,): appearance, updates, the daily copies |
+| `src/ui/Settings.svelte` | Settings (⌘,): appearance, pictures, updates, the daily copies |
 | `src/ui/updates.ts` | The app's own updates: looking for one quietly, installing it and starting again; whether to look, kept in the window's storage |
 | `src/ui/UpdateOffer.svelte` | A newer version offered in a corner of the window, installed only on a click |
 | `src/ui/usage.ts` | Search's usage, kept in the window's storage |

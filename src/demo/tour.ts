@@ -62,6 +62,10 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   const priorityWay = web
     ? "The numbers at the top of this panel set a priority, or **⌘1** to **⌘5** in the app."
     : "**⌘1** to **⌘5** set a priority, or the numbers at the top of this panel.";
+  /** The way to the sidebar's tasks: its tab on the map's left edge, or a key a browser keeps for itself. */
+  const tasksWay = web
+    ? "The **›** tab on the left edge of the map opens the sidebar"
+    : "**⇧⌘T**, or the **›** tab on the left edge of the map, opens the sidebar";
 
   vault.update(rootId, {
     title: TOUR_TITLE,
@@ -133,13 +137,13 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("There is no limit to how deep they go."),
   });
   add(deeper, "All maps: the Maps tab", {
-    body: notes("The small tab on the left edge opens the sidebar. Its **Maps** tab lists every map as a tree, to jump to any of them."),
+    body: notes("The **›** tab on the left edge of the map, or **⌃⌘S**, opens the sidebar. Its **Maps** tab lists every map as a tree, to jump to any of them."),
   });
 
   const tasks = branch("Tasks", {
     body: notes(
       `Any node can be a task with a checkbox: ${taskWay}.`,
-      "The sidebar's **Tasks** tab, on the left edge, lists the tasks of this map or of all maps. Done ones are grouped by when they were done, handy for a stand-up, and each group can be cleared on its own.",
+      `${tasksWay}: its **Tasks** tab lists the tasks of this map or of all maps. Done ones are grouped by when they were done, handy for a stand-up, and each group can be cleared on its own.`,
     ),
   });
   add(tasks, "Tick me", {
@@ -154,9 +158,9 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   add(tasks, "Hide what's done", {
     task: "open",
     priority: 4,
-    body: notes("The **✓** button at the top hides done tasks on the map, or **⇧⌘H**. Nothing is deleted."),
+    body: notes("The checkbox button at the top, beside the magnifier, hides done tasks on the map, or **⇧⌘H**. Nothing is deleted."),
   });
-  add(tasks, "Open the Tasks tab", { task: "done", doneAt: now, body: notes("Done today: it's under **Today** in the Tasks tab.") });
+  add(tasks, "Open the Tasks tab", { task: "done", doneAt: now, body: notes("Done today: it's under **Today** in the sidebar's Tasks tab.") });
   add(tasks, "Grouped by day", { task: "done", doneAt: now - DAY, body: notes("Done yesterday.") });
   add(tasks, "Clear a group", {
     task: "done",
@@ -195,7 +199,13 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("However many maps you have, any node is a few keys away."),
   });
   add(finding, "⌘K searches", {
-    body: notes("**⌘K**, or the magnifier at the top, searches the titles and notes of every map. Pick a result to go straight there."),
+    body: notes("**⌘K**, or the magnifier at the top, searches the titles and notes of every map. Pick a result to go straight there.", "**Tab** in the search narrows it to this map, then to maps only."),
+  });
+  add(finding, "First letters find it", {
+    body: notes(
+      "Search also finds a node by the first letters of its title's words: **mim** finds *Maps inside maps*.",
+      "It learns as you go: the nodes you go to often, and the one you picked for the same letters before, come first.",
+    ),
   });
   add(finding, "Back and forward", {
     body: notes("The **‹ ›** buttons at the top, or **⌘[** and **⌘]**, go back and forward through the maps you've visited."),
@@ -208,13 +218,13 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   });
 
   const keeping = branch("Yours to keep", {
-    body: notes("Brock needs no account and no internet. In the app, your maps are in a database on your computer."),
+    body: notes("Brock needs no account and works without the internet. In the app, your maps are in a database on your computer."),
   });
   add(keeping, "Saved as you go", {
     body: notes("There's no Save button: every change is kept as you make it, and a copy of everything is made each day."),
   });
   add(keeping, "Export and import", {
-    body: notes("The **⋯** menu exports a map to Markdown, OPML or JSON, and imports OPML from other outliners."),
+    body: notes("The **⋯** menu exports a map to Markdown, OPML or JSON, or as a picture, and imports OPML from other outliners, or JSON exported before."),
   });
   if (web) {
     add(keeping, "Here: this browser", {
@@ -227,6 +237,12 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   } else {
     add(keeping, "Every command, in the menus", {
       body: notes("The menu bar lists every command with its key, for finding one without knowing the key."),
+    });
+    add(keeping, "Updates, when you say", {
+      body: notes(
+        "Brock looks for a newer version now and then and offers it in a corner of the window. Nothing is installed until you click **Install and restart**.",
+        "**Help › Check for Updates…** looks at once. **Settings** (**⌘,**) turns the looking off.",
+      ),
     });
     add(keeping, "Done? Remove the tour", {
       icon: "👋",

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { addTour, tour, TOUR_TITLE } from "../src/demo/tour.ts";
 import { removeTour, showTour, tourMap, welcome } from "../src/ui/tour.ts";
 import { groupDone, tasksUnder } from "../src/core/tasks.ts";
+import { search } from "../src/core/search.ts";
 import { Vault } from "../src/core/vault.ts";
 
 test("the demo's tour is a vault the app opens as it is", () => {
@@ -29,6 +30,11 @@ test("the demo's tour is a vault the app opens as it is", () => {
     ["Today", "Yesterday", "Earlier"],
     "the Tasks tab shows its groups",
   );
+
+  const hint = nodes.find((n) => n.title === "First letters find it")!;
+  const [, letters, title] = hint.body.match(/\*\*(\w+)\*\* finds \*([^*]+)\*/)!;
+  assert.equal(search(vault, letters)[0]?.node.title, title, "the first letters it names find that node");
+  assert.ok(nodes.every((n) => !n.body.includes("Check for Updates")), "updates are the app's alone");
 });
 
 test("in the app the tour is one map under the top, added as one step", () => {
@@ -45,6 +51,7 @@ test("in the app the tour is one map under the top, added as one step", () => {
   const bodies = [...vault.children(id)].flatMap((n) => [n.body, ...vault.children(n.id).map((c) => c.body)]);
   assert.ok(bodies.every((b) => !b.includes("browser")), "worded for the app");
   assert.ok(bodies.some((b) => b.includes("Remove the Tour")), "says how to remove it");
+  assert.ok(bodies.some((b) => b.includes("Check for Updates")), "says how it updates");
 
   vault.undo();
   assert.equal(vault.isLive(id), false, "one step");
