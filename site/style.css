@@ -427,7 +427,7 @@ footer p {
   }
 
   /* Phones have a picture in place of the demo, and too little room for four links. */
-  .top nav .try {
+  .top nav .try-link {
     display: none;
   }
 
