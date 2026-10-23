@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+## 0.5.0 — 23 October 2026
+
 - **Notes are drawn as you write them.** Headings, bold, lists, quotes,
   code and tables look the way they will read while you type, and the marks
   around them (`**`, `#`, `>` and the like) show only where the cursor is.
