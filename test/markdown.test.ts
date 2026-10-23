@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inline, nodeLink, parse, setChecked } from "../src/core/markdown.ts";
+import { fileLink, filePath, inline, nodeLink, parse, setChecked } from "../src/core/markdown.ts";
 
 test("blocks: headings, paragraphs, lists, quotes, code and rules", () => {
   const blocks = parse(
@@ -70,7 +70,25 @@ test("links: web addresses, nodes by id, nodes by title", () => {
 
 test("other kinds of link are left as text", () => {
   assert.deepEqual(inline("[click](javascript:alert(1))"), [{ kind: "text", text: "[click](javascript:alert(1))" }]);
-  assert.deepEqual(inline("[file](file:///etc/passwd)"), [{ kind: "text", text: "[file](file:///etc/passwd)" }]);
+});
+
+test("files and folders: file: addresses, written out or in a link, spaces in <>", () => {
+  const spans = inline("Designs at file:///Users/me/Acme/Designs%202026, the [brief](<file:///Users/me/Acme/The brief.pdf>) and [x](file:///C:/Work/a.txt).");
+  const links = spans.filter((s) => s.kind === "link");
+  assert.deepEqual(
+    links.map((l) => l.kind === "link" && l.to),
+    [
+      { kind: "file", url: "file:///Users/me/Acme/Designs%202026" },
+      { kind: "file", url: "file:///Users/me/Acme/The brief.pdf" },
+      { kind: "file", url: "file:///C:/Work/a.txt" },
+    ],
+  );
+  assert.deepEqual(links[0].kind === "link" && links[0].children, [{ kind: "text", text: "/Users/me/Acme/Designs 2026" }], "shown as its path");
+  assert.deepEqual(spans.at(-1), { kind: "text", text: "." });
+  assert.equal(filePath("file:///C:/Work/a%20b.txt"), "C:/Work/a b.txt");
+  assert.equal(filePath("file://localhost/tmp/100%"), "/tmp/100%", "a stray % is kept");
+  assert.deepEqual(inline("[web](<https://example.com/a b>)").filter((s) => s.kind === "link").length, 1, "<> works for any link");
+  assert.deepEqual(inline("file:// alone"), [{ kind: "text", text: "file:// alone" }]);
 });
 
 test("brock: links open the window's panels, and only those named", () => {
@@ -108,4 +126,15 @@ test("tables: header, alignment, ragged rows, and a paragraph before one", () =>
 
 test("a line with a bar but no dashes under it is not a table", () => {
   assert.equal(parse("a | b\nc | d")[0].kind, "paragraph");
+});
+
+test("a dropped file's link names it and reads back to its path", () => {
+  assert.equal(fileLink("/Users/me/The brief (v2).pdf"), "[The brief (v2).pdf](file:///Users/me/The%20brief%20%28v2%29.pdf)");
+  assert.equal(fileLink("/Users/me/Designs/"), "[Designs](file:///Users/me/Designs)");
+  assert.equal(fileLink("C:\\Work\\Ödön [old].txt"), "[Ödön old.txt](file:///C:/Work/%C3%96d%C3%B6n%20%5Bold%5D.txt)");
+  for (const path of ["/Users/me/The brief (v2).pdf", "/tmp/100% #1?.txt"]) {
+    const [link] = inline(fileLink(path));
+    assert.ok(link.kind === "link" && link.to.kind === "file");
+    assert.equal(filePath(link.to.url), path);
+  }
 });

@@ -7,7 +7,7 @@ mod db;
 
 use db::{Change, Db, Node};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{Manager, State};
@@ -103,6 +103,46 @@ fn show_backups(app: tauri::AppHandle, vault: State<Vault>) -> Result<(), String
     app.opener().reveal_item_in_dir(&vault.backups).map_err(|e| e.to_string())
 }
 
+/// What a file linked from a note may be, by its extension, to be opened in
+/// its own app: documents, pictures, sound and video. A folder with no
+/// extension opens too. Anything else is only shown in Finder or Explorer,
+/// since it might be a program (`.app`, `.command`, `.exe`, a script, a file
+/// with no extension) and a link in a pasted note is clicked without thought.
+const DOCUMENTS: &[&str] = &[
+    "pdf", "txt", "md", "markdown", "rtf", "rtfd", "csv", "tsv", "json", "yaml", "yml", "log", "doc", "docx", "xls",
+    "xlsx", "ppt", "pptx", "odt", "ods", "odp", "pages", "numbers", "key", "epub", "png", "jpg", "jpeg", "gif", "webp",
+    "heic", "heif", "tif", "tiff", "bmp", "svg", "psd", "ai", "sketch", "fig", "xd", "afdesign", "afphoto", "mp3",
+    "m4a", "wav", "aif", "aiff", "flac", "ogg", "mp4", "m4v", "mov", "avi", "mkv", "webm", "zip",
+];
+
+/// Whether the file or folder at `path` is one that may be opened.
+fn opens_safely(path: &Path) -> bool {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some(ext) => DOCUMENTS.contains(&ext.to_ascii_lowercase().as_str()),
+        // On a Mac an app is a folder too, but it always has its `.app`.
+        None => path.is_dir(),
+    }
+}
+
+/// Opens a file or folder a note links to, as a `file:` address: in its own
+/// app if `opens_safely` allows it, both as linked and where a link on the
+/// disk leads, or else shows it in Finder or Explorer without opening it.
+#[tauri::command]
+fn open_file(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let path = tauri::Url::parse(&url)
+        .ok()
+        .filter(|u| u.scheme() == "file")
+        .and_then(|u| u.to_file_path().ok())
+        .ok_or_else(|| format!("{url} is not the address of a file"))?;
+    let real = std::fs::canonicalize(&path).map_err(|_| format!("There is nothing at {}", path.display()))?;
+    if opens_safely(&path) && opens_safely(&real) {
+        app.opener().open_path(path.to_string_lossy(), None::<&str>)
+    } else {
+        app.opener().reveal_item_in_dir(&path)
+    }
+    .map_err(|e| e.to_string())
+}
+
 /// The kinds of file the window exports and imports: (extension, name shown).
 fn filter(kind: &str) -> Result<(&'static str, &'static str), String> {
     match kind {
@@ -165,11 +205,37 @@ async fn open_text(app: tauri::AppHandle) -> Result<Option<String>, String> {
     std::fs::read_to_string(&path).map(Some).map_err(|e| format!("Cannot read {}: {e}", path.display()))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::opens_safely;
+
+    #[test]
+    fn documents_and_plain_folders_open_and_programs_do_not() {
+        let dir = std::env::temp_dir().join(format!("brock-open-{}", std::process::id()));
+        for name in ["Designs", "Brock.app", "Report.PDF", "run.command", "tool"] {
+            let path = dir.join(name);
+            if name == "Designs" || name.ends_with(".app") {
+                std::fs::create_dir_all(&path).unwrap();
+            } else {
+                std::fs::create_dir_all(&dir).unwrap();
+                std::fs::write(&path, "").unwrap();
+            }
+        }
+        assert!(opens_safely(&dir.join("Designs")), "a folder");
+        assert!(opens_safely(&dir.join("Report.PDF")), "a document, whatever the case of its extension");
+        assert!(!opens_safely(&dir.join("Brock.app")), "an app, though a folder");
+        assert!(!opens_safely(&dir.join("run.command")), "a script");
+        assert!(!opens_safely(&dir.join("tool")), "a file without an extension may be a program");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         // Opens web addresses from notes in the browser, when clicked; the
-        // capability lets it open http and https addresses only.
+        // capability lets the window open http and https addresses only.
+        // Files are opened from Rust, by `open_file`, with its own rules.
         .plugin(tauri_plugin_opener::init())
         // The save and open dialogs of export and import, used from Rust only.
         .plugin(tauri_plugin_dialog::init())
@@ -216,6 +282,7 @@ pub fn run() {
             list_backups,
             back_up_now,
             show_backups,
+            open_file,
             save_text,
             save_bytes,
             open_text

@@ -6,8 +6,10 @@
 // checkboxes ([ ] and [x]), quotes (>), code blocks (```), rules (---), tables
 // (| a | b | over a |---|---| line), and
 // in a line: **bold**, *italic* or _italic_, `code`, [text](address), web
-// addresses written out, links to nodes, as [text](node:id) or [[Title]], and
-// links to the window's own panels, as [text](brock:tasks).
+// addresses written out, files and folders on this computer as file:///path,
+// written out or as [text](<file:///a path with spaces>), links to nodes, as
+// [text](node:id) or [[Title]], and links to the window's own panels, as
+// [text](brock:tasks).
 
 import { trimUrl } from "./urls.ts";
 
@@ -19,6 +21,8 @@ export type Inline =
 
 export type LinkTarget =
   | { kind: "web"; url: string }
+  /** A file or folder on this computer, as a file: address; opened only through the app's own rules. */
+  | { kind: "file"; url: string }
   /** A node by its id: stays right when the node is renamed. */
   | { kind: "node"; id: string }
   /** A node by its title, as typed in [[ ]]; found when drawn. */
@@ -156,11 +160,11 @@ function startsBlock(line: string): boolean {
 const INLINE = new RegExp(
   [
     /\[\[([^\]]+)\]\]/.source, // 1: [[Title]]
-    /\[([^\]]+)\]\(([^)\s]+)\)/.source, // 2, 3: [text](target)
-    /\*\*(.+?)\*\*/.source, // 4: bold
-    /\*(.+?)\*/.source, // 5: italic
-    /(?<![\p{L}\p{N}])_(.+?)_(?![\p{L}\p{N}])/u.source, // 6: italic, not inside words like snake_case
-    /(https?:\/\/[^\s<>"'`]+)/.source, // 7: an address written out
+    /\[([^\]]+)\]\((?:<([^<>]+)>|([^)\s]+))\)/.source, // 2, 3 or 4: [text](<target>) or [text](target)
+    /\*\*(.+?)\*\*/.source, // 5: bold
+    /\*(.+?)\*/.source, // 6: italic
+    /(?<![\p{L}\p{N}])_(.+?)_(?![\p{L}\p{N}])/u.source, // 7: italic, not inside words like snake_case
+    /((?:https?|file):\/\/[^\s<>"'`]+)/.source, // 8: an address written out
   ].join("|"),
   "gu",
 );
@@ -193,29 +197,44 @@ function spans(text: string): Inline[] {
       const title = m[1].trim();
       out.push({ kind: "link", to: { kind: "title", title }, children: [{ kind: "text", text: title }] });
     } else if (m[2] !== undefined) {
-      const to = target(m[3]);
+      const to = target((m[3] ?? m[4]).trim());
       if (to) out.push({ kind: "link", to, children: inline(m[2]) });
       else append(out, { kind: "text", text: m[0] });
-    } else if (m[4] !== undefined) out.push({ kind: "strong", children: inline(m[4]) });
-    else if (m[5] !== undefined || m[6] !== undefined) out.push({ kind: "em", children: inline(m[5] ?? m[6]) });
-    else if (m[7] !== undefined) {
+    } else if (m[5] !== undefined) out.push({ kind: "strong", children: inline(m[5]) });
+    else if (m[6] !== undefined || m[7] !== undefined) out.push({ kind: "em", children: inline(m[6] ?? m[7]) });
+    else if (m[8] !== undefined) {
       // Punctuation after an address is the sentence's: give it back.
-      const url = trimUrl(m[7]);
-      out.push({ kind: "link", to: { kind: "web", url }, children: [{ kind: "text", text: url }] });
-      at -= m[7].length - url.length;
+      const url = trimUrl(m[8]);
+      const to = target(url)!;
+      out.push({ kind: "link", to, children: [{ kind: "text", text: to.kind === "file" ? filePath(url) : url }] });
+      at -= m[8].length - url.length;
     }
   }
   append(out, { kind: "text", text: text.slice(at) });
   return out;
 }
 
-/** What a [text](target) leads to; null for anything but web addresses, nodes and the commands known. */
+/** What a [text](target) leads to; null for anything but web addresses, files, nodes and the commands known. */
 function target(raw: string): LinkTarget | null {
   if (/^https?:\/\//i.test(raw)) return { kind: "web", url: raw };
+  if (/^file:\/\/\S/i.test(raw)) return { kind: "file", url: raw };
   if (raw.startsWith("node:") && raw.length > 5) return { kind: "node", id: raw.slice(5) };
   const command = raw.match(/^brock:(\w+)$/i)?.[1].toLowerCase();
   if (command && isCommand(command)) return { kind: "command", command };
   return null;
+}
+
+/**
+ * The path a file: address names, to show in place of the address:
+ * file:///Users/me/My%20Designs is /Users/me/My Designs.
+ */
+export function filePath(url: string): string {
+  const path = url.replace(/^file:\/\/(localhost)?/i, "").replace(/^\/([A-Za-z]:)/, "$1");
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path; // A % that starts no escape: show it as written.
+  }
 }
 
 /** The text with the checkbox on `line` ticked or not. */
@@ -229,4 +248,19 @@ export function setChecked(text: string, line: number, checked: boolean): string
 export function nodeLink(title: string, id: string): string {
   const text = (title || "Untitled").replace(/[[\]]/g, "");
   return `[${text}](node:${id})`;
+}
+
+/**
+ * A link to a file or folder on this computer, to put in notes, named after
+ * it: /Users/me/The brief.pdf is [The brief.pdf](file:///Users/me/The%20brief.pdf).
+ * Windows paths have their backslashes turned. Spaces and brackets are
+ * escaped, so the address also reads back written out, without the link.
+ */
+export function fileLink(path: string): string {
+  const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
+  const name = (parts.at(-1) || path).replace(/[[\]]/g, "");
+  // A drive's colon (C:) stays as it is; everything else is escaped.
+  const escaped = parts.map((p, i) => (i === 0 && /^[A-Za-z]:$/.test(p) ? p : encodeURIComponent(p).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)));
+  const url = `file://${escaped[0] === "" ? "" : "/"}${escaped.join("/")}`;
+  return `[${name}](${url})`;
 }

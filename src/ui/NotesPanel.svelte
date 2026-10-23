@@ -3,20 +3,23 @@
   its colour and icon; its notes, drawn from their Markdown and
   edited as text on a click (saved as typed, undone a run of typing at a
   time); and the nodes it links to and those linking to it, each a way there.
-  Links in the notes go to nodes, open web addresses or the window's panels; ⌘L while writing puts
-  in a link to a node chosen as in search.
+  Links in the notes go to nodes, open web addresses, files or the window's panels; ⌘L while writing puts
+  in a link to a node chosen as in search. Files and folders dropped on it
+  from Finder or Explorer are linked in the notes, where the caret is while
+  writing or at the end.
 -->
 <script lang="ts">
   import { tick } from "svelte";
   import { PALETTE } from "../core/branches.ts";
-  import { nodeLink, parse, setChecked, type Command, type LinkTarget } from "../core/markdown.ts";
+  import { fileLink, nodeLink, parse, setChecked, type Command, type LinkTarget } from "../core/markdown.ts";
   import type { Node } from "../core/node.ts";
   import { findByTitle } from "../core/search.ts";
   import { PRIORITIES, setPriority } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
   import Markdown from "./Markdown.svelte";
-  import { openUrl } from "./open-url.ts";
+  import { watchFileDrops } from "./file-drop.ts";
+  import { openFile, openUrl, opensFiles } from "./open-url.ts";
   import Palette from "./Palette.svelte";
 
   let {
@@ -26,6 +29,7 @@
     onClose,
     onGoTo,
     onCommand,
+    onProblem,
     width,
   }: {
     live: Live;
@@ -36,6 +40,8 @@
     onGoTo: (id: string) => void;
     /** A brock: link in the notes was clicked. */
     onCommand: (command: Command) => void;
+    /** Something went wrong that the person should hear of, such as a linked file not being there. */
+    onProblem: (text: string) => void;
     width: number;
   } = $props();
 
@@ -89,6 +95,7 @@
 
   function follow(to: LinkTarget) {
     if (to.kind === "web") openUrl(to.url);
+    else if (to.kind === "file") openFile(to.url).catch((e) => onProblem(String(e)));
     else if (to.kind === "command") onCommand(to.command);
     else {
       const target = nodeOf(to);
@@ -120,6 +127,31 @@
     write(where.start + link.length);
   }
 
+  let panel = $state<HTMLElement>();
+  /** Files are being dragged over the panel. */
+  let dropping = $state(false);
+
+  $effect(() =>
+    watchFileDrops({
+      over: (under) => (dropping = !!under && !!panel?.contains(under)),
+      drop: (paths, under) => {
+        if (!node || !paths.length || !under || !panel?.contains(under)) return;
+        const links = paths.map(fileLink);
+        // Its own step to undo, not part of the typing around it.
+        if (writing && textarea) {
+          const { selectionStart: start, selectionEnd: end } = textarea;
+          const text = links.join("\n");
+          vault.update(nodeId, { body: node.body.slice(0, start) + text + node.body.slice(end) });
+          write(start + text.length);
+        } else {
+          const text = links.length > 1 ? links.map((l) => `- ${l}`).join("\n") : links[0];
+          const before = node.body.trimEnd();
+          vault.update(nodeId, { body: before ? `${before}\n\n${text}` : text });
+        }
+      },
+    }),
+  );
+
   /** Where a node is, for telling apart nodes of the same name. */
   function where(n: Node): string {
     const map = vault.mapOf(n.id);
@@ -127,7 +159,7 @@
   }
 </script>
 
-<aside aria-label="Notes" style:width="{width}px">
+<aside aria-label="Notes" style:width="{width}px" bind:this={panel} class:dropping>
   <div class="head">
     <h2>{node?.title || "Untitled"}</h2>
     <button class="close" onclick={onClose} title="Hide notes (⇧⌘N)" aria-label="Hide notes">›</button>
@@ -251,7 +283,7 @@
         {#if node.body.trim()}
           <Markdown
             {blocks}
-            found={(to) => to.kind === "web" || to.kind === "command" || nodeOf(to) !== null}
+            found={(to) => to.kind === "web" || to.kind === "command" || (to.kind === "file" && opensFiles()) || nodeOf(to) !== null}
             onLink={follow}
             onCheck={(line, checked) => save(setChecked(node!.body, line, checked))}
           />
@@ -322,6 +354,13 @@
     border-left: 1px solid var(--line);
     min-height: 0;
     overflow-y: auto;
+  }
+
+  /* Files dragged over the panel: they will be linked in the notes. */
+  aside.dropping {
+    background: var(--accent-soft);
+    outline: 2px dashed var(--accent);
+    outline-offset: -4px;
   }
 
   .head {

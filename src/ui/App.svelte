@@ -567,6 +567,7 @@
         onClose={() => (notesOpen = false)}
         onGoTo={goTo}
         onCommand={run}
+        onProblem={(text) => tell(text, true)}
         width={notesWidth}
       />
       <Resizer width={notesWidth} edge="right" onResize={(w) => (notesWidth = w)} onClose={() => (notesOpen = false)} />

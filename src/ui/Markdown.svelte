@@ -5,7 +5,7 @@
   not there is drawn struck through.
 -->
 <script lang="ts">
-  import { COMMANDS, type Block, type Inline, type LinkTarget } from "../core/markdown.ts";
+  import { COMMANDS, filePath, type Block, type Inline, type LinkTarget } from "../core/markdown.ts";
 
   let {
     blocks,
@@ -24,6 +24,7 @@
   function describe(to: LinkTarget): string {
     if (to.kind === "web") return `Open ${to.url} in the browser`;
     if (to.kind === "command") return COMMANDS[to.command];
+    if (to.kind === "file") return found(to) ? `Open ${filePath(to.url)}` : "Files open in the app, not in a browser";
     if (!found(to)) return to.kind === "title" ? `No node is called “${to.title}”` : "That node is gone";
     return "Go there";
   }
@@ -240,6 +241,11 @@
     color: var(--muted);
     text-decoration: line-through;
     cursor: default;
+  }
+
+  /* A file in a browser, which cannot open it: it may well be there. */
+  .link.file.missing {
+    text-decoration: none;
   }
 
   .arrow {

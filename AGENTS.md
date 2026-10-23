@@ -87,7 +87,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/theme.ts` | Light, dark or as the system, kept in the window's storage |
 | `src/ui/system-clipboard.ts` | The system's clipboard as text: Tauri's plugin in the app, the browser's elsewhere |
 | `src/ui/PriorityBadge.svelte` | A priority, 1 to 5, as a numbered circle |
-| `src/ui/open-url.ts` | Opens a web address in the browser, never in the app |
+| `src/ui/open-url.ts` | Opens a web address in the browser, never in the app; a linked file through Rust's rules |
+| `src/ui/file-drop.ts` | Files and folders dragged onto the window, with their paths, in the app only |
 | `src/ui/keys.ts` | Whether a key is typing, which the views leave alone |
 | `src/ui/OutlineView.svelte` | The same map as an indented list |
 | `src/ui/NotesPanel.svelte` | The selected node's notes, read or written, its links and the nodes linking to it |
@@ -162,7 +163,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   A link to a deleted node is kept and ignored until the node comes back.
 - **Notes are never HTML.** `markdown.ts` reads them into a structure and
   `Markdown.svelte` draws it with ordinary elements; nothing uses `{@html}`.
-  Only http, https, `node:` and `brock:` links become links; anything else
+  Only http, https, `file:`, `node:` and `brock:` links become links; anything else
   stays text. A `brock:` link names one of `COMMANDS` in `markdown.ts` and
   only opens a panel or dialog (`run` in `App.svelte`); keep it to things
   that change nothing, as a link in a pasted note is clicked without thought.
@@ -179,7 +180,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   in `src-tauri/capabilities/default.json` lets the opener open http and
   https addresses and nothing else. The README promises that nothing leaves
   the computer otherwise; anything new that reaches the network has to be
-  said there.
+  said there. Files linked from notes are opened by Rust (`open_file` in
+  `lib.rs`), never by the window: only folders and the documents in
+  `DOCUMENTS` open, and anything else is shown in Finder or Explorer, as it
+  might be a program. Keep that list to things that do not run.
 - **The window never names a file.** Export and import open the system's
   dialogs from Rust (`save_text`, `open_text` in `lib.rs`), which writes or
   reads the file chosen; the window hands over text and gets text back. Keep
