@@ -453,7 +453,6 @@
   }
 
   .source-toggle {
-    margin-left: auto;
     padding: 0.1rem 0.4rem;
     font-size: 0.8rem;
     color: var(--muted);
@@ -490,6 +489,8 @@
     background: linear-gradient(135deg, transparent 45%, var(--muted) 45% 55%, transparent 55%);
   }
 
+  /* Kept at the right, beside M↓, also on the centre, which has no
+     swatches to take the room. */
   .icon-button {
     margin-left: auto;
     min-width: 30px;

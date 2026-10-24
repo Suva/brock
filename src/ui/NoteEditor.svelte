@@ -193,8 +193,10 @@
     border-color: var(--line);
   }
 
+  /* The one sign that the notes have the focus: the box, in a softer
+     accent, rather than the accent's full strength. */
   .editor:focus-within {
-    border-color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   }
 
   .editor :global(.cm-editor) {
@@ -204,7 +206,11 @@
     color: inherit;
   }
 
-  .editor :global(.cm-editor.cm-focused) {
+  /* WebKit rings the editable text itself, a second box inside the first,
+     only as tall as the text. */
+  .editor :global(.cm-editor.cm-focused),
+  .editor :global(.cm-content:focus),
+  .editor :global(.cm-content:focus-visible) {
     outline: none;
   }
 

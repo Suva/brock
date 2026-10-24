@@ -11,6 +11,8 @@ and appear there once they are.
   are at its right, and the menus are under ☰ at its left: rest the pointer
   on File, Edit, Node, View or Help to open it, or press Alt or F10 to open
   the menu from the keyboard.
+- The notes show they are being written with one quiet border, in place of
+  two bright boxes one inside the other.
 
 ## 0.5.0 — 23 October 2026
 
