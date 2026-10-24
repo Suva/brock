@@ -97,7 +97,9 @@ the arrow keys, then:
 In the outline every row is a text field, and ⌥ with the arrows edits text as
 anywhere else. Rows move with ⌃⌘ and the arrows instead (Alt and the arrows on
 Windows and Linux): ↑ and ↓ among their siblings, → in under the row above,
-← out beside the parent, as ⇧Tab also does.
+← out beside the parent, as ⇧Tab also does. Or drag a row by the ⠿ at its
+left: onto another row to put it under that one, or between two to put it
+there.
 
 Several nodes can be chosen at once: ⌘-click, Shift-click, Shift with the
 arrows, ⌘A, or Shift and a drag on the background to draw a box. Deleting,

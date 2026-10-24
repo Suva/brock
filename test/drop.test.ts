@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dropAt } from "../src/core/drop.ts";
+import { dropAt, outlineDropAt, type Row } from "../src/core/drop.ts";
 import { layoutMap, type Layout } from "../src/core/layout.ts";
 import { place } from "../src/core/moves.ts";
 import { Vault } from "../src/core/vault.ts";
@@ -98,4 +98,74 @@ test("a dropped node goes into a folded node, which opens", () => {
   assert.equal(vault.get(a.id)!.collapsed, false);
   assert.deepEqual(titles(vault, a.id), ["deep", "r2"]);
   assert.ok(c);
+});
+
+/** The map's rows as the outline draws them, each 20 high, the centre first. */
+function rows(vault: Vault): Row[] {
+  const out: Row[] = [];
+  const walk = (id: string) => {
+    const node = vault.get(id)!;
+    out.push({ id, parentId: node.parentId, top: out.length * 20, height: 20, open: true });
+    for (const child of vault.children(id)) walk(child.id);
+  };
+  walk(vault.rootId);
+  return out;
+}
+const at = (list: Row[], id: string, part: number) => {
+  const row = list.find((r) => r.id === id)!;
+  return row.top + row.height * part;
+};
+
+test("in the outline, a row dropped on the middle of another goes under it, last", () => {
+  const { vault, r2, a } = map();
+  const list = rows(vault);
+  const drop = outlineDropAt(vault, list, a.id, at(list, r2.id, 0.5))!;
+  assert.deepEqual([drop.parentId, drop.index, drop.onto], [r2.id, 0, r2.id]);
+  assert.equal(place(vault, a.id, drop, vault.rootId), true);
+  assert.deepEqual(titles(vault, r2.id), ["a"]);
+  assert.deepEqual(titles(vault, a.id), ["deep"]);
+});
+
+test("in the outline, a row dropped on the top or bottom of another goes before or after it", () => {
+  const { vault, r1, b, c } = map();
+  const list = rows(vault);
+  const before = outlineDropAt(vault, list, c.id, at(list, b.id, 0.1))!;
+  assert.deepEqual([before.parentId, before.index, before.beside], [r1.id, 1, { id: b.id, after: false }]);
+  place(vault, c.id, before, vault.rootId);
+  assert.deepEqual(titles(vault, r1.id), ["a", "c", "b"]);
+});
+
+test("in the outline, the bottom of a row with children shown puts it first under that row", () => {
+  const { vault, a, c, deep } = map();
+  const list = rows(vault);
+  const drop = outlineDropAt(vault, list, c.id, at(list, a.id, 0.9))!;
+  assert.deepEqual([drop.parentId, drop.index], [a.id, 0]);
+  place(vault, c.id, drop, vault.rootId);
+  assert.deepEqual(vault.children(a.id).map((n) => n.id), [c.id, deep.id]);
+});
+
+test("in the outline, a row cannot go into itself or under itself", () => {
+  const { vault, a, deep } = map();
+  const list = rows(vault);
+  assert.equal(outlineDropAt(vault, list, a.id, at(list, a.id, 0.5)), null);
+  assert.equal(outlineDropAt(vault, list, a.id, at(list, deep.id, 0.5)), null);
+});
+
+test("in the outline, a row beside a branch of the centre takes that branch's side", () => {
+  const { vault, l1, c } = map();
+  const list = rows(vault);
+  const drop = outlineDropAt(vault, list, c.id, at(list, l1.id, 0.1))!;
+  assert.equal(drop.side, "left");
+  place(vault, c.id, drop, vault.rootId);
+  assert.equal(vault.get(c.id)!.side, "left");
+});
+
+test("in the outline, a row dropped on the centre keeps the other branches' sides", () => {
+  const { vault, r1, l1, r2, deep } = map();
+  const list = rows(vault);
+  const drop = outlineDropAt(vault, list, deep.id, at(list, vault.rootId, 0.9))!;
+  assert.equal(drop.parentId, vault.rootId);
+  place(vault, deep.id, drop, vault.rootId);
+  assert.deepEqual([r1, l1, r2].map((n) => vault.get(n.id)!.side), ["right", "left", "right"]);
+  assert.notEqual(vault.get(deep.id)!.side, null);
 });

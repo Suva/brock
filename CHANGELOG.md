@@ -11,6 +11,9 @@ and appear there once they are.
   are at its right, and the menus are under ☰ at its left: rest the pointer
   on File, Edit, Node, View or Help to open it, or press Alt or F10 to open
   the menu from the keyboard.
+- **Drag rows in the outline.** Hold the ⠿ at the left of a row and drag it
+  onto another row to put it under that one, or between two to put it
+  there. Escape leaves it where it was.
 - The notes show they are being written with one quiet border, in place of
   two bright boxes one inside the other.
 

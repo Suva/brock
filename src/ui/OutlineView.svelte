@@ -7,7 +7,8 @@
   import { branchBeside, newBranch } from "../core/branches.ts";
   import { doneToHide, setPriority } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
-  import { indent, outdent, reorder } from "../core/moves.ts";
+  import { indent, outdent, place, reorder } from "../core/moves.ts";
+  import { outlineDropAt, type Drop, type Row } from "../core/drop.ts";
   import type { Node } from "../core/node.ts";
   import { typingIn } from "./keys.ts";
   import type { Live } from "./live.svelte.ts";
@@ -156,9 +157,87 @@
     focusNode(selected ?? mapId);
   });
 
+  /** Movement under this, in pixels, is a click on the handle, not a drag. */
+  const DRAG_START_PX = 3;
+  /** How near the top or bottom of the list a drag scrolls it along. */
+  const EDGE_PX = 40;
+
+  let scroller: HTMLDivElement;
+  /** A row being dragged by its handle, and where it would land. */
+  let dragging = $state<{ id: string; x: number; y: number; moved: boolean; drop: Drop | null } | null>(null);
+
+  /** The rows as drawn now, read off the page. */
+  function drawnRows(): Row[] {
+    return [...scroller.querySelectorAll<HTMLElement>(".row")].map((el) => {
+      const box = el.getBoundingClientRect();
+      return {
+        id: el.dataset.id!,
+        parentId: el.dataset.parent || null,
+        top: box.top,
+        height: box.height,
+        open: el.dataset.open === "true",
+      };
+    });
+  }
+
+  function grab(e: PointerEvent, node: Node) {
+    if (e.button !== 0) return;
+    // Keeps the focus, and the text, where they are.
+    e.preventDefault();
+    dragging = { id: node.id, x: e.clientX, y: e.clientY, moved: false, drop: null };
+  }
+
+  function drag(e: PointerEvent) {
+    if (!dragging) return;
+    if (!dragging.moved) {
+      if (Math.hypot(e.clientX - dragging.x, e.clientY - dragging.y) < DRAG_START_PX) return;
+      dragging.moved = true;
+    }
+    const box = scroller.getBoundingClientRect();
+    if (e.clientY < box.top + EDGE_PX) scroller.scrollTop -= 12;
+    else if (e.clientY > box.bottom - EDGE_PX) scroller.scrollTop += 12;
+    dragging.drop = outlineDropAt(vault, drawnRows(), dragging.id, e.clientY);
+  }
+
+  function letGo() {
+    const d = dragging;
+    dragging = null;
+    if (!d) return;
+    if (d.moved && d.drop) place(vault, d.id, d.drop, mapId);
+    selected = d.id;
+    focusNode(d.id);
+  }
+
+  /** The rows that show where the dragged one would land, and how. */
+  const target = $derived.by(() => {
+    const drop = dragging?.drop;
+    if (!drop) return { onto: null, before: null, after: null, under: false };
+    return {
+      onto: drop.onto,
+      // After a row, first under it: the line is indented one step more.
+      under: drop.beside?.id === drop.parentId,
+      before: drop.beside && !drop.beside.after ? drop.beside.id : null,
+      after: drop.beside?.after ? drop.beside.id : null,
+    };
+  });
+
+  /** Whether `id` is the dragged row or under it, drawn faded. */
+  function inDragged(id: string, _version: number): boolean {
+    if (!dragging?.moved) return false;
+    return id === dragging.id || vault.ancestors(id).some((n) => n.id === dragging!.id);
+  }
+
   // Keys pressed with the focus elsewhere, after a click on a button say,
   // bring it back to the selected row rather than moving it around the window.
   function onWindowKey(e: KeyboardEvent) {
+    if (dragging && e.key === "Escape") {
+      // Leaves the row where it was.
+      e.preventDefault();
+      const id = dragging.id;
+      dragging = null;
+      focusNode(id);
+      return;
+    }
     if (e.defaultPrevented || typingIn(e.target) || e.metaKey || e.ctrlKey) return;
     if (!["Tab", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
     e.preventDefault();
@@ -166,9 +245,15 @@
   }
 </script>
 
-<svelte:window onkeydown={onWindowKey} />
+<!-- The whole window, as a quick drag leaves the handle at once. -->
+<svelte:window
+  onkeydown={onWindowKey}
+  onpointermove={drag}
+  onpointerup={letGo}
+  onpointercancel={() => (dragging = null)}
+/>
 
-<div class="scroll">
+<div class="scroll" class:dragging={dragging?.moved} bind:this={scroller}>
   <ul class="outline">
     {@render row(centre, 0)}
   </ul>
@@ -177,8 +262,31 @@
 {#snippet row(node: Node, depth: number)}
   {@const isCentre = node.id === mapId}
   {@const portal = node.isMap && !isCentre}
-  <li>
-    <div class="row" class:centre={isCentre} class:portal style:padding-left="{depth * 22}px">
+  <li class:moving={inDragged(node.id, live.version)}>
+    <div
+      class="row"
+      class:centre={isCentre}
+      class:portal
+      class:onto={target.onto === node.id}
+      class:before={target.before === node.id}
+      class:after={target.after === node.id}
+      class:under={target.after === node.id && target.under}
+      data-id={node.id}
+      data-parent={node.parentId ?? ""}
+      data-open={!portal}
+      style:--indent="{depth * 22}px"
+    >
+      {#if isCentre}
+        <span class="grip-room"></span>
+      {:else}
+        <!-- Dragged, never focused: the keys stay with the row's title. -->
+        <span
+          class="grip"
+          role="presentation"
+          title={mac ? "Drag to move, or ⌃⌘ and the arrows" : "Drag to move, or Alt and the arrows"}
+          onpointerdown={(e) => grab(e, node)}
+        >⠿</span>
+      {/if}
       {#if node.task}
         <input
           type="checkbox"
@@ -233,9 +341,76 @@
   }
 
   .row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    padding-left: var(--indent);
+    border-radius: 6px;
+  }
+
+  /* The handle a row is dragged by, shown where the pointer is. */
+  .grip,
+  .grip-room {
+    flex: none;
+    width: 1rem;
+    margin-right: -0.3rem;
+    text-align: center;
+  }
+
+  .grip {
+    color: var(--muted);
+    cursor: grab;
+    opacity: 0;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .row:hover .grip,
+  .row:focus-within .grip {
+    opacity: 1;
+  }
+
+  .scroll.dragging,
+  .scroll.dragging * {
+    cursor: grabbing;
+  }
+
+  .scroll.dragging .grip {
+    opacity: 0;
+  }
+
+  li.moving {
+    opacity: 0.4;
+  }
+
+  .row.onto {
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+
+  /* A line where the row will go, from where its title would start. */
+  .row.before::after,
+  .row.after::after {
+    content: "";
+    position: absolute;
+    left: calc(var(--indent) + 1rem);
+    width: min(28rem, calc(100% - var(--indent) - 1rem));
+    height: 2px;
+    border-radius: 1px;
+    background: var(--accent);
+  }
+
+  .row.before::after {
+    top: -1px;
+  }
+
+  .row.after::after {
+    bottom: -1px;
+  }
+
+  .row.after.under::after {
+    left: calc(var(--indent) + 22px + 1rem);
   }
 
   .icon,

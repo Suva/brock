@@ -55,7 +55,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/search.ts` | Searching titles and notes, in memory, and ranking what is found |
 | `src/core/usage.ts` | What search learns from use: nodes gone to often, and the one chosen for a query |
 | `src/core/overview.ts` | The vault's maps as a tree, with what each holds |
-| `src/core/drop.ts` | Where a node dragged on a map would land |
+| `src/core/drop.ts` | Where a node dragged on a map, or a row in the outline, would land |
 | `src/core/urls.ts` | Web addresses in text, and trimming the sentence off them |
 | `src/core/markdown.ts` | Notes' Markdown read into blocks and spans, never HTML |
 | `src/core/exchange.ts` | Export to JSON, Markdown and OPML; reading OPML and JSON back in |

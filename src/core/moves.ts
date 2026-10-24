@@ -136,6 +136,9 @@ export function place(vault: Vault, id: string, to: Place, centreId: string): bo
     if (to.parentId === centreId) {
       const fields: { side?: Side; color?: string } = {};
       if (to.side) fields.side = to.side;
+      // Dropped on the centre in the outline, which has no sides: the side a
+      // new branch would take, so the map does not rebalance the others.
+      else if (node.parentId !== centreId) fields.side = newBranch(others).side!;
       if (!node.color) fields.color = newBranch(others).color!;
       vault.update(id, fields);
     }
