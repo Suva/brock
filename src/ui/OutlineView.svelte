@@ -72,13 +72,15 @@
   const mac = navigator.platform.startsWith("Mac");
 
   /**
-   * The keys held to move a row with the arrows. Every row is a text field,
-   * and the keys text editing uses stay with it: on a Mac ⌥ with the arrows
-   * jumps by word, so moves take ⌃⌘; elsewhere Ctrl jumps by word and Alt
-   * is free.
+   * The keys held to move a row with the arrows: ⌥ (Alt), as on the map. On
+   * a Mac that takes ⌥← and ⌥→ from the titles, which jump by word with
+   * them; titles are short, and ⌥⇧ still selects by word, as Shift is left
+   * to the text. ⌃⌘, which moved rows on a Mac before, still does.
    */
   function moveKeys(e: KeyboardEvent): boolean {
-    return mac ? e.ctrlKey && e.metaKey && !e.altKey : e.altKey && !e.ctrlKey && !e.metaKey;
+    if (e.shiftKey) return false;
+    const alt = e.altKey && !e.ctrlKey && !e.metaKey;
+    return alt || (mac && e.ctrlKey && e.metaKey && !e.altKey);
   }
 
   function onKey(event: KeyboardEvent, node: Node) {
@@ -141,7 +143,7 @@
       vault.delete(node.id);
       previous?.focus();
     } else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && !event.altKey && !event.shiftKey && !mod) {
-      // With ⌥ or Shift held they stay with the text: to the start or end, or selecting.
+      // With Shift held they stay with the text, selecting.
       event.preventDefault();
       const list = rows();
       const i = list.indexOf(event.currentTarget as HTMLInputElement);
@@ -283,7 +285,7 @@
         <span
           class="grip"
           role="presentation"
-          title={mac ? "Drag to move, or ⌃⌘ and the arrows" : "Drag to move, or Alt and the arrows"}
+          title={mac ? "Drag to move, or ⌥ and the arrows" : "Drag to move, or Alt and the arrows"}
           onpointerdown={(e) => grab(e, node)}
         >⠿</span>
       {/if}

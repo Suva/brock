@@ -94,10 +94,10 @@ the arrow keys, then:
 | ⇧⌘N | Shows the selected node's notes |
 | ⌘Z, ⇧⌘Z | Undo, redo |
 
-In the outline every row is a text field, and ⌥ with the arrows edits text as
-anywhere else. Rows move with ⌃⌘ and the arrows instead (Alt and the arrows on
-Windows and Linux): ↑ and ↓ among their siblings, → in under the row above,
-← out beside the parent, as ⇧Tab also does. Or drag a row by the ⠿ at its
+In the outline every row is a text field. Rows move with ⌥ and the arrows, as
+on the map: ↑ and ↓ among their siblings, → in under the row above, ← out
+beside the parent, as ⇧Tab also does. So in a title ⌥← and ⌥→ do not jump by
+word there; ⌥⇧ with them still selects by word. Or drag a row by the ⠿ at its
 left: onto another row to put it under that one, or between two to put it
 there.
 

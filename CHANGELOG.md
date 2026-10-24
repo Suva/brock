@@ -14,6 +14,9 @@ and appear there once they are.
 - **Drag rows in the outline.** Hold the ⠿ at the left of a row and drag it
   onto another row to put it under that one, or between two to put it
   there. Escape leaves it where it was.
+- In the outline on a Mac, **⌥ and the arrows move rows**, as they move
+  nodes on the map. Inside a title they no longer jump by word; ⌃⌘ and the
+  arrows still move rows too.
 - The notes show they are being written with one quiet border, in place of
   two bright boxes one inside the other.
 
