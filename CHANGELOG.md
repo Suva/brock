@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+## 0.6.0 — 24 October 2026
+
 - **On Windows the header is the title bar.** Minimise, maximise and close
   are at its right, and the menus are under ☰ at its left: rest the pointer
   on File, Edit, Node, View or Help to open it, or press Alt or F10 to open
