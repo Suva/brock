@@ -78,6 +78,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/files.ts` | Saving and opening files for export and import: native dialogs in the app, downloads in a browser |
 | `src/ui/TasksList.svelte` | The sidebar's Tasks tab: the open map's or all maps' tasks, the done ones by when they were done |
 | `src/ui/MoreMenu.svelte` | The ⋯ menu: export, import, trash, settings |
+| `src/ui/chrome.ts` | Whether the app draws its own title bar: on Windows |
+| `src/ui/AppMenu.svelte` | The ☰ menu on Windows: the menu bar's menus, opening to the side on hover |
+| `src/ui/menu-items.ts` | The menu bar's commands as the ☰ menu's items |
+| `src/ui/WindowButtons.svelte` | Minimise, maximise and close, drawn in the header on Windows |
 | `src/ui/TrashDialog.svelte` | The trash: restoring, emptying for good |
 | `src/ui/Settings.svelte` | Settings (⌘,): appearance, pictures, updates, the daily copies |
 | `src/ui/updates.ts` | The app's own updates: looking for one quietly, installing it and starting again; whether to look, kept in the window's storage |
@@ -221,8 +225,13 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   header's middle, and the header leaves room for them (`.mac-titlebar` in
   `App.svelte`) except in full screen. The header moves the window
   (`data-tauri-drag-region="deep"`); its buttons stay buttons. Change the
-  header's height and the buttons' position has to follow. Windows and
-  Linux keep their own title bars.
+  header's height and the buttons' position has to follow. On Windows the
+  window has no title bar either (`decorations: false` in
+  `tauri.windows.conf.json`): the header draws minimise, maximise and close
+  at its right (`WindowButtons.svelte`), and there is no native menu bar, so
+  its menus are under ☰ at the header's left (`AppMenu.svelte`, opened by
+  Alt or F10 too). `customTitleBar` in `chrome.ts` says which. Linux keeps
+  its own title bar and menu bar.
 - **Number keys are matched by `e.code`, not `e.key`.** ⌘1 to ⌘5 and ⌥⌘1
   look at the key's place (`Digit1`): where digits need Shift, as in French
   layouts, and with ⌥ on a Mac, `e.key` is another character.
@@ -248,7 +257,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
   alone. Give every new dialog that role.
-- **A new command goes in the menu bar too** (`app-menu.ts`), with its key.
+- **A new command goes in the menu bar too** (`app-menu.ts`), with its key,
+  and in Windows' ☰ menu (`menu-items.ts`), which lists the same commands.
   Keys reach the page before the menu, so a menu item takes a key only
   where the page never needs it for text (not Tab, Enter, Space or the
   arrows); those items name their key in their text, and run by sending

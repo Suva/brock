@@ -8,6 +8,7 @@ import { Saver } from "../store/saver.ts";
 import type { Store } from "../store/store.ts";
 import { inTauri, TauriStore } from "../store/tauri-store.ts";
 import { Live } from "./live.svelte.ts";
+import { customTitleBar } from "./chrome.ts";
 import { savedSession, saveSession } from "./session.ts";
 import { welcome } from "./tour.ts";
 import { applyTheme, savedTheme } from "./theme.ts";
@@ -66,6 +67,7 @@ async function demoStore(): Promise<Store> {
  * where macOS hides them.
  */
 function fitTitleBar() {
+  if (inTauri() && customTitleBar()) document.documentElement.classList.add("custom-titlebar");
   if (!inTauri() || !navigator.platform.startsWith("Mac")) return;
   const root = document.documentElement;
   root.classList.add("mac-titlebar");

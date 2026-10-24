@@ -1,0 +1,15 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "Brock",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 480,
+        "minHeight": 360,
+        "decorations": false,
+        "visible": false
+      }
+    ]
+  }
+}

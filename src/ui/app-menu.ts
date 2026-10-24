@@ -58,13 +58,13 @@ let handledAt = -Infinity;
 const fresh = () => performance.now() - handledAt > 250;
 
 /** Sends a key to what has the focus, as a menu command about nodes. */
-function press(init: KeyboardEventInit) {
+export function press(init: KeyboardEventInit) {
   const target = document.activeElement ?? document.body;
   target.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
 }
 
 /** The platform's command key with another: ⌘ on a Mac, Ctrl elsewhere. */
-const cmd = (init: KeyboardEventInit = {}): KeyboardEventInit => (mac() ? { metaKey: true, ...init } : { ctrlKey: true, ...init });
+export const cmd =(init: KeyboardEventInit = {}): KeyboardEventInit => (mac() ? { metaKey: true, ...init } : { ctrlKey: true, ...init });
 
 /** Puts the menu bar in place, in the app only; returns a way to keep its check marks right. */
 export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {

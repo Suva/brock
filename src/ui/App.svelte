@@ -8,7 +8,12 @@
   import { clearBackground, toCanvas, toPNG } from "./picture.ts";
   import { writePicture } from "./system-clipboard.ts";
   import MapView, { pictureOfMap } from "./MapView.svelte";
-  import { installMenu, type MenuChecks } from "./app-menu.ts";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { installMenu, type MenuActions, type MenuChecks } from "./app-menu.ts";
+  import { customTitleBar } from "./chrome.ts";
+  import { menuItems } from "./menu-items.ts";
+  import AppMenu from "./AppMenu.svelte";
+  import WindowButtons from "./WindowButtons.svelte";
   import { removeTour, showTour } from "./tour.ts";
   import type { Command } from "../core/markdown.ts";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
@@ -346,8 +351,9 @@
 
   // The menu bar, in the app: every command, with its key.
   let menuChecks = $state<MenuChecks | null>(null);
-  onMount(() => {
-    installMenu({
+  /** Where the window has no title bar of its own, the header has the window's buttons and the menu bar's menus (chrome.ts). */
+  const ownTitleBar = customTitleBar();
+  const menuActions: MenuActions = {
       settings: () => (settingsOpen = true),
       importFile,
       exportMap,
@@ -376,10 +382,17 @@
       showTour: openTour,
       removeTour: dropTour,
       checkForUpdates,
-    })
+  };
+  onMount(() => {
+    if (ownTitleBar) return;
+    installMenu(menuActions)
       .then((checks) => (menuChecks = checks))
       .catch((error) => console.error("The menu bar could not be made:", error));
   });
+  const quit = () => void getCurrentWindow().close();
+  const appMenuItems = $derived(
+    menuItems(menuActions, { view, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone }, quit),
+  );
   $effect(() => {
     menuChecks?.view(view);
     menuChecks?.sidebar(sidebarOpen);
@@ -445,6 +458,8 @@
        On a Mac the header is the title bar: it moves the window, its buttons apart. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header data-tauri-drag-region="deep" onmousedown={(e) => (e.target as Element).closest("button") && e.preventDefault()}>
+    <!-- The menu bar's menus, at the far left as in other Windows apps, where the header is the title bar. -->
+    {#if ownTitleBar}<AppMenu items={appMenuItems} />{/if}
     <div class="history">
       <button onclick={() => step("back")} disabled={!canGoBack} title="Back (⌘←)" aria-label="Back">‹</button>
       <button onclick={() => step("forward")} disabled={!canGoForward} title="Forward (⌘→)" aria-label="Forward">›</button>
@@ -508,6 +523,7 @@
         {/if}
       </div>
     </div>
+    {#if ownTitleBar}<WindowButtons />{/if}
   </header>
 
   <div class="body">
@@ -641,6 +657,13 @@
   :global(.mac-titlebar) header {
     min-height: 46px;
     padding-left: 96px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Without a title bar of its own, the header is it: the window's buttons at its right. */
+  :global(.custom-titlebar) header {
+    min-height: 40px;
     user-select: none;
     -webkit-user-select: none;
   }
