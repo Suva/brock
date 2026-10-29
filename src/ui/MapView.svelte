@@ -347,6 +347,19 @@
     });
   });
 
+  // The camera counts from the view's left edge, which moves when the sidebar
+  // opens, closes or is dragged: the map is moved back so it stays where it
+  // was on the screen. The effect below then glides it clear if that covers
+  // the selected node, as it does for the notes panel on the right.
+  let viewLeft: number | null = null;
+  $effect(() => {
+    if (width === 0) return;
+    const left = viewport.getBoundingClientRect().left;
+    const moved = viewLeft === null ? 0 : left - viewLeft;
+    viewLeft = left;
+    if (moved !== 0) untrack(() => (camera = { ...camera, x: camera.x - moved }));
+  });
+
   /** A map opened to add a node in it; the node is added once the map is open. */
   let addOnOpen: { mapId: string; from: string; fromMap: string } | null = null;
   $effect(() => {
@@ -1014,7 +1027,9 @@
    * "before" events, cancelled, tell the system the commands can run here.
    */
   function onClipboard(e: ClipboardEvent) {
-    if (editing !== null || moving || typingIn(e.target)) return;
+    // The focus is checked too: the app's webview may name the window, not the
+    // notes' editor, as the target, and the notes' own paste must stay theirs.
+    if (editing !== null || moving || typingIn(e.target) || typingIn(document.activeElement)) return;
     // Text selected on the page, in the notes say, is copied as text.
     if (e.type !== "paste" && e.type !== "beforepaste" && !(window.getSelection()?.isCollapsed ?? true)) return;
     e.preventDefault();
@@ -1042,7 +1057,7 @@
       e.preventDefault();
       return;
     }
-    if (editing !== null || e.defaultPrevented || typingIn(e.target)) return;
+    if (editing !== null || e.defaultPrevented || typingIn(e.target) || typingIn(document.activeElement)) return;
     const id = selected ?? mapId;
     const node = vault.get(id);
     if (!node) return;
