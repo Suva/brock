@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+## 0.6.1 — 29 October 2026
+
 - Opening or closing the sidebar no longer shifts the map sideways; it stays where it is, and moves only if the sidebar would cover the selected node.
 - Pasting text into a note no longer also adds it as a new node on the map.
 

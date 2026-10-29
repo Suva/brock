@@ -1,6 +1,6 @@
 [package]
 name = "brock"
-version = "0.6.0"
+version = "0.6.1"
 description = "Brock: mind maps of maps inside maps, saved as you go"
 authors = ["Jaan Pullerits"]
 license = "GPL-3.0-or-later"
