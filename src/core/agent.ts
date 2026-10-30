@@ -19,7 +19,7 @@ import { fromText, importInto, type Outline } from "./exchange.ts";
 import { search } from "./search.ts";
 import { flagLabel, flagName, rank } from "./attention.ts";
 import type { Flag, Node } from "./node.ts";
-import type { Vault } from "./vault.ts";
+import { canAddChild, type Vault } from "./vault.ts";
 
 export type TaskState = "open" | "done" | "none";
 
@@ -369,11 +369,15 @@ const plain = (o: Outline): Outline => ({
 function addNodes(vault: Vault, shared: Shared, writable: Shared, { parent, outline }: { parent: string; outline: string }): AgentReply {
   const map = editable(vault, shared, writable, parent);
   if (typeof map === "string") return fail(map);
+  if (!canAddChild(vault.get(parent)!)) return fail("That node has no title yet. Give it one with update_node before adding nodes under it.");
   if (outline.length > MAX_CHARS) return fail("That outline is too long.");
   const outlines = fromText(outline).map(plain);
   const count = countOf(outlines);
   if (count === 0) return fail("The outline is empty. Give one node a line, indented under the node it belongs to.");
   if (count > MAX_NODES) return fail(`That is ${count} nodes; add at most ${MAX_NODES} at a time.`);
+  if (outlines.some(function untitled(o: Outline): boolean { return o.title.trim() === "" || o.children.some(untitled); })) {
+    return fail("Every node needs a title: a line with a bullet and nothing after it is not a node.");
+  }
   if (outlines.some(function tooLong(o: Outline): boolean { return o.title.length > MAX_TITLE || o.children.some(tooLong); })) {
     return fail(`A title is longer than ${MAX_TITLE} characters; put the rest in the notes.`);
   }

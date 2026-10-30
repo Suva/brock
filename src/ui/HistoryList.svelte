@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
   import { untrack } from "svelte";
-  import { aboutNode, describe, reversible, revertStep, stepsOf, type Step } from "../core/activity.ts";
+  import { aboutNode, describe, isNoise, reversible, revertStep, stepsOf, type Step } from "../core/activity.ts";
   import type { Live } from "./live.svelte.ts";
 
   let { live, onGoTo, onTell }: { live: Live; onGoTo: (id: string) => void; onTell: (text: string) => void } = $props();
@@ -22,7 +22,7 @@
   let only = $state<"all" | "agent">("all");
 
   const vault = $derived(live.vault);
-  const shown = $derived(steps.filter((s) => only === "all" || s.source !== "user").slice(0, SHOWN));
+  const shown = $derived(steps.filter((s) => !isNoise(s) && (only === "all" || s.source !== "user")).slice(0, SHOWN));
 
   // Read again when the vault changes, a moment after the last change.
   let timer: ReturnType<typeof setTimeout> | undefined;

@@ -65,8 +65,9 @@ the arrow keys, then:
 | Shift+Enter | A new node before this one |
 | Typing, Space or F2 | Edits the title; typing replaces it, Space and F2 keep it. On a task, Space ticks it instead |
 | ⌘T | Makes the node a task, with a checkbox, or an ordinary node again |
-| Enter or Escape while editing | Finishes editing; Tab adds a node under it |
+| Enter or Escape while editing | Finishes editing; Tab adds a node under it, but not under one with no title yet |
 | Escape on a new node left empty | Takes it away again and goes back to the node you started from |
+| (moving on from an untitled node) | A node with no title and nothing else (no notes, no nodes under it, no icon, not a map) is deleted once you move on from it, so empty ones never pile up |
 | ← → | Moves to the parent, or the child level with the node |
 | ↑ ↓ | Moves to the sibling above or below, then on to the same level of the next branch |
 | ⌘-click, Shift-click | Adds a node to those chosen, or the siblings between |

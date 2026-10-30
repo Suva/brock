@@ -249,6 +249,28 @@ test("an outline cannot bring in maps, ids, links, colours or ways of drawing", 
   assert.equal(v.get(seeds.id)!.title, "Buy seeds", "the id it gave is not taken");
 });
 
+test("add_nodes refuses a node with no title, however deep", () => {
+  const { v, shared, writable, garden } = editing();
+  // Lines of text never give an empty title; JSON and OPML can.
+  const json = (children: unknown[]) => JSON.stringify({ format: "brock", version: 1, root: { title: "Fine", body: "", children } });
+  const bare = { title: "", body: "", children: [] };
+  for (const outline of [json([bare]), json([{ title: "Ok", body: "", children: [bare] }]), '<opml><body><outline text=""/></body></opml>']) {
+    const r = answer(v, shared, { tool: "add_nodes", parent: garden.id, outline }, writable);
+    assert.equal(r.ok, false, outline);
+    assert.match(reply(r), /needs a title/);
+  }
+  assert.equal(v.children(garden.id).length, 3, "nothing was added");
+});
+
+test("add_nodes refuses to add under a node that has no title", () => {
+  const { v, shared, writable, plants } = editing();
+  v.update(plants.id, { title: "" });
+  const r = answer(v, shared, { tool: "add_nodes", parent: plants.id, outline: "- Child" }, writable);
+  assert.equal(r.ok, false);
+  assert.match(reply(r), /no title yet/);
+  assert.equal(v.children(plants.id).length, 1, "nothing was added");
+});
+
 test("add_nodes refuses nothing, too much, or a closed map", () => {
   const { v, shared, writable, garden, greenhouse } = editing();
   assert.match(reply(answer(v, shared, { tool: "add_nodes", parent: garden.id, outline: "  \n " }, writable)), /empty/);

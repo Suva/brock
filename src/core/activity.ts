@@ -5,7 +5,7 @@
 
 import { flagAs } from "./attention.ts";
 import type { Change, Node } from "./node.ts";
-import type { Vault } from "./vault.ts";
+import { isUntitled, type Vault } from "./vault.ts";
 
 /** One line of the log: a node changed. `source` is "user", or who it was made for, such as "agent". */
 export interface LogEntry {
@@ -161,6 +161,15 @@ export function describe(step: Step): string {
   }
   const n = step.changes.length;
   return kinds.every((k) => k === kind) ? `${MANY[kind]} ${n} nodes` : `Changed ${n} nodes`;
+}
+
+/**
+ * Whether a step only made, emptied or removed nodes with no title: the empty
+ * node a person starts and thinks better of, and the tidying that removes it.
+ * Not worth a line in the history.
+ */
+export function isNoise(step: Step): boolean {
+  return step.source === "tidy" || step.changes.every((c) => isUntitled(c.after));
 }
 
 /** The node a step is about, to go to: the first one it touched that is still there. */

@@ -99,7 +99,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("Select a node with a click, then move to its neighbours with ← → ↑ ↓.", "**Shift** with an arrow chooses several nodes at once."),
   });
   add(start, "Tab adds a child", {
-    body: notes("Select a node and press **Tab**: a new node appears under it, ready for its title.", "**Escape** on a new, empty node takes it away again."),
+    body: notes("Select a node and press **Tab**: a new node appears under it, ready for its title.", "**Escape** on a new, empty node takes it away again, and one left empty is taken away when you move on."),
   });
   add(start, "Enter adds a sibling", {
     body: notes("**Enter** adds a node after the selected one; **Shift+Enter**, before it."),

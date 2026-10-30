@@ -51,6 +51,7 @@
   import { readText, writeText } from "./system-clipboard.ts";
   import type { Live } from "./live.svelte.ts";
   import { flagGlyph, flagName } from "../core/attention.ts";
+  import { canAddChild } from "../core/vault.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
 
   let {
@@ -962,6 +963,7 @@
 
   function addChild(parentId: string) {
     const parent = vault.get(parentId)!;
+    if (!canAddChild(parent)) return;
     if (parent.isMap && parentId !== mapId) {
       // A new node under a map goes into it: open the map, then add it there.
       addOnOpen = { mapId: parentId, from: selected ?? parentId, fromMap: mapId };

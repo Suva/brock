@@ -309,6 +309,20 @@
     if (node) live.vault.update(id, { flag: nextFlag(node.flag) });
   }
 
+  // A node left without a title is deleted once it is no longer the one selected or
+  // being edited, so empty "Idea" nodes do not pile up however they came to be.
+  let lastWorked = new Set<string>();
+  $effect(() => {
+    const worked = new Set([selected, editing].filter((id): id is string => id !== null));
+    const left = [...lastWorked].filter((id) => !worked.has(id));
+    lastWorked = worked;
+    if (left.length > 0) untrack(() => live.vault.sweepEmpty(worked, left));
+  });
+  // And those left from before, on opening.
+  onMount(() => {
+    live.vault.sweepEmpty(new Set([selected, editing].filter((id): id is string => id !== null)));
+  });
+
   function goTo(id: string) {
     searching = false;
     const node = vault.get(id);

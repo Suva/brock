@@ -7,6 +7,7 @@
   import { branchBeside, newBranch } from "../core/branches.ts";
   import { doneToHide, setPriority } from "../core/tasks.ts";
   import { flagGlyph, flagName } from "../core/attention.ts";
+  import { canAddChild } from "../core/vault.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import { indent, outdent, place, reorder } from "../core/moves.ts";
   import { outlineDropAt, type Drop, type Row } from "../core/drop.ts";
@@ -121,6 +122,7 @@
       made(added, node.id, mapId);
     } else if (event.key === "Tab" && !event.shiftKey) {
       event.preventDefault();
+      if (!canAddChild(node)) return;
       if (node.isMap && !isCentre) {
         // A new node under a map goes into it: open the map and add it there.
         const from = mapId;

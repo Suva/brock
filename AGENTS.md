@@ -347,6 +347,19 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   do the same after any other `VACUUM`. Entries of a step
   of several nodes, and changes of more than words, are never joined: the
   History tab and Revert read steps from the log.
+- **A node with no title and nothing else is deleted when it is left.**
+  `vault.sweepEmpty` (with `isUntitled`) deletes nodes with a blank title, no
+  notes, no icon, no live children and not a map, but not the ones being worked
+  on; `App.svelte` calls it for the nodes that stop being selected or edited
+  and once on opening, so no view has to remember to clean up after itself.
+  It runs as `as("tidy")`: no step for undo, and the nodes' steps are taken out
+  of the undo and redo stacks, and `isNoise` keeps the empty nodes and their
+  tidying out of the History tab; `trash()` leaves them out too. Anything that
+  makes nodes from outside (agents, imports) should refuse a blank title rather
+  than rely on the sweep. `cancelCreation` stays for Escape, which also goes
+  back to where the node was made. Nothing is made under a node with no title
+  (`canAddChild`, in both views and the agent's `add_nodes`), except under a
+  map, so a second Tab pressed by accident makes nothing.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

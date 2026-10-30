@@ -260,6 +260,45 @@ export class Vault {
     });
   }
 
+  /**
+   * Deletes the nodes among `candidates` (every node, if not given) that have no
+   * title and nothing else: no notes, no branches under them, not a map, no
+   * icon, except those in `keep`, which are being worked on. A node whose last
+   * branch went is looked at again, so an empty chain goes whole. Not steps for
+   * undo, and gone from the undo and redo steps too, so that ⌘Z never lands on
+   * a node that is not there. Returns the ids deleted.
+   */
+  sweepEmpty(keep: ReadonlySet<string> = new Set(), candidates?: Iterable<string>): string[] {
+    const gone: string[] = [];
+    let look = [...(candidates ?? this.#nodes.keys())];
+    while (look.length > 0) {
+      const found = look.filter((id) => {
+        const node = this.#nodes.get(id);
+        return !!node && node.parentId !== null && node.deletedAt === null && !keep.has(id) && isUntitled(node) && this.children(id).length === 0 && this.isLive(id);
+      });
+      if (found.length === 0) break;
+      this.as("tidy", () =>
+        this.transact(() => {
+          for (const id of found) this.delete(id);
+        }),
+      );
+      gone.push(...found);
+      // The parents may be empty now.
+      look = [...new Set(found.map((id) => this.#nodes.get(id)!.parentId!))];
+    }
+    if (gone.length > 0) {
+      const dropped = new Set(gone);
+      const without = (steps: Step[]) =>
+        steps.flatMap((step) => {
+          const changes = step.changes.filter((c) => !dropped.has(c.after.id));
+          return changes.length > 0 ? [{ ...step, changes }] : [];
+        });
+      this.#undo = without(this.#undo);
+      this.#redo = without(this.#redo);
+    }
+    return gone;
+  }
+
   /** Deletes a node and everything under it; undo, or `restore`, brings them back. */
   delete(id: string): void {
     this.transact(() => {
@@ -318,7 +357,7 @@ export class Vault {
     for (const node of this.#nodes.values()) {
       if (node.deletedAt === null || node.parentId === null || !this.isLive(node.parentId)) continue;
       const under = this.#countUnder(node.id);
-      if (!node.title && !node.body && under === 0) continue;
+      if (isUntitled(node) && under === 0) continue;
       out.push({ node, under });
     }
     return out.sort((a, b) => b.node.deletedAt! - a.node.deletedAt!);
@@ -708,6 +747,20 @@ export class Vault {
     }
     return smallest === id;
   }
+}
+
+/** A node with no title and no notes, which is not a map and has no icon: nothing worth keeping on its own. */
+export function isUntitled(node: Node): boolean {
+  return node.title.trim() === "" && node.body.trim() === "" && !node.isMap && node.icon === null;
+}
+
+/**
+ * Whether new nodes may be made under `node`: not under one that has no title
+ * yet, which is nearly always a second Tab pressed by accident. A map may, as
+ * it is made on purpose and kept.
+ */
+export function canAddChild(node: Node): boolean {
+  return node.isMap || node.title.trim() !== "";
 }
 
 /** A node as stored, with the fields added since it was saved given their defaults. */
