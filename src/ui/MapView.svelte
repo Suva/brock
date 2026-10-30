@@ -1254,7 +1254,15 @@
             onblur={() => {
               // Moving on to a new node's editor takes the focus from this one
               // after the new one has started; that must not end it.
-              if (editing === node.id) stopEditing();
+              if (editing !== node.id) return;
+              // Clicking away from a new node left empty takes it back, staying
+              // wherever the click went (Escape returns to where it started).
+              const made = fresh;
+              if (made?.id === node.id && vault.get(node.id)?.title === "" && vault.cancelCreation(node.id)) {
+                fresh = null;
+                if (selected === node.id) selected = vault.isLive(made.from) ? made.from : mapId;
+              }
+              stopEditing();
             }}
           ></span>
         {:else}

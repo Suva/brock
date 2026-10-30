@@ -179,6 +179,118 @@ Ctrl in place of ⌘ on Windows and Linux.
 
 Later: Markdown in bodies, images, more vaults, syncing and a web version, phones.
 
+## Agents (an idea, not started)
+
+Let AI agents read the vault, and create and edit in the maps the user shares
+with them, through an MCP server, `brock-mcp`, that works with the app closed.
+
+- **A standalone binary** shares the database code with the app (`db.rs` split
+  into a small crate), opens the vault's SQLite file in WAL mode with a busy
+  timeout, and speaks MCP over stdio. Settings has the switch and a config
+  snippet to paste.
+- **Tools:** `list_maps`, `read_map` (a Markdown outline with node ids),
+  `search`, then `create_map`, `add_nodes` (an indented outline under a
+  parent), `set_notes`, `add_link`. Nothing deletes.
+- **Writes are ordinary changes**, `{ before, after }` per node, written to the
+  log by the same `apply_changes`. One whose `before` no longer matches is
+  refused, so an agent cannot overwrite what the user just edited.
+- **The window learns of outside changes.** It checks the log's latest position
+  on focus and every second or so, loads what is new and applies it to the vault
+  in memory as external changes: saved and shown, not in ⌘Z by default (as the
+  tour is). A node the user has an unsaved edit on takes the stored version,
+  and says so.
+- **Sharing is per map:** *none* (default), *read* or *write*, inherited by the
+  maps under it, stored in the vault (a column, a migration, `withDefaults`).
+  The shim enforces it, so it works with the app closed. It is a guardrail, not
+  a sandbox: anything that can read the file can bypass it, and the README
+  should say so.
+- **Agent work is marked** (`created_by` or a source on the log entry) and
+  shown as added by an agent until the user accepts it; it is easy to undo or
+  trash, since nothing is really deleted.
+- **Order:** share the database code and add the setting; a read-only
+  `brock-mcp`; the window's watcher for outside changes, with tests for the
+  `before` conflict; then the write tools and the marking.
+- **For sync later:** give each log entry a device id, a logical timestamp and
+  a source (user, agent, remote) from the start, while only agents write; the
+  same path that applies an agent's changes is the one that will apply another
+  device's. Sibling order needs a tiebreak by node id, as two devices can make
+  equal sort keys. How conflicts merge (per node, last writer wins, or a
+  text merge for notes) is to be decided before the log gains a field that
+  assumes either.
+
+## Syncing devices (an idea, not started)
+
+Take maps to a phone, or another computer, and bring them back, with no
+service between the devices. Nothing leaves the computer unless the user pairs
+a device or picks a place to share through.
+
+- **Identity.** Each device makes a keypair on its first start; its public key
+  is its identity. Trust is a list of paired devices, each with the maps it may
+  receive; removing a key revokes the device.
+- **Pairing by QR code.** One device shows a code holding its public key, its
+  address on the network and a one-time secret; the other scans it. They then
+  run a mutual handshake (Noise, with the `snow` crate), so nobody else on the
+  network can stand in for either. Where there is no camera, a short code
+  shown on both screens, compared by eye, does the same.
+- **Same network.** Devices find each other by mDNS or the address in the code
+  and connect over TCP inside the handshake. Each says what it has, as the
+  highest log position seen from each device, and sends only the log entries
+  the other lacks. It works offline and in both directions. Only the entries
+  of maps the other device may receive are sent, so a phone can carry a few
+  maps.
+- **Over the internet, through services the user owns,** in the order worth
+  trying: a folder that something else syncs (iCloud Drive, Dropbox,
+  Syncthing), where each device appends its own encrypted log file and reads
+  the others', so nothing has to run and no two writers touch a file; then a
+  relay the user hosts (WebDAV, S3 or a small server) that holds only
+  encrypted log segments; direct connections last, and probably left to a
+  tunnel such as Tailscale.
+- **Sharing a map with another person** is a step beyond one's own devices: the
+  map gets its own key, encrypted for each recipient's public key, and
+  revoking someone means a new key and encrypting again. After the first.
+- **To decide first:** how conflicts merge (per node, last writer wins, which
+  loses edits within notes, or a text merge for notes); how long the log is
+  kept (until every paired device has seen an entry, then compacted; see
+  TASKS.md); and what the phone holds. The log entries need a device id and a
+  logical timestamp before any of this (see Agents).
+- **Order:** the log entries' new fields and applying changes made elsewhere
+  (shared with the agents work); pairing and the handshake; exchange over the
+  network; then folders, then a relay.
+
+## A phone app (an idea, not started)
+
+Carry some maps on a phone, jot ideas down, tick tasks off, and bring the
+changes back to the computer when the two are on the same network again. Not
+a place for restructuring a map; the editing is meant to be small and quick.
+
+- **Tauri mobile** (iOS and Android), reusing `src/core`, the stores' interface,
+  the Rust database and sync code, and the Svelte parts that do not assume a
+  keyboard. Start with a spike: whether the map's pan and zoom feel right in a
+  phone's webview. A separate native app would duplicate the core in two more
+  languages, and a web app cannot sync in the background or reach the local
+  network.
+- **Touch in place of keys.** Tap selects; a button or double tap edits; a long
+  press drags or opens a menu; pinch zooms; two fingers pan. `camera.ts` should
+  carry over; `MapView.svelte`'s pointer and key handling will not, so the phone
+  gets its own view, and the outline (lists suit a small screen) may come first.
+- **One thing on screen at a time:** the map or outline, with the maps list,
+  notes and tasks as sheets or tabs. A toolbar over the keyboard has add child,
+  add sibling, indent and outdent, which Tab and Enter do on a computer.
+- **What it is for, in order:** reading a map; ticking tasks (small edits to
+  nodes that already exist); a quick-add into one inbox map, which only creates
+  nodes and so cannot conflict; then editing titles and notes.
+- **Editing offline and syncing back** is the sync work above: the phone keeps
+  its own log entries (device id, logical timestamp), and when it meets the
+  computer the two exchange what the other lacks. Two devices changing the
+  same node is the case the merge rule must settle; ticking a task is a good
+  test of it, as it is one field of one node.
+- **A phone holds a subset:** the maps chosen when pairing, plus the inbox.
+  Nodes outside those maps are not sent, so links to them show as missing there.
+- **Order:** the spike; a read-only phone app fed by pairing and exchange over the
+  network; tasks and the inbox; then fuller editing. iOS needs an Apple
+  developer account for anything beyond the user's own device, and the toolchain
+  note in AGENTS.md may reach the iOS build too.
+
 ## Open questions
 
 - Whether the top of the vault is a map like any other, or a special home view.

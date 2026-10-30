@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+- Clicking away from a new node before typing anything now takes it back, instead of leaving an empty "Idea" behind.
+
 ## 0.6.1 — 29 October 2026
 
 - Opening or closing the sidebar no longer shifts the map sideways; it stays where it is, and moves only if the sidebar would cover the selected node.
