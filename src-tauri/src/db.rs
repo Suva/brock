@@ -32,6 +32,9 @@ pub struct Node {
     /// 1 to 5, or None.
     #[serde(default)]
     pub priority: Option<i64>,
+    /// The day it is due, as 2026-10-30, or None.
+    #[serde(default)]
+    pub due: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
@@ -121,6 +124,10 @@ const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE nodes ADD COLUMN priority INTEGER CHECK (priority BETWEEN 1 AND 5);
     "#,
+    // 5: the day a node is due.
+    r#"
+    ALTER TABLE nodes ADD COLUMN due TEXT;
+    "#,
 ];
 
 pub struct Db {
@@ -168,7 +175,7 @@ impl Db {
             .conn
             .prepare(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links, task, done_at, priority
+                        created_at, updated_at, deleted_at, links, task, done_at, priority, due
                  FROM nodes",
             )
             .map_err(err)?;
@@ -184,8 +191,8 @@ impl Db {
             let mut upsert = tx
                 .prepare_cached(
                     "INSERT INTO nodes (id, parent_id, sort_key, side, title, body, is_map, collapsed,
-                                        color, icon, created_at, updated_at, deleted_at, links, task, done_at, priority)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                                        color, icon, created_at, updated_at, deleted_at, links, task, done_at, priority, due)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
                      ON CONFLICT (id) DO UPDATE SET
                         parent_id = excluded.parent_id, sort_key = excluded.sort_key,
                         side = excluded.side, title = excluded.title, body = excluded.body,
@@ -193,7 +200,8 @@ impl Db {
                         color = excluded.color, icon = excluded.icon,
                         created_at = excluded.created_at, updated_at = excluded.updated_at,
                         deleted_at = excluded.deleted_at, links = excluded.links,
-                        task = excluded.task, done_at = excluded.done_at, priority = excluded.priority",
+                        task = excluded.task, done_at = excluded.done_at, priority = excluded.priority,
+                        due = excluded.due",
                 )
                 .map_err(err)?;
             let mut log = tx
@@ -206,7 +214,7 @@ impl Db {
                         n.id, n.parent_id, n.sort_key, n.side, n.title, n.body, n.is_map, n.collapsed,
                         n.color, n.icon, n.created_at, n.updated_at, n.deleted_at,
                         serde_json::to_string(&n.links).unwrap(),
-                        n.task, n.done_at, n.priority
+                        n.task, n.done_at, n.priority, n.due
                     ])
                     .map_err(|e| format!("Cannot save node {}: {e}", n.id))?;
                 let before = change.before.as_ref().map(|b| serde_json::to_string(b).unwrap());
@@ -267,7 +275,7 @@ impl Db {
         self.conn
             .query_row(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links, task, done_at, priority
+                        created_at, updated_at, deleted_at, links, task, done_at, priority, due
                  FROM nodes WHERE id = ?1",
                 [id],
                 node_from_row,
@@ -362,6 +370,7 @@ fn node_from_row(r: &Row) -> rusqlite::Result<Node> {
         task: r.get(14)?,
         done_at: r.get(15)?,
         priority: r.get(16)?,
+        due: r.get(17)?,
     })
 }
 
@@ -393,6 +402,7 @@ mod tests {
             task: None,
             done_at: None,
             priority: None,
+            due: None,
             created_at: 1,
             updated_at: 1,
             deleted_at: None,
@@ -516,6 +526,22 @@ mod tests {
     }
 
     #[test]
+    fn a_due_date_is_saved_and_can_be_taken_away() {
+        let mut db = Db::in_memory().unwrap();
+        let mut a = node("a", None, "Home");
+        db.apply(&[Change { before: None, after: a.clone() }]).unwrap();
+        assert_eq!(db.get("a").unwrap().unwrap().due, None);
+        let before = a.clone();
+        a.due = Some("2026-11-02".into());
+        db.apply(&[Change { before: Some(before), after: a.clone() }]).unwrap();
+        assert_eq!(db.get("a").unwrap().unwrap().due.as_deref(), Some("2026-11-02"));
+        let before = a.clone();
+        a.due = None;
+        db.apply(&[Change { before: Some(before), after: a }]).unwrap();
+        assert_eq!(db.get("a").unwrap().unwrap().due, None);
+    }
+
+    #[test]
     fn a_vault_of_the_first_version_is_brought_up_to_date() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch(MIGRATIONS[0]).unwrap();
@@ -530,6 +556,7 @@ mod tests {
         assert_eq!(old.title, "Old");
         assert!(old.links.is_empty());
         assert_eq!(old.task, None);
+        assert_eq!(old.due, None);
         assert_eq!(db.search("old", 10).unwrap(), vec!["old"], "the search index carries over");
     }
 

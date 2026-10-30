@@ -55,6 +55,8 @@ nodes
   collapsed
   color, icon
   links        the ids of the nodes it links to, as a JSON list
+  task, done_at, priority
+  due          the day it is due, as text: 2026-10-30
   created_at, updated_at
   deleted_at   soft delete: for undo, a trash and later syncing
 

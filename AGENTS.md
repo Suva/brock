@@ -59,7 +59,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/urls.ts` | Web addresses in text, and trimming the sentence off them |
 | `src/core/markdown.ts` | Notes' Markdown read into blocks and spans, never HTML |
 | `src/core/exchange.ts` | Export to JSON, Markdown and OPML; reading OPML and JSON back in |
-| `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel, done tasks by the day they were done, clearing them |
+| `src/core/tasks.ts` | Tasks across the vault: progress under a node, the lists of the tasks panel and their order, how a due date reads, done tasks by the day they were done, clearing them |
 | `src/core/history.ts` | The maps visited, for back and forward |
 | `src/core/clipboard.ts` | Copy, cut and paste of branches: copies as outlines, cuts moved whole |
 | `src/core/picture.ts` | A picture of a map as plain shapes, and writing it as SVG |

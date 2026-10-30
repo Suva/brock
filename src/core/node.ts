@@ -35,6 +35,11 @@ export interface Node {
    * 4 and 5 after: see `byPriority` in tasks.ts.
    */
   priority: number | null;
+  /**
+   * The day it is due, as `2026-10-30`, or null. A day and not a moment, so
+   * that it stays the same day wherever it is read.
+   */
+  due: string | null;
   /** Milliseconds since 1970, as `Date.now()` gives them. */
   createdAt: number;
   updatedAt: number;
@@ -55,4 +60,4 @@ export interface Change {
 }
 
 /** The fields an edit may set directly. */
-export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt" | "priority">;
+export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt" | "priority" | "due">;

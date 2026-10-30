@@ -8,6 +8,7 @@ and appear there once they are.
 ## Not released yet
 
 - Clicking away from a new node before typing anything now takes it back, instead of leaving an empty "Idea" behind.
+- **Due dates.** Any node can have a date: set it under Due in the notes panel, and the × beside it takes it away. Tasks with a date show it in the Tasks tab, in orange on the day and in red once it has passed, and within a priority the soonest due comes first.
 
 ## 0.6.1 — 29 October 2026
 

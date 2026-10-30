@@ -3,12 +3,14 @@
   map, maps inside it included, or in all of them, grouped by the map they
   are in; the ones done fold away at the bottom, grouped by when they were
   done (today, yesterday, this week, earlier), each group with its own Clear.
+  A task with a due date shows it at the end of its row, marked on the day
+  and once it has passed. Within a priority, the soonest due comes first.
   Ticking works here as on the map, and a click on a task goes to it.
 -->
 <script lang="ts">
   import type { Node } from "../core/node.ts";
   import { onMount } from "svelte";
-  import { clearDone, groupDone, tasksUnder, type DoneWhen } from "../core/tasks.ts";
+  import { clearDone, dueLabel, groupDone, tasksUnder, type DoneWhen } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
 
@@ -28,8 +30,9 @@
   });
   const openCount = $derived(list.groups.reduce((n, g) => n + g.open.length, 0));
 
-  // The time the groups are reckoned from, moved on every minute so that
-  // today's tasks become yesterday's at midnight without anything else changing.
+  // The time the groups and due dates are reckoned from, moved on every minute
+  // so that today's tasks become yesterday's at midnight without anything else
+  // changing.
   let now = $state(Date.now());
   onMount(() => {
     const timer = setInterval(() => (now = Date.now()), 60_000);
@@ -71,6 +74,7 @@
 </script>
 
 {#snippet task(node: Node, map: Node)}
+  {@const due = dueLabel(node, now)}
   <li class:done={node.task === "done"}>
     <input
       type="checkbox"
@@ -84,6 +88,7 @@
       {label(node)}
       {#if under(node, map)}<span class="under">{under(node, map)}</span>{/if}
     </button>
+    {#if due}<span class="due" class:overdue={due.overdue} class:today={due.today} title={due.overdue ? "Overdue" : due.today ? "Due today" : "Due"}>{due.text}</span>{/if}
   </li>
 {/snippet}
 
@@ -287,6 +292,26 @@
     margin-left: 0.3rem;
     font-size: 0.8rem;
     color: var(--muted);
+  }
+
+  /* Beside the title, not in it, so that a long title does not cut it off. */
+  .due {
+    flex: none;
+    padding: 0 0.3rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+  }
+
+  .due.today {
+    color: var(--warning);
+    border-color: var(--warning);
+  }
+
+  .due.overdue {
+    color: var(--danger);
+    border-color: var(--danger);
   }
 
   .empty {

@@ -1,6 +1,6 @@
 <!--
-  The selected node beside the map: whether it is a task and its priority,
-  its colour and icon; its notes, edited where their Markdown is drawn or as
+  The selected node beside the map: whether it is a task, its priority and
+  the day it is due, its colour and icon; its notes, edited where their Markdown is drawn or as
   its source (saved as typed, undone a run of typing at a time); and the
   nodes it links to and those linking to it, each a way there.
   Links in the notes go to nodes, open web addresses, files or the window's panels; ⌘L while writing puts
@@ -85,6 +85,13 @@
   }
 
   const save = (body: string) => vault.update(nodeId, { body }, `body:${nodeId}`);
+
+  /** Typing a date changes it digit by digit: one step to undo, like typing in the notes. */
+  function changeDue(input: HTMLInputElement) {
+    // A date half typed reads as empty, which must not take the old one away.
+    if (input.validity.badInput) return;
+    vault.update(nodeId, { due: input.value || null }, `due:${nodeId}`);
+  }
 
   /** The node a link in the notes leads to, if it is there. */
   function nodeOf(to: LinkTarget): Node | null {
@@ -189,6 +196,22 @@
           </button>
         {/each}
       </div>
+    </div>
+    <div class="due">
+      <label>
+        Due
+        <input
+          type="date"
+          value={node.due ?? ""}
+          onchange={(e) => changeDue(e.currentTarget)}
+          onkeydown={(e) => {
+            if (e.key === "Escape" || e.key === "Enter") e.currentTarget.blur();
+          }}
+        />
+      </label>
+      {#if node.due}
+        <button class="remove" onclick={() => vault.update(nodeId, { due: null })} title="Take the due date away" aria-label="Take the due date away">×</button>
+      {/if}
     </div>
     <div class="style">
       {#if !centre}
@@ -444,6 +467,29 @@
   .priorities button.on {
     opacity: 1;
     background: var(--accent-soft);
+  }
+
+  .due {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .due label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .due input {
+    font: inherit;
+    color: var(--fg);
+    background: none;
+    padding: 0.1rem 0.3rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
   }
 
   .style {

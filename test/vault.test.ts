@@ -29,6 +29,7 @@ function node(id: string, parentId: string | null, fields: Partial<Node> = {}): 
     task: null,
     doneAt: null,
     priority: null,
+    due: null,
     createdAt: 1,
     updatedAt: 1,
     deletedAt: null,

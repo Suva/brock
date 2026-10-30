@@ -63,8 +63,9 @@ export function tasksUnder(vault: Vault, topId: string): TaskList {
   // The top is the map its own nodes are drawn in, or, for a node that is not a
   // map, the map it is in.
   visit(top, top.isMap ? top : vault.get(vault.mapOf(topId) ?? vault.rootId)!);
-  // Within a map, the most important first; the tree's order otherwise (sort is stable).
-  for (const group of groups.values()) group.open.sort(byPriority);
+  // Within a map, the most important first, the soonest due among equals; the
+  // tree's order otherwise (sort is stable).
+  for (const group of groups.values()) group.open.sort((a, b) => byPriority(a, b) || byDue(a, b));
   done.sort((a, b) => (b.node.doneAt ?? 0) - (a.node.doneAt ?? 0));
   return { groups: [...groups.values()], done };
 }
@@ -103,6 +104,14 @@ export function priorityRank(priority: number | null): number {
 
 export function byPriority(a: Node, b: Node): number {
   return priorityRank(a.priority) - priorityRank(b.priority);
+}
+
+/** The soonest due first, and what has no date last. Dates in this form sort as text. */
+export function byDue(a: Node, b: Node): number {
+  if (a.due === b.due) return 0;
+  if (a.due === null) return 1;
+  if (b.due === null) return -1;
+  return a.due < b.due ? -1 : 1;
 }
 
 /**
@@ -157,6 +166,27 @@ export function clearDone(vault: Vault, topId: string, chosen: (node: Node) => b
   const ids = [...doneBranches(vault, topId, chosen)];
   if (ids.length) vault.transact(() => ids.forEach((id) => vault.delete(id)));
   return ids.length;
+}
+
+/**
+ * A due date as the tasks panel shows it, by the calendar of this computer's
+ * time zone, seen at `now`: today, tomorrow and yesterday by name, other days
+ * by their date, with the year when it is not this one. A task ticked done
+ * is never overdue or due today: there is nothing left to warn of.
+ */
+export function dueLabel(node: Pick<Node, "due" | "task">, now: number, locale?: string): { text: string; overdue: boolean; today: boolean } | null {
+  if (!node.due) return null;
+  const [year, month, day] = node.due.split("-").map(Number);
+  const due = new Date(year, month - 1, day);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  // Rounded, as a change of summer time makes a day an hour longer or shorter.
+  const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  const named = { [-1]: "Yesterday", 0: "Today", 1: "Tomorrow" }[days];
+  const sameYear = due.getFullYear() === today.getFullYear();
+  const text = named ?? due.toLocaleDateString(locale, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+  const open = node.task !== "done";
+  return { text, overdue: open && days < 0, today: open && days === 0 };
 }
 
 /** When a task was done, as the tasks panel groups them. */

@@ -91,8 +91,9 @@ stolen laptop. A few days' work:
 
 ## Tasks
 
-- Due dates, and a view of what is due, once tasks have been used for a
-  while and it is clear they are missed.
+- Due dates show in the Tasks tab and order tasks within a priority, but the
+  map does not show them. Add a view of what is due, once it is clear it is
+  missed. Markdown and OPML exports leave them out; JSON keeps them.
 - `- [ ]` lines in notes are not tasks of the panel: they are text in a note.
   Revisit if people expect them there.
 - OPML has no standard place for a task; exported, tasks lose their box

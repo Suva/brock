@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clearDone, doneToHide, doneWhen, groupDone, priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
+import { clearDone, doneToHide, doneWhen, dueLabel, groupDone, priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
 import { layoutMap } from "../src/core/layout.ts";
 import { Vault } from "../src/core/vault.ts";
 
@@ -91,6 +91,27 @@ test("priorities: 1 to 3 before tasks without one, 4 and 5 after", () => {
   assert.ok(priorityRank(3) < priorityRank(null) && priorityRank(null) < priorityRank(4));
 });
 
+test("within a priority the soonest due comes first, and what has no date last", () => {
+  const vault = new Vault([]);
+  const add = (title: string, priority: number | null, due: string | null) => {
+    const node = vault.addChild(vault.rootId, { title, priority, due });
+    vault.toggleTask(node.id);
+  };
+  add("no date", null, null);
+  add("later", null, "2026-12-01");
+  add("sooner", null, "2026-11-01");
+  add("same day, second", null, "2026-12-01");
+  add("low but overdue", 4, "2020-01-01");
+  add("urgent, no date", 1, null);
+  add("urgent, dated", 1, "2026-12-31");
+  const [group] = tasksUnder(vault, vault.rootId).groups;
+  assert.deepEqual(
+    group.open.map((n) => n.title),
+    ["urgent, dated", "urgent, no date", "sooner", "later", "same day, second", "no date", "low but overdue"],
+    "priority still comes first",
+  );
+});
+
 test("the same number again takes a priority off; several get it together", () => {
   const vault = new Vault([]);
   const a = vault.addChild(vault.rootId, { title: "a" });
@@ -178,6 +199,20 @@ test("done tasks are grouped by the day they were done, in local time", () => {
     [["Today", ["A", "C"]], ["Earlier", ["B"]]],
     "in order, empty groups left out, the order within kept",
   );
+});
+
+test("due dates read as days near today, and overdue once they have passed", () => {
+  const now = new Date(2026, 9, 30, 15).getTime();
+  const label = (due: string | null, task: "open" | "done" = "open") => dueLabel({ due, task }, now, "en-GB");
+  assert.equal(label(null), null);
+  assert.deepEqual(label("2026-10-30"), { text: "Today", overdue: false, today: true });
+  assert.deepEqual(label("2026-10-31"), { text: "Tomorrow", overdue: false, today: false });
+  assert.deepEqual(label("2026-10-29"), { text: "Yesterday", overdue: true, today: false });
+  assert.deepEqual(label("2026-11-02"), { text: "2 Nov", overdue: false, today: false });
+  assert.deepEqual(label("2026-10-01"), { text: "1 Oct", overdue: true, today: false });
+  assert.deepEqual(label("2027-01-15"), { text: "15 Jan 2027", overdue: false, today: false });
+  assert.equal(label("2026-10-01", "done")!.overdue, false, "done is done");
+  assert.equal(label("2026-10-30", "done")!.today, false);
 });
 
 test("clearing one group of done tasks leaves the others", () => {

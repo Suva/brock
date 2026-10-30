@@ -154,7 +154,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   add(tasks, "Priorities", {
     task: "open",
     priority: 1,
-    body: notes(`${priorityWay} 1 to 3 come before tasks without a priority, 4 and 5 after them.`),
+    body: notes(`${priorityWay} 1 to 3 come before tasks without a priority, 4 and 5 after them. **Due**, under them, gives it a date: the Tasks tab shows it, and within a priority puts the soonest first.`),
   });
   add(tasks, "Hide what's done", {
     task: "open",
