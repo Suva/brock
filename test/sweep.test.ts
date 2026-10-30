@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isNoise, stepsOf, type LogEntry } from "../src/core/activity.ts";
-import { canAddChild, isUntitled, Vault } from "../src/core/vault.ts";
+import { describe as describeStep, isNoise, stepsOf, type LogEntry } from "../src/core/activity.ts";
+import { copyOf, cut, isPlaceholder, pasteOver } from "../src/core/clipboard.ts";
+import { canAddChild, isUntitled, settle, Vault } from "../src/core/vault.ts";
 
 function world() {
   const v = new Vault([]);
@@ -88,4 +89,80 @@ test("nothing is made under a node that has no title, except under a map", () =>
   assert.equal(canAddChild(empty), false);
   assert.equal(canAddChild(spaces), false);
   assert.equal(canAddChild(v.get(map.id)!), true, "a map is made on purpose");
+});
+
+// ---- Paste onto an empty node --------------------------------------------------
+
+function outlineWorld() {
+  const v = new Vault([]);
+  const plan = v.addChild(v.rootId, { title: "Plan" });
+  const a = v.addChild(plan.id, { title: "A" });
+  const empty = v.addChild(plan.id);
+  const z = v.addChild(plan.id, { title: "Z" });
+  const source = v.addChild(v.rootId, { title: "Source", body: "Notes" });
+  const kid = v.addChild(source.id, { title: "Kid" });
+  const other = v.addChild(v.rootId, { title: "Other" });
+  return { v, plan, a, empty, z, source, kid, other };
+}
+
+test("pasting onto an empty node puts what is pasted in its place and deletes it", () => {
+  const { v, plan, a, empty, z, source, other } = outlineWorld();
+  assert.equal(isPlaceholder(v, empty.id), true);
+  assert.equal(isPlaceholder(v, a.id), false);
+  assert.equal(isPlaceholder(v, v.rootId), false);
+
+  const pasted = pasteOver(v, copyOf(v, [source.id, other.id]), empty.id, plan.id);
+  assert.deepEqual(v.children(plan.id).map((n) => n.title), ["A", "Source", "Other", "Z"], "between its neighbours, in order");
+  assert.deepEqual(pasted.map((n) => n.title), ["Source", "Other"]);
+  assert.equal(v.isLive(empty.id), false);
+  assert.deepEqual(v.children(pasted[0].id).map((n) => n.title), ["Kid"], "with what was under it");
+  assert.equal(z.title, "Z");
+});
+
+test("pasting onto an empty node is one step, and a cut is moved there", () => {
+  const { v, plan, empty, source } = outlineWorld();
+  v.forgetUndo();
+  const clip = cut(v, [source.id]);
+  v.forgetUndo();
+  const [moved] = pasteOver(v, clip, empty.id, plan.id);
+  assert.equal(moved.id, source.id, "the same node, so links to it hold");
+  assert.deepEqual(v.children(plan.id).map((n) => n.title), ["A", "Source", "Z"]);
+  v.undo();
+  assert.equal(v.isLive(source.id), false, "one undo takes the paste back");
+  assert.equal(v.isLive(empty.id), true, "and the empty node with it");
+});
+
+test("a step that replaced an empty node is worded for what it made", () => {
+  const entries: LogEntry[] = [];
+  let seq = 0;
+  const v = new Vault([], { onChange: (cs, origin) => cs.forEach((c) => entries.push({ seq: ++seq, at: 5_000_000, source: origin, before: c.before, after: c.after })) });
+  const plan = v.addChild(v.rootId, { title: "Plan" });
+  const empty = v.addChild(plan.id);
+  const src = v.addChild(v.rootId, { title: "Pasted" });
+  entries.length = 0;
+  pasteOver(v, copyOf(v, [src.id]), empty.id, plan.id);
+  assert.equal(describeStep(stepsOf(entries)[0]), "Added “Pasted”");
+});
+
+test("undoing a paste onto an empty node does not bring the empty node back", () => {
+  const { v, plan, empty, source } = outlineWorld();
+  v.forgetUndo();
+  pasteOver(v, copyOf(v, [source.id]), empty.id, plan.id);
+  const select = settle(v, v.undo(), null);
+  assert.equal(v.isLive(empty.id), false, "the empty node is swept, not selected");
+  assert.notEqual(select, empty.id);
+  assert.deepEqual(v.children(plan.id).map((n) => n.title), ["A", "Z"]);
+
+  // And redo goes forward to the paste again, with nothing empty in the way.
+  const again = settle(v, v.redo(), select);
+  assert.deepEqual(v.children(plan.id).map((n) => n.title), ["A", "Source", "Z"]);
+  assert.ok(["Source", "Kid"].includes(v.get(again!)!.title), "selected on what was pasted");
+});
+
+test("undoing the making of a node that ends up empty selects where it was and leaves nothing", () => {
+  const { v, plan } = outlineWorld();
+  v.forgetUndo();
+  const made = v.addChild(plan.id);
+  assert.equal(settle(v, v.undo(), plan.id), plan.id);
+  assert.equal(v.isLive(made.id), false);
 });

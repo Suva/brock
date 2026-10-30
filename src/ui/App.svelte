@@ -32,6 +32,7 @@
   import MoreMenu from "./MoreMenu.svelte";
   import Settings from "./Settings.svelte";
   import { agents } from "./agents.svelte.ts";
+  import { settle } from "../core/vault.ts";
   import UpdateOffer from "./UpdateOffer.svelte";
   import { canUpdate, findUpdate, watchForUpdates, type Update } from "./updates.ts";
   import Resizer from "./Resizer.svelte";
@@ -364,8 +365,7 @@
     // A title being edited is finished first; what was typed is then undone.
     editing = null;
     const changes = redo ? vault.redo() : vault.undo();
-    const last = changes?.at(-1)?.after;
-    if (last && vault.isLive(last.id)) selected = last.id;
+    selected = settle(vault, changes, selected);
   }
 
   /**

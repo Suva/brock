@@ -37,7 +37,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
   import { branchBeside, branchColour, newBranch } from "../core/branches.ts";
-  import { copyOf, cut as cutBranches, paste } from "../core/clipboard.ts";
+  import { copyOf, cut as cutBranches, isPlaceholder, paste, pasteOver } from "../core/clipboard.ts";
   import { fromText } from "../core/exchange.ts";
   import { dropAt, type Drop } from "../core/drop.ts";
   import { layoutMap, SPACING, type Layout, type Placed } from "../core/layout.ts";
@@ -1057,10 +1057,13 @@
     const target = selected && layout.byId.has(selected) ? selected : mapId;
     const node = vault.get(target)!;
     const portal = node.isMap && target !== mapId;
-    const pasted = vault.transact(() => {
-      if (node.collapsed) vault.update(target, { collapsed: false });
-      return paste(vault, from, target, portal ? target : mapId);
-    });
+    // Onto a node left without a title, what is pasted takes its place.
+    const pasted = isPlaceholder(vault, target)
+      ? pasteOver(vault, from, target, mapId)
+      : vault.transact(() => {
+          if (node.collapsed) vault.update(target, { collapsed: false });
+          return paste(vault, from, target, portal ? target : mapId);
+        });
     // A cut moves once; pasting it again makes copies.
     if (from === clip && clip.cut) clip = { ...clip, cut: null };
     if (portal || pasted.length === 0) return;

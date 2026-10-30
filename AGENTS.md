@@ -359,7 +359,12 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   than rely on the sweep. `cancelCreation` stays for Escape, which also goes
   back to where the node was made. Nothing is made under a node with no title
   (`canAddChild`, in both views and the agent's `add_nodes`), except under a
-  map, so a second Tab pressed by accident makes nothing.
+  map, so a second Tab pressed by accident makes nothing. A paste onto such a node, with nothing under it,
+  takes its place (`isPlaceholder`, `pasteOver` in `clipboard.ts`: one step,
+  at its position), and a step's wording leaves untitled nodes out. After an
+  undo or redo, `settle` (`vault.ts`) selects the last node it touched that has
+  a title and sweeps what it left empty, so undo never brings back an empty
+  node to stop on.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

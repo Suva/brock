@@ -6,7 +6,7 @@
 import { newBranch } from "./branches.ts";
 import { importInto, markdownList, outlineOf, type Outline } from "./exchange.ts";
 import type { Node } from "./node.ts";
-import type { Vault } from "./vault.ts";
+import { isUntitled, type Vault } from "./vault.ts";
 
 export interface Clip {
   /** What was put on the system's clipboard, to know a paste is this clip. */
@@ -56,6 +56,32 @@ export function paste(vault: Vault, clip: Clip, parentId: string, centreId: stri
     );
   }
   return importInto(vault, parentId, clip.outlines, centreId, (id) => vault.isLive(id));
+}
+
+/**
+ * Whether a paste onto `id` should take its place: it has no title and nothing
+ * else, and is not a map or the top, so it is a node made to be filled.
+ */
+export function isPlaceholder(vault: Vault, id: string): boolean {
+  const node = vault.get(id);
+  return !!node && node.parentId !== null && isUntitled(node) && vault.children(id).length === 0;
+}
+
+/**
+ * Pastes a clip in the place of the empty node `emptyId`, in its parent, at its
+ * position, and deletes the empty node: what was pasted takes its place rather
+ * than being made under it. One step. Returns the nodes pasted.
+ */
+export function pasteOver(vault: Vault, clip: Clip, emptyId: string, centreId: string): Node[] {
+  const empty = vault.get(emptyId)!;
+  const parentId = empty.parentId!;
+  return vault.transact(() => {
+    const index = vault.children(parentId).indexOf(empty);
+    const pasted = paste(vault, clip, parentId, centreId);
+    pasted.forEach((n, i) => vault.move(n.id, parentId, index + i));
+    vault.delete(emptyId);
+    return pasted.map((n) => vault.get(n.id)!);
+  });
 }
 
 function underOrIs(vault: Vault, id: string, ancestor: string): boolean {

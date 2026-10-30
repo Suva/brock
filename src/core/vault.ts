@@ -763,6 +763,19 @@ export function canAddChild(node: Node): boolean {
   return node.isMap || node.title.trim() !== "";
 }
 
+/**
+ * What to do once an undo or redo has made `changes`: the node to select, the
+ * last it touched that is worth stopping at (not an empty one it brought
+ * back), or `selected` if none; and the nodes it left without a title are
+ * deleted, as when any other node is left, except the one selected.
+ */
+export function settle(vault: Vault, changes: Change[] | null, selected: string | null): string | null {
+  const ids = (changes ?? []).map((c) => c.after.id).filter((id) => vault.isLive(id));
+  const last = ids.filter((id) => !isUntitled(vault.get(id)!)).at(-1) ?? selected;
+  vault.sweepEmpty(new Set(last ? [last] : []), ids);
+  return last;
+}
+
 /** A node as stored, with the fields added since it was saved given their defaults. */
 function withDefaults(node: Node): Node {
   if (Array.isArray(node.links) && node.task !== undefined && node.doneAt !== undefined && node.priority !== undefined && node.due !== undefined && node.layout !== undefined && node.flag !== undefined) {

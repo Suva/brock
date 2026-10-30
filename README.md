@@ -73,7 +73,7 @@ the arrow keys, then:
 | ⌘-click, Shift-click | Adds a node to those chosen, or the siblings between |
 | Shift with ← → ↑ ↓ | Adds the next node that way to those chosen |
 | ⌘A | Chooses everything in the map |
-| ⌘C, ⌘X, ⌘V | Copies, cuts and pastes the chosen branches, with everything under them |
+| ⌘C, ⌘X, ⌘V | Copies, cuts and pastes the chosen branches, with everything under them; pasted onto a node with no title yet, they take its place |
 | Escape | Back to one node chosen |
 | ⌥↑ ⌥↓ | Moves the node up or down among its siblings |
 | ⌥ with ← or → | Moves the node outwards, under the sibling above it, or inwards, beside its parent; a branch of the centre moved inwards crosses to the other side |

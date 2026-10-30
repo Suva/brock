@@ -138,10 +138,13 @@ const MANY: Record<Kind, string> = {
 
 /** What a step did, in a line: “Ticked “Buy seeds””, “Added 3 nodes”. */
 export function describe(step: Step): string {
-  const kinds = step.changes.map(kindOf);
-  const first = step.changes[0];
+  // The empty node a paste took the place of, or a person started and left, is not what the step did.
+  const named = step.changes.filter((c) => !isUntitled(c.after));
+  const changes = named.length > 0 ? named : step.changes;
+  const kinds = changes.map(kindOf);
+  const first = changes[0];
   const kind = kinds[0];
-  if (step.changes.length === 1) {
+  if (changes.length === 1) {
     const node = first.after;
     switch (kind) {
       case "added": return `Added ${quoted(node)}`;
@@ -159,7 +162,7 @@ export function describe(step: Step): string {
       case "changed": return `Changed ${quoted(node)}`;
     }
   }
-  const n = step.changes.length;
+  const n = changes.length;
   return kinds.every((k) => k === kind) ? `${MANY[kind]} ${n} nodes` : `Changed ${n} nodes`;
 }
 
