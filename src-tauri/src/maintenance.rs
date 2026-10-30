@@ -312,7 +312,8 @@ mod tests {
         assert_eq!(serde_json::from_str::<Value>(&a.1).unwrap()["title"], "Hello");
         assert_eq!(count(&conn, "SELECT count(*) FROM ops WHERE node_id = 'a'"), 2, "made, and typed");
         assert_eq!(count(&conn, "SELECT at FROM ops WHERE node_id = 'a' AND before IS NOT NULL"), 1_004_000, "as of its last");
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -328,7 +329,8 @@ mod tests {
         // A cutoff before b's typing leaves it, and the pause and the hand split the rest.
         assert_eq!(compact_log(&mut conn, 5_000_000, Duration::ZERO).unwrap(), 1, "only a's first two are one run");
         assert_eq!(count(&conn, "SELECT count(*) FROM ops"), all - 1);
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -359,7 +361,8 @@ mod tests {
         let all = count(&conn, "SELECT count(*) FROM ops");
         assert_eq!(compact_log(&mut conn, i64::MAX, Duration::ZERO).unwrap(), 0);
         assert_eq!(count(&conn, "SELECT count(*) FROM ops"), all);
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -369,7 +372,8 @@ mod tests {
         old_typing(&conn, "a", "user", 1_000_000, &["x", "xy", ""]);
         assert_eq!(compact_log(&mut conn, i64::MAX, Duration::ZERO).unwrap(), 2);
         assert_eq!(count(&conn, "SELECT count(*) FROM ops WHERE node_id = 'a'"), 1, "only its making is left");
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -379,7 +383,8 @@ mod tests {
         old_typing(&conn, "a", "user", 1_000_000, &["H", "He", "Hel"]);
         assert_eq!(compact_log(&mut conn, i64::MAX, Duration::ZERO).unwrap(), 2);
         assert_eq!(compact_log(&mut conn, i64::MAX, Duration::ZERO).unwrap(), 0);
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -395,7 +400,8 @@ mod tests {
         assert!(heal_search_index(&conn).unwrap(), "it notices");
         assert_eq!(Db::open(&path).unwrap().search("searchable", 5).unwrap(), vec!["a".to_string()]);
         assert!(!heal_search_index(&conn).unwrap(), "and is satisfied");
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -409,7 +415,8 @@ mod tests {
         // Whether this SQLite renumbers or not, after healing the index finds b.
         heal_search_index(&conn).unwrap();
         assert_eq!(Db::open(&path).unwrap().search("searchable", 5).unwrap(), vec!["b".to_string()]);
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -447,6 +454,7 @@ mod tests {
 
         // A second round has nothing to do, and the file does not change.
         assert_eq!(run(&path, now(), Duration::ZERO).unwrap(), Report::default());
-        std::fs::remove_dir_all(&dir).unwrap();
+        // Windows will not remove a folder while a test still holds its database open; a leftover temp folder is harmless.
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
