@@ -118,7 +118,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `brand/` | The logo and the icon, kept out of the app's package. `brock-logo.svg` and `brock-logo-plain.svg` are the logo with its wordmark, on a tile with a grey surround and on plain black. `brock-icon.svg` is the app icon: the logo without the wordmark, with two more branches where the word was. Every size is made from it with `npx tauri icon brand/brock-icon.svg -o src-tauri/icons`; delete the `android` and `ios` folders that makes, and copy `64x64.png` to `static/favicon.png` |
 | `src-tauri/src/maintenance.rs` | Keeping the vault small in the background: joining old typing in the log, and giving free space back, in small steps on its own connection |
 | `src-tauri/src/agent.rs` | The door agents knock on: a loopback listener while agents are allowed, `agent.json` with its port and secret, and one request per connection passed to the window |
-| `scripts/brock-mcp.mjs` | The MCP server an agent starts: it relays tool calls to the app through that door and holds no data; shipped with the app as a resource |
+| `src-tauri/src/mcp.rs` | `brock --mcp`: the app's own program as the MCP server an agent starts. It relays tool calls to the running app through that door and holds no data, starting the app first if it is closed and agents are allowed; `main.rs` runs it before anything of the app starts. The tools are in `mcp-tools.json` |
 | `src-tauri/src/backups.rs` | Daily copies of the vault, the last seven kept |
 
 ## Rules that are easy to break
@@ -310,8 +310,13 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   so it does not travel in a backup, export or sync. The door (`agent.rs`) is
   closed unless Settings › Agents is on, listens on loopback only, and wants
   the secret from `agent.json` (owner-only); it never learns what a request
-  means. `scripts/brock-mcp.mjs` takes the tool's name from the call, never
-  from its arguments.
+  means. `mcp.rs` takes the tool's name from the call, never from its
+  arguments, and writes nothing but protocol to standard output. It starts the
+  app only when `agents-allowed`, a file beside the vault that `agent_enable`
+  keeps (the switch itself is in the window's storage, which it cannot read),
+  is there, and never a second copy: release builds have the single-instance
+  plugin, and on a Mac it starts the app through `open -g`. A new tool is added
+  in `core/agent.ts` (request, parse, answer) and `mcp-tools.json`.
 - **Edits made for someone else are not steps for ⌘Z.** An agent's edits run
   inside `vault.as("agent", …)`: they are saved, shown and told to the listeners
   with that origin, which the saver passes to the store so the log says who made

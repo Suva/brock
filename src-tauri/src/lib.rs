@@ -6,6 +6,7 @@ mod agent;
 mod backups;
 mod db;
 mod maintenance;
+pub mod mcp;
 
 use db::{Change, Db, LogEntry, Node};
 use serde::Serialize;
@@ -75,6 +76,8 @@ struct Agents {
 #[tauri::command]
 fn agent_enable(app: tauri::AppHandle, agents: State<Agents>, enabled: bool) -> Result<(), String> {
     let mut door = agents.door.lock().map_err(|e| e.to_string())?;
+    // `brock --mcp` reads this to know whether to start the app for an agent.
+    agent::set_allowed(&agents.dir, enabled)?;
     if !enabled {
         *door = None;
         return Ok(());
@@ -113,12 +116,11 @@ fn agent_reply(agents: State<Agents>, id: u64, reply: serde_json::Value) {
     }
 }
 
-/// Where `brock-mcp.mjs` is, to tell the person what to give their agent; none
-/// if this copy of the app does not carry it.
+/// This app's own executable, which is what an agent starts, with `--mcp`, to
+/// work with it (see `mcp.rs`).
 #[tauri::command]
-fn agent_script(app: tauri::AppHandle) -> Option<String> {
-    let path = app.path().resolve("brock-mcp.mjs", tauri::path::BaseDirectory::Resource).ok()?;
-    path.exists().then(|| path.to_string_lossy().into_owned())
+fn agent_executable() -> Option<String> {
+    std::env::current_exe().ok().map(|p| p.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -307,7 +309,20 @@ mod tests {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // One copy of the app at a time, so that an agent asking for it while it is
+    // open, or a second launch on Windows and Linux, brings its window forward
+    // rather than starting another on the same vault. Not in development builds,
+    // which share the installed app's identifier and are run beside it.
+    #[cfg(all(desktop, not(debug_assertions)))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+    builder
         // Opens web addresses from notes in the browser, when clicked; the
         // capability lets the window open http and https addresses only.
         // Files are opened from Rust, by `open_file`, with its own rules.
@@ -370,7 +385,7 @@ pub fn run() {
             open_text,
             agent_enable,
             agent_reply,
-            agent_script
+            agent_executable
         ])
         .run(tauri::generate_context!())
         .expect("error while running the app");

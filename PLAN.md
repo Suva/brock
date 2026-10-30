@@ -192,13 +192,14 @@ Later: Markdown in bodies, images, more vaults, syncing and a web version, phone
 ## Agents
 
 Let AI agents read the vault, and later create and edit in the maps the user
-shares with them, through an MCP server, `brock-mcp`.
+shares with them, through an MCP server: the app's own program, started as
+`brock --mcp` (`mcp.rs`).
 
 **Built: reading and editing, with the app open.** The window answers, since it
 holds the vault and is the only thing that edits it.
 
 ```
-agent → brock-mcp (stdio) → loopback door (agent.rs) → window → core/agent.ts → answer
+agent → brock --mcp (stdio) → loopback door (agent.rs) → window → core/agent.ts → answer
 ```
 
 - **Sharing is per map and per computer.** Select a map's centre and choose
@@ -223,11 +224,18 @@ agent → brock-mcp (stdio) → loopback door (agent.rs) → window → core/age
   `agent.json` beside the vault holds the port and a secret, readable by the
   owner only, and is removed when the door closes. Not a Unix socket or a
   named pipe, which would be two code paths and, on Windows, a new crate.
-- **`brock-mcp.mjs`** holds no data and needs only Node; the app carries it as a
-  resource and Settings shows the command to add it to Claude Code.
+- **`brock --mcp`** is the app's own executable acting as the MCP server, so that
+  nothing has to be installed: `main` sees the flag before anything of the app
+  starts, makes no window and writes only protocol to standard output. It holds
+  no data. Settings shows the command to add it to Claude Code, with the
+  app's own path quoted for the system. (It was a Node script first.) The tools
+  are listed in `mcp-tools.json`.
 - **Not done:** a menu command for sharing (it is a setting in the notes
-  panel); trying a packaged build (the script as a resource); other agents
-  than Claude Code; a way to see what an agent has read.
+  panel); trying a packaged build, and on Windows in particular, where the app
+  has no console (`windows_subsystem`) and the pipes an agent gives it are
+  believed, not known, to work; other agents than Claude Code; a way to see
+  what an agent has read; removing `agent.json` when the app is quit (it is
+  removed when the next one starts, and a left one just says the app is not open).
 
 - **History and attention (built).** Every change is in the log with who made it
   (`source`: you or `agent`); the sidebar's History tab shows the steps and takes
@@ -242,11 +250,20 @@ moving the branches of a centre as the app does (`pinSides`), marking what an
 agent added until the person accepts it, and, for boards, roles on columns and
 the flag in the Boards section below.
 
-**Later: with the app closed.** This would need a second reader of the
-database, beside the window:
+**Built: closed means started.** When nothing answers and the person has allowed
+agents (the `agents-allowed` file), `brock --mcp` starts the app as a double
+click would (through `open -g` on a Mac, so it opens behind what they are
+doing; detached elsewhere) and waits up to 25 seconds for its door. Release
+builds have the single-instance plugin, so a second launch brings the first
+window forward; development builds do not, as they share the installed app's
+identifier. The window stays open until the person closes it. Not done: trying
+it from a packaged app, where `open -g` and the window's first show decide
+whether it takes the focus; and Windows and Linux.
 
-- `brock-mcp` as a standalone Rust binary sharing the database code (`db.rs`
-  split into a small crate), opening the vault in WAL mode with a busy timeout.
+**Later: with no window at all.** A hidden background copy that quits when
+idle, or reading the vault where no app runs. The latter would need a second
+reader of the database, beside the window:
+
 - Writes as `{ before, after }` changes through `apply_changes`, refused when
   `before` no longer matches (it does not check today), and the window
   watching the log for outside changes, applying them as external changes (not
@@ -285,7 +302,7 @@ agent picks it up, does it and moves it on. Builds on the Agents section above.
   the window both read it.
 - **A runner is needed,** as MCP only answers. A `brock-agent` command, run by
   hand first (`brock-agent run --board X`) and later as a helper that watches
-  the log, reads the database as `brock-mcp` does, so it works with the app
+  the log, reads the database as `brock --mcp` would, so it works with the app
   closed, and starts an agent headlessly (for Claude Code, `claude -p` with the
   Brock server attached and the card's id) for each card that enters a trigger
   column.
@@ -316,7 +333,7 @@ agent picks it up, does it and moves it on. Builds on the Agents section above.
     research (web and a scratch folder) and project (edits and tests in one
     folder, no network, no push). A board picks one; custom ones wait until
     someone needs them.
-- **Order:** the sharing setting and a `brock-mcp` that reads and writes; a
+- **Order:** the sharing setting and a `brock --mcp` that reads and writes; a
   `move_card` tool with the claim-by-move rule; board roles and the flag; then
   the runner, by hand before it watches.
 - **With a phone:** a card dragged to Todo on the phone is picked up by the

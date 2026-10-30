@@ -52,20 +52,21 @@ const MAX_NODES = 500;
 const MAX_TITLE = 1000;
 
 /**
- * The command that gives Claude Code the Brock server, with the script's path
- * quoted for the shell it is typed in: single quotes where there are any
- * special characters on Mac and Linux, double quotes on Windows, whose paths
- * keep their single backslashes. Windows paths from the app may start with
- * `\\?\`, which is dropped, as it only confuses.
+ * The command that gives Claude Code the Brock server: the app's own
+ * executable, started with `--mcp` (see `mcp.rs`), so that nothing else has to
+ * be installed. Its path is quoted for the shell it is typed in: single quotes
+ * where there are any special characters on Mac and Linux, double quotes on
+ * Windows, whose paths keep their single backslashes. Windows paths from the
+ * app may start with `\\?\`, which is dropped, as it only confuses.
  */
-export function connectCommand(script: string | null, windows: boolean): string {
-  let path = script ?? "/path/to/brock-mcp.mjs";
+export function connectCommand(executable: string | null, windows: boolean): string {
+  let path = executable ?? (windows ? "C:\\path\\to\\Brock.exe" : "/path/to/Brock.app/Contents/MacOS/brock");
   if (windows) {
     path = path.replace(/^\\\\\?\\(?=[A-Za-z]:\\)/, "");
-    return `claude mcp add brock -- node "${path}"`;
+    return `claude mcp add brock -- "${path}" --mcp`;
   }
   const quoted = /^[A-Za-z0-9_./:@%+=,-]+$/.test(path) ? path : `'${path.replace(/'/g, `'\\''`)}'`;
-  return `claude mcp add brock -- node ${quoted}`;
+  return `claude mcp add brock -- ${quoted} --mcp`;
 }
 
 /** Whether `id` is a live map that is shared. */
@@ -203,7 +204,7 @@ function cut(text: string): string {
 function listMaps(vault: Vault, shared: Shared, writable: Shared): string {
   const maps = [...shared].filter((id) => isShared(vault, shared, id)).map((id) => vault.get(id)!);
   if (maps.length === 0) {
-    return "No maps are shared with agents. In Brock, select a map's centre and turn on Share with agents.\n";
+    return "No maps are shared with agents. In Brock, select a map's centre and choose Can read or Can edit under Agents in the notes panel.\n";
   }
   const lines = ["Maps shared with you:", ""];
   for (const map of maps.sort((a, b) => a.title.localeCompare(b.title))) {

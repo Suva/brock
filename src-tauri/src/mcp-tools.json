@@ -1,0 +1,245 @@
+[
+  {
+    "name": "list_maps",
+    "description": "Lists the maps in Brock that the person has shared with you, with their ids and whether you may edit each. Start here; you can reach nothing else.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "read_map",
+    "description": "Reads a shared map as an indented outline: every node with its id, tasks as [ ] and [x], priority, due date and notes. A map inside it that is not shared shows as a closed portal.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The map's id, from list_maps."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "read_node",
+    "description": "Reads one node of a shared map: its notes, what is under it, and what it links to and is linked from.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The node's id, from read_map or search."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "search",
+    "description": "Searches the titles and notes of the shared maps. Every word must be found; case and accents do not matter.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "How many results at most; 20 if not given."
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "add_nodes",
+    "description": "Adds nodes under a node of a map you may edit. The outline is lines of text, one node each, indented to nest; start a line with - [ ] for a task. Lines without a bullet under bulleted ones become the notes of the node above. Returns the new nodes with their ids. One step that the person can undo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": "string",
+          "description": "The node to add under: a map's id from list_maps, or a node's id from read_map."
+        },
+        "outline": {
+          "type": "string",
+          "description": "For example:\n- [ ] Buy seeds\n  - Tomatoes\n  - Basil\n- Plan the beds"
+        }
+      },
+      "required": [
+        "parent",
+        "outline"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "update_node",
+    "description": "Changes a node of a map you may edit: its title, its notes (notes replaces them, append_notes adds on a new line), priority (1 most important to 5, or null to take it away) or due date (2026-11-30, or null). Give only what changes. Replacing notes loses the old ones for you, though the person can undo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The node's id."
+        },
+        "title": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "append_notes": {
+          "type": "string"
+        },
+        "priority": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 5
+        },
+        "due": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A day written 2026-11-30."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "set_task",
+    "description": "Makes a node of a map you may edit an open task, a done task, or an ordinary node again (none).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The node's id."
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "done",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "move_node",
+    "description": "Moves a node, with what is under it, to be a child of another node, in maps you may edit: from one column of a board to another, say. It cannot move maps or the branches of a map's centre.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The node to move."
+        },
+        "parent": {
+          "type": "string",
+          "description": "The node to move it under."
+        },
+        "position": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Its place among the parent's children, counting from 0."
+        }
+      },
+      "required": [
+        "id",
+        "parent"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "flag_node",
+    "description": "Marks a node of a map you may edit for the person, in a colour: attention (orange, the default) when you need an answer, a decision or a review; critical (red) when you are blocked or something cannot wait; ok (green) when it is done or ready for a look, which asks nothing of them. It shows on the node and under the bell in Brock's header. Give a short reason: it is added to the node's notes. You can only raise a mark, never lower or clear one; the person does that. Usually also move the node somewhere that shows it is waiting.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The node's id."
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "attention",
+            "critical"
+          ],
+          "description": "attention if not given."
+        },
+        "reason": {
+          "type": "string",
+          "description": "What you need, or what is done, in a sentence or two."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  }
+]

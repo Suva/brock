@@ -17,6 +17,30 @@ use std::time::Duration;
 /// The file, in the vault's folder, that says where to knock and the secret to knock with.
 pub const FILE: &str = "agent.json";
 
+/// A file, beside the vault, that is there while agents are allowed: the
+/// switch lives in the window's storage, which `brock --mcp` cannot read, and it
+/// needs to know before it starts the app for an agent.
+pub const ALLOWED_FILE: &str = "agents-allowed";
+
+/// Records whether agents are allowed, for `brock --mcp` (see `ALLOWED_FILE`).
+pub fn set_allowed(dir: &Path, allowed: bool) -> Result<(), String> {
+    let file = dir.join(ALLOWED_FILE);
+    if allowed {
+        std::fs::write(&file, b"").map_err(|e| format!("Cannot write {}: {e}", file.display()))
+    } else {
+        match std::fs::remove_file(&file) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(format!("Cannot remove {}: {e}", file.display())),
+        }
+    }
+}
+
+/// Whether agents are allowed, as last recorded.
+pub fn is_allowed(dir: &Path) -> bool {
+    dir.join(ALLOWED_FILE).exists()
+}
+
 /// A request is one line; a longer one is not an agent's.
 const MAX_LINE: u64 = 64 * 1024;
 /// A client that sends nothing for this long is let go.
@@ -206,6 +230,19 @@ mod tests {
         let (one, two) = (open_and_read(), open_and_read());
         assert_eq!(one.len(), 64);
         assert_ne!(one, two);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn whether_agents_are_allowed_is_kept_for_the_shim() {
+        let dir = folder("allowed");
+        assert!(!is_allowed(&dir));
+        set_allowed(&dir, true).unwrap();
+        assert!(is_allowed(&dir));
+        set_allowed(&dir, true).unwrap();
+        set_allowed(&dir, false).unwrap();
+        assert!(!is_allowed(&dir));
+        set_allowed(&dir, false).unwrap();
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

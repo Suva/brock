@@ -411,29 +411,29 @@ test("flag_node needs a map to edit, and checks its level", () => {
   assert.match(parseRequest({ tool: "flag_node", id: "a", level: "red" }) as string, /ok, attention or critical/);
 });
 
-test("the command that connects Claude Code quotes the script's path for the shell it is typed in", () => {
-  const mac = "/Applications/Brock.app/Contents/Resources/brock-mcp.mjs";
-  assert.equal(connectCommand(mac, false), `claude mcp add brock -- node ${mac}`, "nothing to quote");
+test("the command that connects Claude Code starts the app with --mcp, quoted for the shell it is typed in", () => {
+  const mac = "/Applications/Brock.app/Contents/MacOS/brock";
+  assert.equal(connectCommand(mac, false), `claude mcp add brock -- ${mac} --mcp`, "nothing to quote");
   assert.equal(
-    connectCommand("/Users/me/My Maps/it's here/brock-mcp.mjs", false),
-    "claude mcp add brock -- node '/Users/me/My Maps/it'\\''s here/brock-mcp.mjs'",
+    connectCommand("/Users/me/My Apps/it's here/brock", false),
+    "claude mcp add brock -- '/Users/me/My Apps/it'\\''s here/brock' --mcp",
     "spaces and a quote",
   );
-  assert.equal(connectCommand("/tmp/$HOME/x.mjs", false), "claude mcp add brock -- node '/tmp/$HOME/x.mjs'", "nothing is expanded");
-  assert.equal(connectCommand(null, false), "claude mcp add brock -- node /path/to/brock-mcp.mjs");
+  assert.equal(connectCommand("/tmp/$HOME/brock", false), "claude mcp add brock -- '/tmp/$HOME/brock' --mcp", "nothing is expanded");
+  assert.equal(connectCommand(null, false), "claude mcp add brock -- /path/to/Brock.app/Contents/MacOS/brock --mcp");
 
   // Windows: double quotes, backslashes as they are, and no \\?\ in front.
   assert.equal(
-    connectCommand("C:\\Program Files\\Brock\\brock-mcp.mjs", true),
-    'claude mcp add brock -- node "C:\\Program Files\\Brock\\brock-mcp.mjs"',
+    connectCommand("C:\\Program Files\\Brock\\Brock.exe", true),
+    'claude mcp add brock -- "C:\\Program Files\\Brock\\Brock.exe" --mcp',
   );
   assert.equal(
-    connectCommand("\\\\?\\C:\\Users\\me\\Brock\\brock-mcp.mjs", true),
-    'claude mcp add brock -- node "C:\\Users\\me\\Brock\\brock-mcp.mjs"',
+    connectCommand("\\\\?\\C:\\Users\\me\\Brock\\Brock.exe", true),
+    'claude mcp add brock -- "C:\\Users\\me\\Brock\\Brock.exe" --mcp',
   );
   assert.equal(
-    connectCommand("\\\\server\\share\\brock-mcp.mjs", true),
-    'claude mcp add brock -- node "\\\\server\\share\\brock-mcp.mjs"',
+    connectCommand("\\\\server\\share\\Brock.exe", true),
+    'claude mcp add brock -- "\\\\server\\share\\Brock.exe" --mcp',
     "a network path keeps its two backslashes",
   );
 });

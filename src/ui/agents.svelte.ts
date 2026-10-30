@@ -108,8 +108,8 @@ const open = (enabled: boolean) => (inTauri() ? invoke("agent_enable", { enabled
 /** Whether this window can be reached by agents at all: only the app can. */
 export const canHostAgents = () => inTauri();
 
-/** Where `brock-mcp.mjs` is, for the command to give an agent; null if this app does not carry it. */
-export const agentScript = () => invoke<string | null>("agent_script");
+/** This app's own executable, which an agent starts with `--mcp`, for the command to give it. */
+export const agentExecutable = () => invoke<string | null>("agent_executable");
 
 /**
  * Starts answering agents' requests, and opens the door if they are allowed.

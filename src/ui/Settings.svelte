@@ -10,7 +10,7 @@
   import { clearBackground, setClearBackground } from "./picture.ts";
   import { setUpdatesOn, updatesOn } from "./updates.ts";
   import { connectCommand } from "../core/agent.ts";
-  import { agents, agentScript, canHostAgents } from "./agents.svelte.ts";
+  import { agents, agentExecutable, canHostAgents } from "./agents.svelte.ts";
   import { writeText } from "./system-clipboard.ts";
   import type { Live } from "./live.svelte.ts";
 
@@ -30,19 +30,19 @@
   let working = $state(false);
   let problem = $state<string | null>(null);
   const app = inTauri();
-  let script = $state<string | null>(null);
+  let executable = $state<string | null>(null);
   let copied = $state(false);
   /** The maps shared with agents that still exist, by name. */
   const sharedMaps = $derived.by(() => {
     void live.version;
     return agents.shared.flatMap((id) => (live.vault.isLive(id) && live.vault.get(id)?.isMap ? [live.vault.get(id)!] : []));
   });
-  const command = $derived(connectCommand(script, navigator.platform.startsWith("Win")));
+  const command = $derived(connectCommand(executable, navigator.platform.startsWith("Win")));
 
   $effect(() => {
     if (app) invoke<Backups>("list_backups").then((b) => (backups = b), (e) => (problem = String(e)));
     if (app) import("@tauri-apps/api/app").then(({ getVersion }) => getVersion()).then((v) => (version = v));
-    if (app) agentScript().then((s) => (script = s), () => {});
+    if (app) agentExecutable().then((e) => (executable = e), () => {});
   });
 
   async function allowAgents(on: boolean) {
@@ -190,8 +190,8 @@
           <div class="actions">
             <button onclick={copyCommand}>{copied ? "Copied" : "Copy the command"}</button>
           </div>
-          {#if !script}
-            <p class="muted">This copy of Brock does not carry <code>brock-mcp.mjs</code>; it is in the <code>scripts</code> folder of the source.</p>
+          {#if !executable}
+            <p class="muted">This copy of Brock could not say where it is; use the path of the app's program in place of the one shown.</p>
           {/if}
         {/if}
         {#if sharedMaps.length}

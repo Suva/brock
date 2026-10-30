@@ -40,9 +40,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "../scripts/brock-mcp.mjs": "brock-mcp.mjs"
-    },
     "macOS": {
       "signingIdentity": "-"
     }

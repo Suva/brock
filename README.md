@@ -242,7 +242,10 @@ Two things reach outside it, and a third only if you allow it:
 - AI agents, only if you turn on Settings › Agents, which is off. While it
   is on, the app listens on this computer's loopback address, which no other
   computer can reach, and answers an agent that knocks with a secret kept in
-  a file only you can read (`agent.json`, beside the vault). Agents can ask
+  a file only you can read (`agent.json`, beside the vault). If Brock is
+  not open when an agent asks, and you have allowed agents, the agent's
+  connection starts it, as a double click would; if you have not, it does
+  nothing but say so. Agents can ask
   only for the maps you have shared with them, one by one, to read or to
   edit. In a map shared to edit an agent can add nodes, change titles, notes,
   priorities and due dates, tick tasks and move nodes, each a step that ⌘Z
