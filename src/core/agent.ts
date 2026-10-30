@@ -17,7 +17,7 @@
 
 import { fromText, importInto, type Outline } from "./exchange.ts";
 import { search } from "./search.ts";
-import { flagName, rank } from "./attention.ts";
+import { flagLabel, flagName, rank } from "./attention.ts";
 import type { Flag, Node } from "./node.ts";
 import type { Vault } from "./vault.ts";
 
@@ -112,6 +112,40 @@ export function answer(vault: Vault, shared: Shared, request: AgentRequest, writ
     case "flag_node":
       return flagNode(vault, shared, writable, request);
   }
+}
+
+/** What the person has allowed agents, as the window holds it. */
+export interface Grants {
+  /** Whether agents are allowed at all. */
+  on: boolean;
+  shared: Shared;
+  writable: Shared;
+}
+
+/**
+ * What the window does with a request from outside: checks it, answers it as
+ * edits made for an agent, which are not steps for undo, and tells the person
+ * what was changed. A failure to tell them does not undo or hide the answer.
+ */
+export function respond(vault: Vault, raw: unknown, grants: Grants, onChanged?: (what: string) => void): AgentReply {
+  // The door is closed when agents are not allowed; this is for a request already on its way.
+  if (!grants.on) return fail("Agents are not allowed in Brock.");
+  const request = parseRequest(raw);
+  if (typeof request === "string") return fail(request);
+  let reply: AgentReply;
+  try {
+    reply = vault.as("agent", () => answer(vault, grants.shared, request, grants.writable));
+  } catch (e) {
+    return fail(`Brock could not answer: ${e}`);
+  }
+  if (reply.ok && reply.changed) {
+    try {
+      onChanged?.(reply.changed);
+    } catch {
+      // The footer failing to say it must not turn what was done into an error.
+    }
+  }
+  return reply;
 }
 
 /**
@@ -423,8 +457,6 @@ function moveNode(vault: Vault, shared: Shared, writable: Shared, { id, parent, 
   });
 }
 
-const MARK_LABEL: Record<Flag, string> = { ok: "OK", attention: "Needs attention", critical: "Critical" };
-
 function flagNode(
   vault: Vault,
   shared: Shared,
@@ -442,7 +474,7 @@ function flagNode(
   return edit(() => {
     // The reason goes in the notes, where the person will look for it; the mark
     // brings them there.
-    const note = why ? `${node.body ? node.body + "\n" : ""}**${MARK_LABEL[level]}:** ${why}` : node.body;
+    const note = why ? `${node.body ? node.body + "\n" : ""}**${flagLabel(level)}:** ${why}` : node.body;
     vault.update(id, { flag: level, body: note });
     return {
       ok: true,

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { answer, connectCommand, MAX_CHARS, parseRequest } from "../src/core/agent.ts";
+import { answer, connectCommand, MAX_CHARS, parseRequest, respond } from "../src/core/agent.ts";
 import { Vault } from "../src/core/vault.ts";
 
 // Home
@@ -436,4 +436,47 @@ test("the command that connects Claude Code starts the app with --mcp, quoted fo
     'claude mcp add brock -- "\\\\server\\share\\Brock.exe" --mcp',
     "a network path keeps its two backslashes",
   );
+});
+
+// ---- What the window does with a request --------------------------------------
+
+test("a request is refused when agents are not allowed, and when it is not one", () => {
+  const { v, garden, seeds } = world();
+  const grants = { on: false, shared: new Set([garden.id]), writable: new Set([garden.id]) };
+  const off = respond(v, { tool: "update_node", id: seeds.id, title: "x" }, grants);
+  assert.equal(off.ok, false);
+  assert.equal(v.get(seeds.id)!.title, "Buy seeds");
+  const bad = respond(v, { tool: "update_node" }, { ...grants, on: true });
+  assert.equal(bad.ok, false);
+  assert.match(reply(bad), /"id" is needed/);
+});
+
+test("what an agent does is not a step for undo, is told to the listeners as the agent's, and is told to the person", () => {
+  const { v, garden, seeds, plants } = world();
+  v.forgetUndo();
+  const origins: string[] = [];
+  v.onChange((_changes, origin) => origins.push(origin));
+  const told: string[] = [];
+  const grants = { on: true, shared: new Set([garden.id]), writable: new Set([garden.id]) };
+
+  v.update(plants.id, { title: "Mine" });
+  const done = respond(v, { tool: "set_task", id: seeds.id, state: "done" }, grants, (what) => told.push(what));
+  assert.ok(done.ok);
+  assert.deepEqual(origins, ["user", "agent"]);
+  assert.deepEqual(told, ["ticked Buy seeds in Garden"]);
+
+  v.undo();
+  assert.equal(v.get(plants.id)!.title, "Plants", "undo takes back the person's step");
+  assert.equal(v.get(seeds.id)!.task, "done", "and not the agent's");
+  assert.equal(v.canUndo, false);
+});
+
+test("the footer failing to say what was done does not turn it into an error", () => {
+  const { v, garden, seeds } = world();
+  const grants = { on: true, shared: new Set([garden.id]), writable: new Set([garden.id]) };
+  const done = respond(v, { tool: "set_task", id: seeds.id, state: "done" }, grants, () => {
+    throw new Error("no footer");
+  });
+  assert.ok(done.ok);
+  assert.equal(v.get(seeds.id)!.task, "done");
 });

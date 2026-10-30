@@ -1,6 +1,6 @@
 // Hands the vault's changes to the store in the order they were made, one
-// write at a time. Changes that arrive during a write go together in the next
-// one. A write that fails is tried again, and nothing after it is written
+// write at a time, each edit as a write of its own, so that the log can tell
+// one step from the next. A write that fails is tried again, and nothing after it is written
 // first, so the database never holds a later edit without an earlier one.
 // Removing nodes for good, when the trash is emptied, takes its turn in the
 // same line.
@@ -61,20 +61,10 @@ export class Saver {
     this.#set("saving", null);
     while (this.#queue.length > 0) {
       const first = this.#queue[0];
-      // Changes in a row by the same hand go together; a removal goes on its own.
-      let count = 1;
-      if ("changes" in first) {
-        while (count < this.#queue.length) {
-          const next = this.#queue[count];
-          if (!("changes" in next) || next.origin !== first.origin) break;
-          count++;
-        }
-      }
       try {
-        if ("changes" in first) {
-          await this.#store.save((this.#queue.slice(0, count) as { changes: Change[] }[]).flatMap((q) => q.changes), first.origin);
-        } else await this.#store.purge(first.purge);
-        this.#queue.splice(0, count);
+        if ("changes" in first) await this.#store.save(first.changes, first.origin);
+        else await this.#store.purge(first.purge);
+        this.#queue.shift();
         if (this.status === "failed") this.#set("saving", null);
       } catch (error) {
         this.#set("failed", error instanceof Error ? error.message : String(error));

@@ -41,8 +41,9 @@ pub fn is_allowed(dir: &Path) -> bool {
     dir.join(ALLOWED_FILE).exists()
 }
 
-/// A request is one line; a longer one is not an agent's.
-const MAX_LINE: u64 = 64 * 1024;
+/// A request is one line; a longer one is not an agent's. Room enough for the
+/// longest outline or notes the window accepts (100,000 characters), escaped.
+const MAX_LINE: u64 = 1024 * 1024;
 /// A client that sends nothing for this long is let go.
 const READ_WITHIN: Duration = Duration::from_secs(5);
 /// More at once than this are turned away: an agent asks one thing at a time.
@@ -230,6 +231,20 @@ mod tests {
         let (one, two) = (open_and_read(), open_and_read());
         assert_eq!(one.len(), 64);
         assert_ne!(one, two);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_request_as_long_as_the_window_accepts_is_not_cut() {
+        let dir = folder("long");
+        let _door = Door::open(&dir, echo()).unwrap();
+        // 100,000 characters of notes, each escaped to two in the JSON line.
+        let notes = "\n".repeat(100_000);
+        let line = json!({ "token": "TOKEN", "request": { "tool": "update_node", "notes": notes } }).to_string();
+        assert!(line.len() > 64 * 1024);
+        let reply = knock(&dir, &line);
+        assert_eq!(reply["ok"], true, "{reply}");
+        assert_eq!(serde_json::from_str::<Value>(reply["text"].as_str().unwrap()).unwrap()["notes"].as_str().unwrap().len(), 100_000);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

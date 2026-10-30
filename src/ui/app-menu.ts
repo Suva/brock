@@ -33,6 +33,7 @@ export interface MenuActions {
   showTasks(): void;
   showHistory(): void;
   flagSelected(): void;
+  shareWithAgents(): void;
   showAttention(): void;
   toggleNotes(): void;
   toggleSource(): void;
@@ -163,6 +164,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         await item("Mark: Attention, Critical, OK, None", a.flagSelected, "CmdOrCtrl+Shift+A"),
         priorities,
         await line(),
+        await item("Share Open Map with Agents: Read, Edit, None", a.shareWithAgents),
         await item("Make Map or Undo It", () => press(cmd({ key: "M", shiftKey: true })), "CmdOrCtrl+Shift+M"),
         await item(`Open Map (${mac() ? "⌘↓" : "Ctrl+↓"})`, () => press(cmd({ key: "ArrowDown" }))),
         await item("Fold or Unfold", () => press(cmd({ key: "/" })), "CmdOrCtrl+/"),

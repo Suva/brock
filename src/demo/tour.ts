@@ -62,6 +62,10 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   const priorityWay = web
     ? "The numbers at the top of this panel set a priority, or **⌘1** to **⌘5** in the app."
     : "**⌘1** to **⌘5** set a priority, or the numbers at the top of this panel.";
+  /** The way to mark a node: the buttons in the notes panel, and in the app a key that goes round the marks. */
+  const markWay = web
+    ? "**Mark**, at the top of this panel"
+    : "**Mark** at the top of this panel, or **⇧⌘A**, which goes round the marks";
   /** The way to the sidebar's tasks: its tab on the map's left edge, or a key a browser keeps for itself. */
   const tasksWay = web
     ? "The **›** tab on the left edge of the map opens the sidebar"
@@ -169,6 +173,18 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("Done last week. In the Tasks tab, **Clear** beside a group moves its tasks to the trash, and leaves the others."),
   });
 
+  add(tasks, "Mark what needs you", {
+    flag: "attention",
+    body: notes(
+      `${markWay}: a node can be marked orange ⚑ when it needs your attention, red ‼ when it is critical, or green ✓ when it is OK.`,
+      "The bell at the top right counts the marks: an orange badge for what asks something of you, red if any is critical, and a grey one for the green ones. Click it to see them all, the critical first, and go to one.",
+    ),
+  });
+  add(tasks, "Green means OK", {
+    flag: "ok",
+    body: notes("A green mark asks nothing of you: it says something is resolved, or ready for a look. In the bell, the tick on an orange or red node marks it OK, and the cross on a green one clears it."),
+  });
+
   // ---- Left: finding and keeping --------------------------------------------
 
   const notesBranch = branch("Notes and links", {
@@ -191,7 +207,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   add(notesBranch, "Links to the app", {
     body: notes(
       "A link in notes can also open part of Brock: `[show the tasks](brock:tasks)` becomes [show the tasks](brock:tasks).",
-      "The others are `brock:maps`, `brock:search`, `brock:settings` and `brock:trash`.",
+      "The others are `brock:maps`, `brock:history`, `brock:search`, `brock:settings` and `brock:trash`.",
     ),
   });
   add(notesBranch, "Colours and icons", {
@@ -233,6 +249,13 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   add(keeping, "Export and import", {
     body: notes("The **⋯** menu exports a map to Markdown, OPML or JSON, or as a picture, and imports OPML from other outliners, or JSON exported before."),
   });
+  add(keeping, "History: what changed", {
+    body: notes(
+      `The **History** tab of the sidebar lists what was changed, newest first, by day, and whether you or ${web ? "something else" : "an agent"} did it. Click one to go there. [Show the history](brock:history).`,
+      "**Revert** puts the nodes of a step back as they were, as a step of its own, so **⌘Z** undoes the revert. A node that has changed since is left alone.",
+      web ? "Here, it holds what you change while this page is open." : "It is kept with the vault, so it is there after a restart.",
+    ),
+  });
   if (web) {
     add(keeping, "Here: this browser", {
       body: notes("In this demo, what you change is kept in this browser only, and nowhere else."),
@@ -242,6 +265,13 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
       body: notes("Brock is free, for Mac, Windows and Linux. The downloads are on this page, under the demo."),
     });
   } else {
+    add(keeping, "Agents can help", {
+      icon: "🤖",
+      body: notes(
+        "In [Settings](brock:settings), turn on **Agents**, then share a map: select its centre and choose **Can read** or **Can edit** under **Agents** at the top of this panel.",
+        "AI agents such as Claude Code can then read it, and, if you let them edit, add nodes, tick tasks and mark nodes for you. They never delete, and everything they do is in the History.",
+      ),
+    });
     add(keeping, "Every command, in the menus", {
       body: notes("The menu bar lists every command with its key, for finding one without knowing the key."),
     });

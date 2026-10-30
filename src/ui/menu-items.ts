@@ -75,6 +75,7 @@ export function menuItems(a: MenuActions, s: MenuState, quit: () => void): Item[
         { label: "Mark: Attention, Critical, OK, None", run: a.flagSelected, hint: "Ctrl+Shift+A" },
         { label: "Priority", items: priorities },
         line,
+        { label: "Share Open Map with Agents: Read, Edit, None", run: a.shareWithAgents },
         { label: "Make Map or Undo It", run: () => press(cmd({ key: "M", shiftKey: true })), hint: "Ctrl+Shift+M" },
         { label: "Open Map", run: () => press(cmd({ key: "ArrowDown" })), hint: "Ctrl+↓" },
         { label: "Fold or Unfold", run: () => press(cmd({ key: "/" })), hint: "Ctrl+/" },

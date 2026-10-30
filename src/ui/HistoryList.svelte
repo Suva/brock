@@ -6,6 +6,7 @@
   log the store keeps, so they are there after a restart.
 -->
 <script lang="ts">
+  import { untrack } from "svelte";
   import { aboutNode, describe, reversible, revertStep, stepsOf, type Step } from "../core/activity.ts";
   import type { Live } from "./live.svelte.ts";
 
@@ -28,7 +29,7 @@
   $effect(() => {
     void live.version;
     clearTimeout(timer);
-    timer = setTimeout(load, loaded ? 400 : 0);
+    timer = setTimeout(load, untrack(() => loaded) ? 400 : 0);
     return () => clearTimeout(timer);
   });
 
@@ -44,8 +45,8 @@
 
   function status(step: Step) {
     void live.version;
-    const { clean, total } = reversible(vault, step);
-    return { clean: clean.length, total };
+    const { clean, total, back } = reversible(vault, step);
+    return { clean: clean.length, total, back };
   }
 
   function revert(step: Step) {
@@ -113,7 +114,11 @@
           {s.clean === s.total ? "Revert" : `Revert ${s.clean} of ${s.total}`}
         </button>
       {:else}
-        <span class="changed" title="Every node of this step has been changed since">Changed since</span>
+        {#if s.back === s.total}
+          <span class="changed" title="Everything this step changed is as it was before it">As it was</span>
+        {:else}
+          <span class="changed" title="Every node of this step has been changed since">Changed since</span>
+        {/if}
       {/if}
     </li>
   {/each}

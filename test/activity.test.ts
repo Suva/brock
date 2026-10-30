@@ -123,6 +123,7 @@ test("a step is taken back, as a step of its own that ⌘Z undoes", () => {
 
   assert.deepEqual(revertStep(w.v, step), { reverted: 1, left: 0 });
   assert.equal(w.v.get(n.id)!.body, "Old notes");
+  assert.deepEqual([reversible(w.v, step).clean.length, reversible(w.v, step).back], [0, 1], "afterwards it is as it was, not changed since");
   w.v.undo();
   assert.equal(w.v.get(n.id)!.body, "New notes by an agent", "the revert was one step to undo");
 });
@@ -178,6 +179,19 @@ test("a move is taken back to where it was, unless that place is gone or would m
   assert.deepEqual(revertStep(w.v, step), { reverted: 0, left: 1 });
   assert.equal(w.v.get(b.id)!.parentId, w.v.rootId);
 
+  // Or A is in the trash: the node would be hidden under it.
+  w.advance(10 * SAME_STEP_MS);
+  w.v.move(a.id, w.v.rootId, 0);
+  w.v.move(b.id, a.id, 0);
+  w.advance(10 * SAME_STEP_MS);
+  w.v.move(b.id, w.v.rootId, 0);
+  const out = w.steps()[0];
+  w.v.delete(a.id);
+  assert.deepEqual(revertStep(w.v, out), { reverted: 0, left: 1 });
+  assert.equal(w.v.get(b.id)!.parentId, w.v.rootId);
+  w.v.restore(a.id);
+  w.v.move(b.id, c.id, 0);
+
   // Or A is gone for good.
   w.v.move(a.id, w.v.rootId, 0);
   w.advance(10 * SAME_STEP_MS);
@@ -222,6 +236,23 @@ test("what is done for someone else is not a step for ⌘Z, and the listeners ar
   assert.equal(v.canUndo, false);
   v.update(theirs.id, { title: "Mine again" });
   assert.deepEqual(origins.at(-1), "user", "and the hand goes back to the person afterwards");
+});
+
+test("undo puts back what the step changed, and leaves what something else changed since", () => {
+  const v = new Vault([]);
+  const n = v.addChild(v.rootId, { title: "Plan", task: "open" });
+  v.forgetUndo();
+  v.update(n.id, { title: "Better plan" });
+  // An agent, meanwhile, ticks it and marks it.
+  v.as("agent", () => {
+    v.tick(n.id, true);
+    v.update(n.id, { flag: "ok" });
+  });
+  v.undo();
+  const now = v.get(n.id)!;
+  assert.deepEqual([now.title, now.task, now.flag], ["Plan", "done", "ok"], "the title is back; the tick and the mark stay");
+  v.redo();
+  assert.deepEqual([v.get(n.id)!.title, v.get(n.id)!.task, v.get(n.id)!.flag], ["Better plan", "done", "ok"]);
 });
 
 test("a node's mark is a field like any other", () => {

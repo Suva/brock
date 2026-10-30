@@ -92,3 +92,20 @@ test("a new vault gets the tour on its first start, and never again", () => {
   assert.equal(welcome(used), null, "a vault with anything in it gets none");
   delete (globalThis as { localStorage?: unknown }).localStorage;
 });
+
+test("the tour shows the marks and the history, and the app's alone tells of agents", () => {
+  const web = tour();
+  assert.deepEqual(
+    web.filter((n) => n.flag).map((n) => [n.title, n.flag]),
+    [["Mark what needs you", "attention"], ["Green means OK", "ok"]],
+    "an orange and a green mark, for the bell to count",
+  );
+  assert.ok(web.some((n) => n.title === "History: what changed" && n.body.includes("(brock:history)")));
+  assert.ok(web.every((n) => !n.title.includes("Agents")), "agents are the app's alone");
+
+  const vault = new Vault([]);
+  const id = addTour(vault, vault.rootId);
+  const below = [...vault.children(id)].flatMap((n) => vault.children(n.id));
+  assert.ok(below.some((n) => n.title === "Agents can help"));
+  assert.ok(below.some((n) => n.title === "History: what changed"));
+});

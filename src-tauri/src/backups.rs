@@ -94,8 +94,16 @@ fn prune(dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Whether `name` is a daily copy, `vault-2026-01-01.sqlite`: not another file kept beside them,
+/// such as `vault-before-v10.sqlite`, the vault as it was before an update.
 fn is_copy(name: &str) -> bool {
-    name.len() == "vault-2026-01-01.sqlite".len() && name.starts_with("vault-") && name.ends_with(".sqlite")
+    let b = name.as_bytes();
+    name.len() == "vault-2026-01-01.sqlite".len()
+        && name.starts_with("vault-")
+        && name.ends_with(".sqlite")
+        && b[6..10].iter().chain(&b[11..13]).chain(&b[14..16]).all(u8::is_ascii_digit)
+        && b[10] == b'-'
+        && b[13] == b'-'
 }
 
 fn name_for((y, m, d): (i64, u32, u32)) -> String {
@@ -125,6 +133,16 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_daily_copies_are_copies() {
+        assert!(is_copy("vault-2026-10-30.sqlite"));
+        assert!(!is_copy("vault-before-v10.sqlite"), "the same length, and not a daily copy");
+        assert!(!is_copy("vault-before-v6.sqlite"));
+        assert!(!is_copy("vault-2026-10-30.partial"));
+        assert!(!is_copy("vault-2026-1x-30.sqlite"));
+        assert!(!is_copy("notes.txt"));
+    }
 
     #[test]
     fn dates_from_day_numbers() {

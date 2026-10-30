@@ -9,7 +9,8 @@
   by an agent, which can only raise one: lowering or clearing is yours.
 -->
 <script lang="ts">
-  import { byUrgency, counts, flagged, flagGlyph, setFlag, type Flagged } from "../core/attention.ts";
+  import { untrack } from "svelte";
+  import { counts, flagged, flagGlyph, setFlag, type Flagged } from "../core/attention.ts";
   import type { Flag } from "../core/node.ts";
   import type { Live } from "./live.svelte.ts";
 
@@ -28,20 +29,37 @@
   } = $props();
 
   const vault = $derived(live.vault);
+  // Read again only when a mark may have come, gone or moved, not on every edit.
   const list = $derived.by(() => {
-    void live.version;
-    return byUrgency(flagged(vault));
+    void live.marks;
+    return flagged(vault);
   });
   const n = $derived(counts(list));
+
+  // While it is open a row stays in the group it was in when it opened, so that marking
+  // one OK does not move the rows under the pointer; the badges and signs are live.
+  let opened = $state<Map<string, Flag> | null>(null);
+  $effect(() => {
+    opened = open ? untrack(() => new Map(list.map((f) => [f.node.id, f.flag]))) : null;
+  });
+  const groupOf = (f: Flagged): Flag => opened?.get(f.node.id) ?? f.flag;
 
   const GROUPS: { flag: Flag; title: string }[] = [
     { flag: "critical", title: "Critical" },
     { flag: "attention", title: "Needs attention" },
     { flag: "ok", title: "OK" },
   ];
-  const inGroup = (flag: Flag): Flagged[] => list.filter((f) => f.flag === flag);
+  const inGroup = (flag: Flag): Flagged[] => list.filter((f) => groupOf(f) === flag);
 
-  const mapTitle = (mapId: string | null) => (mapId ? vault.get(mapId)?.title || "Untitled" : "");
+  // Titles are read live: the list itself is read again only when marks change.
+  const mapTitle = (mapId: string | null) => {
+    void live.version;
+    return mapId ? vault.get(mapId)?.title || "Untitled" : "";
+  };
+  const titleOf = (id: string) => {
+    void live.version;
+    return vault.get(id)?.title || "Untitled";
+  };
 
   const summary = $derived(
     [
@@ -108,9 +126,9 @@
         {#if group.length}
           <h4 class={flag}>{title}</h4>
           <ul>
-            {#each group as { node, mapId } (node.id)}
+            {#each group as { node, mapId, flag: now } (node.id)}
               <li>
-                <span class="glyph {flag}" aria-hidden="true">{flagGlyph(flag)}</span>
+                <span class="glyph {now}" aria-hidden="true">{flagGlyph(now)}</span>
                 <button
                   class="go"
                   onclick={() => {
@@ -119,10 +137,10 @@
                   }}
                   title="Go to it"
                 >
-                  <span class="title">{node.title || "Untitled"}</span>
+                  <span class="title">{titleOf(node.id)}</span>
                   {#if mapTitle(mapId)}<span class="map">{mapTitle(mapId)}</span>{/if}
                 </button>
-                {#if flag === "ok"}
+                {#if now === "ok"}
                   <button class="act" onclick={() => vault.update(node.id, { flag: null })} title="Clear the mark" aria-label="Clear the mark">×</button>
                 {:else}
                   <button class="act" onclick={() => vault.update(node.id, { flag: "ok" })} title="Mark it OK: you have seen to it" aria-label="Mark it OK">✓</button>

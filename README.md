@@ -141,7 +141,7 @@ in their own apps; anything else, which might be a program, is only shown
 in Finder or Explorer, so a link can never start one.
 Links to nodes and maps go there: press ⌘L while writing to choose a node, or
 type `[[a node's title]]`. A link can also open part of Brock:
-`[show the tasks](brock:tasks)`, and likewise `brock:maps`, `brock:search`,
+`[show the tasks](brock:tasks)`, and likewise `brock:maps`, `brock:history`, `brock:search`,
 `brock:settings` and `brock:trash`. Under the notes are the node's links and the nodes
 linking to it. Drag the edge of the notes or of the sidebar to make them
 wider or narrower; drag it all the way in to close the panel.

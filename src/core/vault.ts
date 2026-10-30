@@ -435,8 +435,8 @@ export class Vault {
   /**
    * Puts nodes back as they were before `changes`, as one step like any
    * other, which ⌘Z undoes. A node the change made is marked deleted, never
-   * removed. Returns the ids put back; a node whose old parent is gone, or
-   * would now be under itself, is left as it is.
+   * removed. Returns the ids put back; a node whose old parent is gone or
+   * deleted, or would now be under itself, is left as it is.
    */
   revert(changes: Change[]): string[] {
     const done: string[] = [];
@@ -447,7 +447,8 @@ export class Vault {
         const parent = before?.parentId ?? null;
         if (before && parent !== null) {
           const loop = parent === before.id || this.ancestors(parent).some((n) => n.id === before.id);
-          if (!this.#nodes.has(parent) || loop) continue;
+          // A parent that is deleted would hide the node, in a branch the trash does not list.
+          if (!this.isLive(parent) || loop) continue;
         }
         this.#write({ ...(before ?? { ...after, deletedAt: after.deletedAt ?? now }), updatedAt: now });
         done.push(after.id);
@@ -463,12 +464,10 @@ export class Vault {
     const now = this.#now();
     // A node that did not exist before the step stays, marked deleted, so
     // that redo, and later other devices, find it. Undo and redo are changes
-    // like any other, made now, which syncing will need to know.
-    const changes = this.#apply(
-      [...step.changes]
-        .reverse()
-        .map((c) => ({ ...(c.before ?? { ...c.after, deletedAt: c.after.deletedAt ?? now }), updatedAt: now })),
-    );
+    // like any other, made now, which syncing will need to know. Only what the
+    // step changed is put back: what something else changed in the node since,
+    // such as an agent's tick, is left.
+    const changes = this.#apply([...step.changes].reverse().map((c) => this.#restore(c, "before", now)));
     this.#redo.push(step);
     return changes;
   }
@@ -489,9 +488,27 @@ export class Vault {
     const step = this.#redo.pop();
     if (!step) return null;
     const now = this.#now();
-    const changes = this.#apply(step.changes.map((c) => ({ ...c.after, updatedAt: now })));
+    const changes = this.#apply(step.changes.map((c) => this.#restore(c, "after", now)));
     this.#undo.push(step);
     return changes;
+  }
+
+  /**
+   * The node as it is now with the fields `change` changed put back to their
+   * state `to` the step: before it (undo) or after it (redo).
+   */
+  #restore(change: Change, to: "before" | "after", now: number): Node {
+    const current = this.#nodes.get(change.after.id)!;
+    if (change.before === null) {
+      // A node the step made: undone it is deleted, and redone it is as it was made.
+      return { ...current, deletedAt: to === "before" ? (current.deletedAt ?? now) : change.after.deletedAt, updatedAt: now };
+    }
+    const [from, target] = to === "before" ? [change.after, change.before] : [change.before, change.after];
+    const next: Record<string, unknown> = { ...current, updatedAt: now };
+    for (const key of Object.keys(target) as (keyof Node)[]) {
+      if (key !== "updatedAt" && !same(from[key], target[key])) next[key] = target[key];
+    }
+    return next as unknown as Node;
   }
 
   // ---- Listening -----------------------------------------------------------

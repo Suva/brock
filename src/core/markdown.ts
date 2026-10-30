@@ -34,6 +34,7 @@ export type LinkTarget =
 export const COMMANDS = {
   tasks: "Show the tasks in the sidebar",
   maps: "Show every map in the sidebar",
+  history: "Show what was changed, in the sidebar",
   search: "Search everything",
   settings: "Open the settings",
   trash: "Open the trash",

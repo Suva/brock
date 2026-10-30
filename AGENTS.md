@@ -323,7 +323,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   them (`source` in `ops`), but they do not go on the undo stack, so ⌘Z never
   takes back what the person did not do. The History tab (`core/activity.ts`) is
   how they, and the person's own steps, are taken back: `vault.revert`, which
-  is a step like any other, only for nodes still as the step left them. A new
+  is a step like any other, only for nodes still as the step left them. Undo and redo put back only the fields their step changed
+  (`#restore` in `vault.ts`), so what an agent changed in the same node since,
+  such as a tick, stays. A new
   kind of helper that edits for the person uses `as` with its own name.
 - **The mark is the person's to lower or clear.** A node's `flag` is "ok"
   (green), "attention" (orange) or "critical" (red); an agent may only raise

@@ -171,6 +171,25 @@ const MIGRATIONS: &[&str] = &[
     "#,
 ];
 
+/// Copies a vault that is about to be migrated into the folder of daily copies,
+/// as `vault-before-v6.sqlite` for one at database version 6, so that going
+/// back to the version of the app that wrote it is possible. A new vault, and
+/// one already up to date, are not copied. A copy that cannot be made must
+/// not keep the vault from opening: the caller only reports it.
+fn keep_before_migrating(conn: &Connection, path: &Path) -> Result<(), String> {
+    let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).map_err(err)?;
+    if version == 0 || version >= MIGRATIONS.len() as i64 {
+        return Ok(());
+    }
+    let dir = crate::backups::folder(path);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Cannot make {}: {e}", dir.display()))?;
+    let copy = dir.join(format!("vault-before-v{version}.sqlite"));
+    let partial = copy.with_extension("partial");
+    let _ = std::fs::remove_file(&partial);
+    conn.execute("VACUUM INTO ?1", [partial.to_string_lossy()]).map_err(|e| format!("Cannot copy the vault before updating it: {e}"))?;
+    std::fs::rename(&partial, &copy).map_err(|e| format!("Cannot keep the copy of the vault: {e}"))
+}
+
 /// Edits to one node's words made this close together are one entry in the log.
 pub const SAME_RUN_MS: i64 = 2 * 60 * 1000;
 
@@ -189,6 +208,8 @@ pub fn same_words(a: &serde_json::Value, b: &serde_json::Value) -> bool {
 
 pub struct Db {
     conn: Connection,
+    /// When the last write was logged: the log tells steps apart by when they were made.
+    last_at: i64,
 }
 
 impl Db {
@@ -201,6 +222,11 @@ impl Db {
         // WAL lets each small write be quick; FULL makes each one survive a
         // power cut, which matters more than speed in an app with no Save.
         conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;").map_err(err)?;
+        // A vault about to be brought up to date is kept as it is first: once
+        // migrated, an older version of the app cannot open it.
+        if let Err(e) = keep_before_migrating(&conn, path) {
+            eprintln!("{e}");
+        }
         Db::setup(conn)
     }
 
@@ -223,7 +249,7 @@ impl Db {
             tx.pragma_update(None, "user_version", i as i64 + 1).map_err(err)?;
             tx.commit().map_err(err)?;
         }
-        Ok(Db { conn })
+        Ok(Db { conn, last_at: 0 })
     }
 
     /// Every node, deleted ones too: the window needs them for undo and the trash.
@@ -249,7 +275,9 @@ impl Db {
     /// Like `apply`, saying in the log who made the changes: 'user', or
     /// something working for the person, such as 'agent'.
     pub fn apply_from(&mut self, changes: &[Change], source: &str) -> Result<(), String> {
-        let at = now();
+        // Never the same moment as the write before, however quick: two steps are never one.
+        let at = now().max(self.last_at + 1);
+        self.last_at = at;
         let tx = self.conn.transaction().map_err(err)?;
         {
             let mut upsert = tx
@@ -747,6 +775,46 @@ mod tests {
         a2.title = "xx".into();
         step(&mut db, &before, &a2, "user");
         assert_eq!(db.history(50).unwrap().len(), 6, "3 made, 2 typed together, then 1 typed: not joined with a step of two");
+    }
+
+    #[test]
+    fn a_vault_is_copied_as_it_is_before_it_is_migrated_and_not_otherwise() {
+        let dir = std::env::temp_dir().join(format!("brock-premigrate-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("vault.sqlite");
+        let copy = crate::backups::folder(&path).join("vault-before-v6.sqlite");
+
+        // A new vault is not copied.
+        drop(Db::open(&path).unwrap());
+        assert!(!crate::backups::folder(&path).exists() || std::fs::read_dir(crate::backups::folder(&path)).unwrap().count() == 0);
+        std::fs::remove_file(&path).unwrap();
+        for ext in ["-wal", "-shm"] {
+            let _ = std::fs::remove_file(dir.join(format!("vault.sqlite{ext}")));
+        }
+
+        // One an older version left, at database version 6.
+        {
+            let conn = Connection::open(&path).unwrap();
+            for sql in &MIGRATIONS[..6] {
+                conn.execute_batch(sql).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 6).unwrap();
+            conn.execute("INSERT INTO nodes (id, sort_key, title, created_at, updated_at) VALUES ('n', 'a0', 'Old', 1, 1)", []).unwrap();
+        }
+        let migrated = Db::open(&path).unwrap();
+        assert_eq!(migrated.get("n").unwrap().unwrap().title, "Old", "and then brought up to date");
+        let before = Connection::open(&copy).unwrap();
+        assert_eq!(before.query_row::<i64, _, _>("PRAGMA user_version", [], |r| r.get(0)).unwrap(), 6, "the copy is as it was");
+        assert_eq!(before.query_row::<String, _, _>("SELECT title FROM nodes WHERE id = 'n'", [], |r| r.get(0)).unwrap(), "Old");
+        drop(before);
+        drop(migrated);
+
+        // Already up to date: no copy is made again.
+        std::fs::remove_file(&copy).unwrap();
+        drop(Db::open(&path).unwrap());
+        assert!(!copy.exists());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

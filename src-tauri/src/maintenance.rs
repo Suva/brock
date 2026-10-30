@@ -172,8 +172,7 @@ fn compact_node(tx: &rusqlite::Transaction, node: &str, cutoff: i64, many: &Hash
                 tx.execute("DELETE FROM ops WHERE seq BETWEEN ?1 AND ?2 AND node_id = ?3", params![first.seq, last.seq, node]).map_err(err)?;
             } else {
                 tx.execute("UPDATE ops SET after = ?1, at = ?2 WHERE seq = ?3", params![last.after_text, last.at, first.seq]).map_err(err)?;
-                let drop = tx.prepare_cached("DELETE FROM ops WHERE seq = ?1").map_err(err);
-                let mut drop = drop?;
+                let mut drop = tx.prepare_cached("DELETE FROM ops WHERE seq = ?1").map_err(err)?;
                 for row in &rows[i + 1..=j] {
                     drop.execute([row.seq]).map_err(err)?;
                 }
@@ -223,9 +222,15 @@ fn shrink(conn: &Connection, pause: Duration) -> Result<(), String> {
         conn.execute_batch("PRAGMA auto_vacuum = INCREMENTAL; VACUUM; INSERT INTO nodes_fts (nodes_fts) VALUES ('rebuild');").map_err(err)?;
         return Ok(());
     }
-    while free(conn)?.0 > 0 {
-        conn.query_row(&format!("PRAGMA incremental_vacuum({PAGES_PER_STEP})"), [], |_| Ok(())).ok();
-        // The pragma gives no rows when it is done; either way, look again.
+    // Stops when a step gives nothing back, so that one that cannot never makes this go on for ever.
+    let mut left = free(conn)?.0;
+    while left > 0 {
+        conn.execute_batch(&format!("PRAGMA incremental_vacuum({PAGES_PER_STEP})")).map_err(err)?;
+        let now = free(conn)?.0;
+        if now >= left {
+            break;
+        }
+        left = now;
         std::thread::sleep(pause);
     }
     Ok(())

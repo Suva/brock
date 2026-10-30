@@ -3,7 +3,8 @@
 // one write put in the log; steps made close together on one node by the same
 // hand, as typing makes, are shown as one.
 
-import type { Change, Flag, Node } from "./node.ts";
+import { flagAs } from "./attention.ts";
+import type { Change, Node } from "./node.ts";
 import type { Vault } from "./vault.ts";
 
 /** One line of the log: a node changed. `source` is "user", or who it was made for, such as "agent". */
@@ -113,7 +114,6 @@ function kindOf({ before, after }: Change): Kind {
 
 const TITLE_MAX = 40;
 
-const markWords = (flag: Flag) => (flag === "critical" ? "critical" : flag === "attention" ? "needing attention" : "OK");
 
 function quoted(node: Node): string {
   const title = node.title.trim() || "Untitled";
@@ -151,7 +151,7 @@ export function describe(step: Step): string {
       case "unticked": return `Unticked ${quoted(node)}`;
       case "task": return `Made ${quoted(node)} a task`;
       case "plain": return `Made ${quoted(node)} an ordinary node`;
-      case "marked": return `Marked ${quoted(node)} as ${markWords(node.flag!)}`;
+      case "marked": return `Marked ${quoted(node)} as ${flagAs(node.flag!)}`;
       case "cleared": return `Cleared the mark on ${quoted(node)}`;
       case "renamed": return `Renamed ${quoted(first.before!)} to ${quoted(node)}`;
       case "notes": return `Edited the notes of ${quoted(node)}`;
@@ -175,6 +175,8 @@ export interface Reversible {
   clean: Change[];
   /** All the step changed. */
   total: number;
+  /** Changes whose node is as it was before the step: put back already, or changed back. */
+  back: number;
 }
 
 /** What of a step can still be taken back: a node changed since, or gone, is left. */
@@ -183,7 +185,12 @@ export function reversible(vault: Vault, step: Step): Reversible {
     const now = vault.get(c.after.id);
     return now !== undefined && sameState(now, c.after);
   });
-  return { clean, total: step.changes.length };
+  const back = step.changes.filter((c) => {
+    const now = vault.get(c.after.id);
+    // A node the step made is back to before it when it is in the trash.
+    return now !== undefined && (c.before ? sameState(now, c.before) : now.deletedAt !== null);
+  }).length;
+  return { clean, total: step.changes.length, back };
 }
 
 /**

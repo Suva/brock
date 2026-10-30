@@ -76,14 +76,15 @@ struct Agents {
 #[tauri::command]
 fn agent_enable(app: tauri::AppHandle, agents: State<Agents>, enabled: bool) -> Result<(), String> {
     let mut door = agents.door.lock().map_err(|e| e.to_string())?;
-    // `brock --mcp` reads this to know whether to start the app for an agent.
-    agent::set_allowed(&agents.dir, enabled)?;
+    // `brock --mcp` reads the flag to know whether to start the app for an agent:
+    // it says no before the door closes, and yes only once the door is open.
     if !enabled {
+        agent::set_allowed(&agents.dir, false)?;
         *door = None;
         return Ok(());
     }
     if door.is_some() {
-        return Ok(());
+        return agent::set_allowed(&agents.dir, true);
     }
     let (waiting, count) = (agents.waiting.clone(), agents.count.clone());
     let handler: agent::Handler = Arc::new(move |request| {
@@ -104,7 +105,7 @@ fn agent_enable(app: tauri::AppHandle, agents: State<Agents>, enabled: bool) -> 
         answer
     });
     *door = Some(agent::Door::open(&agents.dir, handler)?);
-    Ok(())
+    agent::set_allowed(&agents.dir, true)
 }
 
 /// The window's answer to a request it was passed.
@@ -387,6 +388,14 @@ pub fn run() {
             agent_reply,
             agent_executable
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running the app");
+        .build(tauri::generate_context!())
+        .expect("error while building the app")
+        .run(|app, event| {
+            // The door goes with the app; a file left behind would only say where it was.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(agents) = app.try_state::<Agents>() {
+                    let _ = std::fs::remove_file(agents.dir.join(agent::FILE));
+                }
+            }
+        });
 }

@@ -23,9 +23,26 @@ export function nextFlag(flag: Flag | null): Flag | null {
   return flag === null ? "attention" : flag === "attention" ? "critical" : flag === "critical" ? "ok" : null;
 }
 
+/** What each mark is called, in the places that name one. */
+const WORDS: Record<Flag, { name: string; label: string; as: string }> = {
+  ok: { name: "OK", label: "OK", as: "OK" },
+  attention: { name: "needs attention", label: "Needs attention", as: "needing attention" },
+  critical: { name: "critical", label: "Critical", as: "critical" },
+};
+
 /** A mark in words: "critical", "needs attention", "OK". */
 export function flagName(flag: Flag): string {
-  return flag === "critical" ? "critical" : flag === "attention" ? "needs attention" : "OK";
+  return WORDS[flag].name;
+}
+
+/** The same as a heading: "Critical", "Needs attention", "OK". */
+export function flagLabel(flag: Flag): string {
+  return WORDS[flag].label;
+}
+
+/** The same after "as": "critical", "needing attention", "OK". */
+export function flagAs(flag: Flag): string {
+  return WORDS[flag].as;
 }
 
 /** The sign drawn for a mark: a shape each, so that colour is not all that tells them apart. */

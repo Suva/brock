@@ -84,7 +84,7 @@
 
   /** A brock: link in a node's notes: opens what it names, as its button or key would, but never closes it. */
   function run(command: Command) {
-    if (command === "tasks" || command === "maps") {
+    if (command === "tasks" || command === "maps" || command === "history") {
       sidebarOpen = true;
       sidebarTab = command;
     } else if (command === "search") searching = "go";
@@ -294,6 +294,14 @@
    * Goes to a node found by searching: a map opens; any other node is
    * selected in the map it is in, with the branches above it unfolded.
    */
+  /** Moves how far the open map is shared with agents on: not at all, to read, to edit, and round. */
+  function shareWithAgents() {
+    const next = ({ none: "read", read: "write", write: "none" } as const)[agents.level(mapId)];
+    agents.share(mapId, next);
+    const said = { none: "Agents can no longer see this map.", read: "Agents can now read this map.", write: "Agents can now read and edit this map." }[next];
+    tell(agents.on || next === "none" ? said : `${said} Allow agents in Settings for it to count.`);
+  }
+
   /** Moves the selected node's mark on: none, attention, critical, OK, and round. */
   function flagSelected() {
     const id = selected ?? mapId;
@@ -405,6 +413,7 @@
       showTasks: () => showTab("tasks"),
       showHistory: () => showTab("history"),
       flagSelected,
+      shareWithAgents,
       showAttention: () => (attentionOpen = !attentionOpen),
       toggleNotes: () => (notesOpen = !notesOpen),
       toggleSource: () => (notesSource = !notesSource),

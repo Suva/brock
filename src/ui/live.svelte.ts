@@ -9,6 +9,8 @@ import type { SaveStatus, Saver } from "../store/saver.ts";
 export class Live {
   readonly vault: Vault;
   version = $state(0);
+  /** Goes up only when an edit may have changed which nodes are marked or where they are, for what lists the marks. */
+  marks = $state(0);
   saveStatus = $state<SaveStatus>("saved");
   saveError = $state<string | null>(null);
   /** Waits until every change so far is saved. */
@@ -25,7 +27,13 @@ export class Live {
     this.version = vault.version;
     this.saveStatus = saver.status;
     this.saved = () => saver.flush();
-    vault.onChange(() => (this.version = vault.version));
+    vault.onChange((changes) => {
+      this.version = vault.version;
+      // No changes is the trash emptied. Marked nodes come and go by being made, marked, deleted or moved.
+      const touches = (c: (typeof changes)[number]) =>
+        c.before === null || c.before.flag !== c.after.flag || c.before.deletedAt !== c.after.deletedAt || c.before.parentId !== c.after.parentId;
+      if (changes.length === 0 || changes.some(touches)) this.marks++;
+    });
     saver.onStatus(() => {
       this.saveStatus = saver.status;
       this.saveError = saver.error;

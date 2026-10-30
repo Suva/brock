@@ -29,7 +29,7 @@ test("edits are saved, and a vault opened again has them", async () => {
   assert.deepEqual(again.children(a.id).map((n) => n.title), ["One"]);
 });
 
-test("changes made during a write go together in the next", async () => {
+test("each edit is written as a step of its own, in order", async () => {
   const store = new MemoryStore();
   const saver = new Saver(store);
   const vault = await openVault(store, saver);
@@ -37,11 +37,9 @@ test("changes made during a write go together in the next", async () => {
   store.saves = [];
   for (let i = 0; i < 5; i++) vault.addChild(vault.rootId, { title: String(i) });
   await saver.flush();
-  // The first edit is written at once; the four made while it was being
-  // written go together in one more.
   assert.deepEqual(
     store.saves.map((s) => s.map((c) => c.after.title)),
-    [["0"], ["1", "2", "3", "4"]],
+    [["0"], ["1"], ["2"], ["3"], ["4"]],
   );
 });
 
@@ -78,4 +76,21 @@ test("removing for good takes its turn after the changes before it", async () =>
   vault.emptyTrash();
   await saver.flush();
   assert.equal((await store.load()).some((n) => n.id === a.id), false);
+});
+
+test("the store is told whose each edit was", async () => {
+  const store = new MemoryStore();
+  const saver = new Saver(store);
+  const vault = new Vault(await store.load(), { onChange: (c, origin) => saver.push(c, origin) });
+  await saver.flush();
+  store.saves = [];
+  store.origins = [];
+  vault.addChild(vault.rootId, { title: "mine 1" });
+  vault.as("agent", () => vault.addChild(vault.rootId, { title: "agent 1" }));
+  vault.as("agent", () => vault.addChild(vault.rootId, { title: "agent 2" }));
+  vault.addChild(vault.rootId, { title: "mine 2" });
+  await saver.flush();
+  assert.deepEqual(store.origins, ["user", "agent", "agent", "user"]);
+  const log = await store.history(10);
+  assert.deepEqual(log.slice(0, 2).map((e) => [e.after.title, e.source]), [["mine 2", "user"], ["agent 2", "agent"]], "and the history has it");
 });

@@ -8,7 +8,7 @@
 // questions are answered here, from the vault in memory, by `core/agent.ts`.
 
 import { invoke } from "@tauri-apps/api/core";
-import { answer, parseRequest, type AgentReply } from "../core/agent.ts";
+import { respond, type AgentReply } from "../core/agent.ts";
 import type { Vault } from "../core/vault.ts";
 import { inTauri } from "../store/tauri-store.ts";
 
@@ -121,20 +121,11 @@ export async function watchAgents(vault: Vault): Promise<void> {
   await listen<{ id: number; request: unknown }>("agent-request", ({ payload }) => {
     invoke("agent_reply", { id: payload.id, reply: reply(vault, payload.request) });
   });
-  if (agents.on) await open(true).catch((e) => console.error(e));
+  // Tells the native side what this window's storage says, so that what `brock --mcp` reads agrees with it.
+  await open(agents.on).catch((e) => console.error(e));
 }
 
 function reply(vault: Vault, raw: unknown): AgentReply {
-  // The door is closed when agents are not allowed; this is for a request already on its way.
-  if (!agents.on) return { ok: false, error: "Agents are not allowed in Brock." };
-  const request = parseRequest(raw);
-  if (typeof request === "string") return { ok: false, error: request };
-  try {
-    // Not steps for ⌘Z; the History tab takes them back.
-    const reply = vault.as("agent", () => answer(vault, new Set(agents.shared), request, new Set(agents.writable)));
-    if (reply.ok && reply.changed) agents.onChanged?.(reply.changed);
-    return reply;
-  } catch (e) {
-    return { ok: false, error: `Brock could not answer: ${e}` };
-  }
+  // Not steps for ⌘Z; the History tab takes them back.
+  return respond(vault, raw, { on: agents.on, shared: new Set(agents.shared), writable: new Set(agents.writable) }, (what) => agents.onChanged?.(what));
 }
