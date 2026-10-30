@@ -93,6 +93,16 @@ export function outdent(vault: Vault, id: string, { centreId }: Where): boolean 
   return true;
 }
 
+/** Moves a card of a board, a child of a column's head, to the end of the next column. */
+export function toColumn(vault: Vault, id: string, step: -1 | 1, centreId: string): boolean {
+  const node = vault.get(id);
+  if (!node || node.parentId === null || node.parentId === centreId) return false;
+  const columns = vault.children(centreId);
+  const next = columns[columns.findIndex((c) => c.id === node.parentId) + step];
+  if (!next || next.isMap || !columns.some((c) => c.id === node.parentId)) return false;
+  return place(vault, id, { parentId: next.id, index: vault.children(next.id).length, side: null }, centreId);
+}
+
 /** Moves a child of the centre to the other side of it. */
 export function setSide(vault: Vault, id: string, side: Side, centreId: string): boolean {
   const node = vault.get(id);

@@ -154,7 +154,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   add(tasks, "Priorities", {
     task: "open",
     priority: 1,
-    body: notes(`${priorityWay} 1 to 3 come before tasks without a priority, 4 and 5 after them. **Due**, under them, gives it a date: the Tasks tab shows it, and within a priority puts the soonest first.`),
+    body: notes(`${priorityWay} 1 to 3 come before tasks without a priority, 4 and 5 after them. **Due**, under them, gives it a date, shown on the node: the Tasks tab puts the soonest first within a priority.`),
   });
   add(tasks, "Hide what's done", {
     task: "open",
@@ -218,7 +218,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("The **‹ ›** buttons at the top, or **⌘[** and **⌘]**, go back and forward through the maps you've visited."),
   });
   add(finding, "Map or outline", {
-    body: notes("The switch at the top shows the same map as an indented list, for writing quickly. **⌥⌘1** and **⌥⌘2** switch between them. With a map's centre selected, **Style** at the top of this panel draws it as an org chart or a timeline instead, or **⌥⌘3** and **⌥⌘4**, and each map keeps its own."),
+    body: notes("The switch at the top shows the same map as an indented list, for writing quickly. **⌥⌘1** and **⌥⌘2** switch between them. With a map's centre selected, **Style** at the top of this panel draws it as an org chart, a timeline or a board instead, or **⌥⌘3** to **⌥⌘5**, and each map keeps its own."),
   });
   add(finding, "Zoom and pan", {
     body: notes("Scroll to move around; pinch, or hold **⌘** and scroll, to zoom. **⌘0** shows the whole map. The minimap shows where you are."),

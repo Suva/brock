@@ -455,7 +455,7 @@
     } else if (key === "e" && !event.shiftKey && !event.altKey) {
       notesSource = !notesSource;
     } else if (event.altKey && event.code === "Digit1" && !event.shiftKey) {
-      // ⌥⌘1 to ⌥⌘4: ⌘1 to ⌘5 set priorities.
+      // ⌥⌘1 to ⌥⌘5: ⌘1 to ⌘5 set priorities.
       view = "map";
     } else if (event.altKey && event.code === "Digit2" && !event.shiftKey) {
       view = "outline";
@@ -463,6 +463,8 @@
       toggleLayout("org");
     } else if (event.altKey && event.code === "Digit4" && !event.shiftKey) {
       toggleLayout("timeline");
+    } else if (event.altKey && event.code === "Digit5" && !event.shiftKey) {
+      toggleLayout("board");
     } else {
       return;
     }

@@ -55,7 +55,7 @@ nodes
   collapsed
   color, icon
   links        the ids of the nodes it links to, as a JSON list
-  layout       how a map is drawn: org, timeline, or null for out to both sides
+  layout       how a map is drawn: org, timeline, board, or null for out to both sides
   task, done_at, priority
   due          the day it is due, as text: 2026-10-30
   created_at, updated_at
@@ -111,6 +111,8 @@ elements. Try it there early, not at the end.
   saved with it. Keys and dragging turn with it.
 - **Timelines**: or along a straight line from its centre, its children in order
   by turns above and below it, in the same way.
+- **Boards**: or in columns under its centre, its children the headings and all
+  under them cards, for a weekly plan or a kanban. The columns are ordinary nodes.
 - **Hints by dragging**: dropping a node across the centre sets its side; dropping
   it between siblings sets its order; dropping it on another node makes it that
   node's child. The layout animates to its new shape. Nodes are never placed by

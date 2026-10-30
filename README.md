@@ -90,7 +90,7 @@ the arrow keys, then:
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
 | ⌘1 to ⌘5 | Gives the node a priority, 1 to 5; the same number again takes it off |
 | ⌥⌘1, ⌥⌘2 | The map, or the same map as an outline |
-| ⌥⌘3, ⌥⌘4 | Draws this map as an org chart or a timeline, or back as a mind map |
+| ⌥⌘3, ⌥⌘4, ⌥⌘5 | Draws this map as an org chart, a timeline or a board, or back as a mind map |
 | ⌘, | Settings: light, dark or as the system; pictures' background; updates; the daily copies |
 | ⇧⌘N | Shows the selected node's notes |
 | ⌘Z, ⇧⌘Z | Undo, redo |

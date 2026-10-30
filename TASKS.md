@@ -63,7 +63,9 @@ stolen laptop. A few days' work:
 - A timeline goes in the tree's order, evenly spaced: it does not read dates.
   Placing events by their due date, with the dates on the line, could come
   next if that is what is wanted.
-- A board or week view, with the centre's children as columns, after this.
+- A board's columns are ordinary nodes: a week is seven of them, made by
+  hand. A way to make a week at once, and a week that knows today, could come
+  once boards are in use.
 
 ## Left from the menu bar
 
@@ -98,8 +100,8 @@ stolen laptop. A few days' work:
 
 ## Tasks
 
-- Due dates show in the Tasks tab and order tasks within a priority, but the
-  map does not show them. Add a view of what is due, once it is clear it is
+- Due dates show on the map and in the Tasks tab, and order tasks within a
+  priority, but the outline does not show them. Add a view of what is due, once it is clear it is
   missed. Markdown and OPML exports leave them out; JSON keeps them.
 - `- [ ]` lines in notes are not tasks of the panel: they are text in a note.
   Revisit if people expect them there.

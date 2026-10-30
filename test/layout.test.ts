@@ -238,3 +238,40 @@ test("a wide column pushes the next event on its side along the line", () => {
   assert.ok(layout.byId.get(events[2].id)!.x >= layout.byId.get(events[0].id)!.x + 500);
   assert.ok(layout.byId.get(events[1].id)!.x < layout.byId.get(events[2].id)!.x);
 });
+
+function board() {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "board" });
+  const [mon, tue, wed] = ["Mon", "Tue", "Wed"].map((title) => vault.addChild(vault.rootId, { title }));
+  const [call, gym] = ["call", "gym"].map((title) => vault.addChild(mon.id, { title }));
+  const notes = vault.addChild(call.id, { title: "notes" });
+  return { vault, mon, tue, wed, call, gym, notes };
+}
+
+test("a board has a column for each child of the centre, in one lane each", () => {
+  const { vault, mon, tue, wed, call, gym, notes } = board();
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  assert.deepEqual([layout.board, layout.columns, layout.down, layout.timeline], [true, true, true, false]);
+  const at = (id: string) => layout.byId.get(id)!;
+  const centre = at(vault.rootId);
+  assert.deepEqual([centre.x + centre.width / 2, centre.y + centre.height / 2], [0, 0]);
+  assert.equal(at(mon.id).y, at(wed.id).y, "headings in a row");
+  assert.ok(at(mon.id).y > centre.y + centre.height, "under the centre");
+  assert.ok(at(tue.id).x > at(mon.id).x && at(wed.id).x > at(tue.id).x);
+  assert.equal(at(tue.id).x - at(mon.id).x, at(wed.id).x - at(tue.id).x, "evenly");
+  assert.ok(at(call.id).y > at(mon.id).y && at(gym.id).y > at(notes.id).y && at(notes.id).y > at(call.id).y, "down the column, tree order");
+  assert.ok(at(call.id).stacked && !at(mon.id).stacked);
+
+  assert.deepEqual(layout.lanes.map((l) => l.id), [mon.id, tue.id, wed.id]);
+  const [a, b] = layout.lanes;
+  assert.ok(b.x >= a.x + a.width, "lanes do not overlap");
+  assert.equal(a.height, b.height, "all as tall as the tallest");
+  assert.ok(a.x < at(mon.id).x && a.y < at(mon.id).y && a.y + a.height > at(gym.id).y + 20, "a lane holds its column");
+  assert.ok(layout.bounds.bottom >= a.y + a.height, "the bounds hold the lanes");
+});
+
+test("other ways of drawing a map have no lanes", () => {
+  const { vault } = board();
+  vault.update(vault.rootId, { layout: null });
+  assert.deepEqual(layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 })).lanes, []);
+});

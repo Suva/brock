@@ -4,7 +4,8 @@
 // goes beside it, before or after, which also carries it across the centre
 // when that node is on the other side. On a map drawn downwards, where
 // siblings are side by side, it is the left or right quarter that means beside
-// it, unless they are stacked in a column. Far from everything: nowhere, and letting go puts it back. The outline's rows have their own, simpler rule:
+// it, unless they are stacked in a column. Anywhere else in a board's lane, it
+// goes last in that column. Far from everything: nowhere, and letting go puts it back. The outline's rows have their own, simpler rule:
 // `outlineDropAt`.
 
 import { sidesOf, type Layout, type Placed, type Tree } from "./layout.ts";
@@ -69,6 +70,11 @@ export function dropAt(tree: Tree, layout: Layout, dragged: string | string[], x
       nearest = d;
       near = p;
     }
+  }
+  // In a lane, and not near one of its cards: this lane is where it was aimed.
+  const lane = layout.lanes.find((l) => !ids.has(l.id) && x >= l.x && x <= l.x + l.width && y >= l.y && y <= l.y + l.height);
+  if (lane && !on && !(near && near.depth > 1 && near.branch === layout.byId.get(lane.id)!.branch)) {
+    return { parentId: lane.id, index: others(lane.id).length, side: null, onto: lane.id, beside: null };
   }
   if (!near) return null;
   const parentId = near.node.parentId!;

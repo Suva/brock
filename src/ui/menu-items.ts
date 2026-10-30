@@ -86,6 +86,7 @@ export function menuItems(a: MenuActions, s: MenuState, quit: () => void): Item[
         { label: "Outline", run: () => a.view("outline"), hint: "Alt+Ctrl+2", checked: s.view === "outline" },
         { label: "Draw as Org Chart", run: () => a.toggleLayout("org"), hint: "Alt+Ctrl+3", checked: s.layout === "org" },
         { label: "Draw as Timeline", run: () => a.toggleLayout("timeline"), hint: "Alt+Ctrl+4", checked: s.layout === "timeline" },
+        { label: "Draw as Board", run: () => a.toggleLayout("board"), hint: "Alt+Ctrl+5", checked: s.layout === "board" },
         line,
         { label: "Sidebar", run: a.toggleSidebar, hint: "Ctrl+Shift+S", checked: s.sidebar },
         { label: "Tasks", run: a.showTasks, hint: "Ctrl+Shift+T" },

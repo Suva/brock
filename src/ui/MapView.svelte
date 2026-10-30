@@ -35,16 +35,16 @@
 </script>
 
 <script lang="ts">
-  import { tick, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { branchBeside, branchColour, newBranch } from "../core/branches.ts";
   import { copyOf, cut as cutBranches, paste } from "../core/clipboard.ts";
   import { fromText } from "../core/exchange.ts";
   import { dropAt, type Drop } from "../core/drop.ts";
   import { layoutMap, SPACING, type Layout, type Placed } from "../core/layout.ts";
   import type { Node, NodeFields } from "../core/node.ts";
-  import { indent, outdent, place, placeAll, reorder, setSide, topmost } from "../core/moves.ts";
+  import { indent, outdent, place, placeAll, reorder, setSide, toColumn, topmost } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
-  import { doneToHide, progressUnder, setPriority, tickAll, toggleTasks } from "../core/tasks.ts";
+  import { doneToHide, dueLabel, progressUnder, setPriority, tickAll, toggleTasks } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
   import { typingIn } from "./keys.ts";
   import { capture } from "./picture.ts";
@@ -142,6 +142,20 @@
     }
     return byNode;
   });
+
+  // Moved on every minute, so that a due date reads right past midnight
+  // without anything else changing.
+  let now = $state(Date.now());
+  onMount(() => {
+    const timer = setInterval(() => (now = Date.now()), 60_000);
+    return () => clearInterval(timer);
+  });
+
+  /** How many children a node has. The vault's lists are not reactive, and a first child changes nothing else about its parent. */
+  function childCount(id: string): number {
+    void live.version;
+    return vault.children(id).length;
+  }
 
   /** How far along the tasks under each node of the map are. */
   const progress = $derived.by(() => {
@@ -279,8 +293,17 @@
     return `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
   }
 
-  /** The line of a timeline, from the centre to past its last event. */
+  /** What a map draws besides the lines between nodes: a timeline's line, a board's lanes. */
   const axis = $derived.by(() => {
+    if (layout.board) {
+      const r = 10;
+      return layout.lanes.map(({ id, x, y, width: w, height: h }) => ({
+        id: `lane ${id}`,
+        d: `M${x + r},${y} h${w - 2 * r} q${r},0 ${r},${r} v${h - 2 * r} q0,${r} ${-r},${r} h${-(w - 2 * r)} q${-r},0 ${-r},${-r} v${-(h - 2 * r)} q0,${-r} ${r},${-r} z`,
+        colour: colours.get(id) ?? "var(--muted)",
+        width: 1.5,
+      }));
+    }
     if (!layout.timeline || layout.placed.length < 2) return [];
     const centre = layout.byId.get(mapId)!;
     return [{ id: "axis", d: `M${centre.x + centre.width},0 H${layout.bounds.right + 32}`, colour: "var(--muted)", width: 3 }];
@@ -290,7 +313,8 @@
   const edges = $derived([
     ...axis,
     ...layout.placed
-      .filter((p) => p.depth > 0)
+      // A board's lanes say what its cards belong to; deeper cards still hang from theirs.
+      .filter((p) => (layout.board ? p.depth > 2 : p.depth > 0))
       .map((p) => {
         return {
           id: p.node.id,
@@ -1060,6 +1084,10 @@
   function moveNode(id: string, direction: Direction) {
     const where = { centreId: mapId, columns: !layout.down };
     const stacked = layout.byId.get(id)?.stacked;
+    // On a board, a column's own cards go from column to column.
+    if (layout.board && layout.byId.get(id)?.depth === 2 && (direction === "left" || direction === "right")) {
+      return toColumn(vault, id, direction === "left" ? -1 : 1, mapId);
+    }
     if (stacked && (direction === "left" || direction === "right")) {
       return direction === "right" ? indent(vault, id, where) : outdent(vault, id, where);
     }
@@ -1233,7 +1261,7 @@
       {@const node = p.node}
       {@const isCentre = p.depth === 0}
       {@const portal = node.isMap && !isCentre}
-      {@const kids = isCentre || portal ? 0 : vault.children(node.id).length}
+      {@const kids = isCentre || portal ? 0 : childCount(node.id)}
       <div
         class="node"
         class:centre={isCentre}
@@ -1245,7 +1273,8 @@
         class:selected={chosen.has(node.id)}
         class:primary={selected === node.id && chosen.size > 1}
         class:left={p.side === "left"}
-        class:down={layout.down}
+        class:down={layout.down && !layout.columns}
+        class:card={layout.board && p.depth > 1}
         class:moving={movingBranch.has(node.id)}
         class:drop-onto={moving?.drop?.onto === node.id}
         data-id={node.id}
@@ -1325,6 +1354,10 @@
           ></span>
         {:else}
           <span class="text" class:placeholder={!node.title}>{node.title || (isCentre ? "Main idea" : "Idea")}</span>
+        {/if}
+        {#if dueLabel(node, now)}
+          {@const due = dueLabel(node, now)!}
+          <span class="due" class:overdue={due.overdue} class:today={due.today} title={due.overdue ? "Overdue" : due.today ? "Due today" : "Due"}>{due.text}</span>
         {/if}
         {#if progress.has(node.id)}
           {@const p = progress.get(node.id)!}
@@ -1548,6 +1581,10 @@
     font-weight: 600;
   }
 
+  .node.card {
+    border-color: var(--line);
+  }
+
   .node.leaf.own-colour .text {
     color: var(--branch);
   }
@@ -1738,6 +1775,33 @@
     opacity: 0.55;
   }
 
+  .due {
+    flex: none;
+    padding: 0 0.3em;
+    font-size: 0.75em;
+    white-space: nowrap;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+  }
+
+  .due.today {
+    color: var(--warning);
+    border-color: var(--warning);
+  }
+
+  .due.overdue {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+
+  /* The centre is drawn the other way round: dark on light in a dark theme. */
+  .node.centre .due:not(.today, .overdue) {
+    color: inherit;
+    border-color: currentColor;
+    opacity: 0.6;
+  }
+
   .progress {
     font-size: 0.75em;
     font-variant-numeric: tabular-nums;
@@ -1800,7 +1864,8 @@
     margin-right: 4px;
   }
 
-  /* Under the node, where its children are. */
+  /* Under the node, where its children are, in the gap between rows. In a
+     column the next node is right below, so there it stays at the side. */
   .node.down .fold {
     left: 50%;
     top: 100%;

@@ -226,3 +226,17 @@ test("on a timeline events go before and after along the line, and a column by h
   assert.deepEqual([above.parentId, above.index], [one.id, 1]);
   void a;
 });
+
+test("on a board anywhere in a lane drops last in that column", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "board" });
+  const [mon, tue] = ["Mon", "Tue"].map((title) => vault.addChild(vault.rootId, { title }));
+  const [m1, m2, m3] = ["m1", "m2", "m3"].map((title) => vault.addChild(mon.id, { title }));
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  const lane = layout.lanes[1];
+  const drop = dropAt(vault, layout, m2.id, lane.x + lane.width / 2, lane.y + lane.height - 4)!;
+  assert.deepEqual([drop.parentId, drop.index, drop.onto, drop.side], [tue.id, 0, tue.id, null], "an empty column too");
+  const p = layout.byId.get(m3.id)!;
+  assert.deepEqual([dropAt(vault, layout, m2.id, p.x + 40, p.y - 3)!.beside], [{ id: m3.id, after: false }], "between cards still goes between");
+  void m1;
+});

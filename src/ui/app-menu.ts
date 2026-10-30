@@ -95,6 +95,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
   const outlineItem = await check("Outline", () => a.view("outline"), "Alt+CmdOrCtrl+2");
   const orgChartItem = await check("Draw as Org Chart", () => a.toggleLayout("org"), "Alt+CmdOrCtrl+3");
   const timelineItem = await check("Draw as Timeline", () => a.toggleLayout("timeline"), "Alt+CmdOrCtrl+4");
+  const boardItem = await check("Draw as Board", () => a.toggleLayout("board"), "Alt+CmdOrCtrl+5");
   const sidebarItem = await check("Sidebar", a.toggleSidebar, mac() ? "Ctrl+Cmd+S" : "Ctrl+Shift+S");
   const notesItem = await check("Notes", a.toggleNotes, "CmdOrCtrl+Shift+N");
   const sourceItem = await check("Notes as Markdown Source", a.toggleSource, "CmdOrCtrl+E");
@@ -170,6 +171,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         outlineItem,
         orgChartItem,
         timelineItem,
+        boardItem,
         await line(),
         sidebarItem,
         await item("Tasks", a.showTasks, "CmdOrCtrl+Shift+T"),
@@ -242,6 +244,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
     layout: (l) => {
       orgChartItem.setChecked(l === "org");
       timelineItem.setChecked(l === "timeline");
+      boardItem.setChecked(l === "board");
     },
     sidebar: (open) => sidebarItem.setChecked(open),
     notes: (open) => notesItem.setChecked(open),

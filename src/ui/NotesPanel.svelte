@@ -221,6 +221,7 @@
           <button role="radio" aria-checked={node.layout === null} class:on={node.layout === null} onclick={() => vault.update(nodeId, { layout: null })} title="Out to both sides of the centre">Mind map</button>
           <button role="radio" aria-checked={node.layout === "org"} class:on={node.layout === "org"} onclick={() => vault.update(nodeId, { layout: "org" })} title="Downwards from the centre, each level in a row (⌥⌘3)">Org chart</button>
           <button role="radio" aria-checked={node.layout === "timeline"} class:on={node.layout === "timeline"} onclick={() => vault.update(nodeId, { layout: "timeline" })} title="Along a line from the centre, by turns above and below it (⌥⌘4)">Timeline</button>
+          <button role="radio" aria-checked={node.layout === "board"} class:on={node.layout === "board"} onclick={() => vault.update(nodeId, { layout: "board" })} title="In columns under the centre, what is under each as cards (⌥⌘5)">Board</button>
         </div>
       </div>
     {/if}

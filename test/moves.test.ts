@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sidesOf } from "../src/core/layout.ts";
-import { indent, outdent, reorder, setSide } from "../src/core/moves.ts";
+import { indent, outdent, reorder, setSide, toColumn } from "../src/core/moves.ts";
 import { Vault } from "../src/core/vault.ts";
 
 const titles = (vault: Vault, id: string) => vault.children(id).map((n) => n.title);
@@ -85,4 +85,20 @@ test("a child of the centre crosses to the other side, the others stay", () => {
   );
   assert.equal(setSide(vault, r1.id, "right", vault.rootId), false, "already there");
   assert.equal(setSide(vault, vault.addChild(l1.id).id, "right", vault.rootId), false, "not a child of the centre");
+});
+
+test("a card moves to the end of the next column, as far as there is one", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "board" });
+  const [mon, tue] = ["Mon", "Tue"].map((title) => vault.addChild(vault.rootId, { title }));
+  const card = vault.addChild(mon.id, { title: "card" });
+  const there = vault.addChild(tue.id, { title: "there" });
+  const under = vault.addChild(card.id, { title: "under" });
+  assert.equal(toColumn(vault, card.id, 1, vault.rootId), true);
+  assert.deepEqual(vault.children(tue.id).map((n) => n.id), [there.id, card.id]);
+  assert.equal(toColumn(vault, card.id, 1, vault.rootId), false, "no column after the last");
+  assert.equal(toColumn(vault, under.id, 1, vault.rootId), false, "only a column's own cards");
+  assert.equal(toColumn(vault, tue.id, -1, vault.rootId), false, "not a heading");
+  vault.undo();
+  assert.equal(vault.get(card.id)!.parentId, mon.id, "one step to undo");
 });

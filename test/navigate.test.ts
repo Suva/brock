@@ -140,3 +140,39 @@ test("on a timeline left and right go along the line, up and down through a colu
   assert.equal(neighbour(layout, deeper.id, "up"), under.id);
   assert.equal(neighbour(layout, one.id, "up"), null);
 });
+
+test("on a board down enters from the centre, and the columns run up and down", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "board" });
+  const [mon, tue] = ["Mon", "Tue"].map((title) => vault.addChild(vault.rootId, { title }));
+  const [m1, m2] = ["m1", "m2"].map((title) => vault.addChild(mon.id, { title }));
+  const t1 = vault.addChild(tue.id, { title: "t1" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  assert.equal(neighbour(layout, vault.rootId, "down"), mon.id);
+  assert.equal(neighbour(layout, vault.rootId, "right"), null);
+  assert.equal(neighbour(layout, mon.id, "up"), vault.rootId);
+  assert.equal(neighbour(layout, mon.id, "down"), m1.id);
+  assert.equal(neighbour(layout, m1.id, "down"), m2.id);
+  assert.equal(neighbour(layout, m2.id, "down"), null);
+  assert.equal(neighbour(layout, mon.id, "right"), tue.id);
+  assert.equal(neighbour(layout, mon.id, "left"), null);
+  assert.equal(neighbour(layout, m1.id, "right"), t1.id, "across to the card level with it");
+});
+
+test("left and right leave a column, however long the titles in it", () => {
+  for (const style of ["org", "board", "timeline"] as const) {
+    const vault = new Vault([]);
+    vault.update(vault.rootId, { layout: style });
+    const a = vault.addChild(vault.rootId, { title: "a" });
+    const [short, long] = ["short", "long"].map((title) => vault.addChild(a.id, { title }));
+    const b = vault.addChild(vault.rootId, { title: "b" });
+    const c = vault.addChild(vault.rootId, { title: "c" });
+    const c1 = vault.addChild(c.id, { title: "c1" });
+    const c2 = vault.addChild(c.id, { title: "c2" });
+    void b;
+    const layout = layoutMap(vault, vault.rootId, (n) => ({ width: n.id === long.id ? 200 : 60, height: 20 }));
+    const right = neighbour(layout, short.id, "right");
+    assert.notEqual(right, long.id, style);
+    if (style !== "timeline") assert.ok(right === c1.id || right === c2.id || right === b.id, style);
+  }
+});

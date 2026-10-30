@@ -49,7 +49,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/vault.ts` | The vault in memory: reading the tree, edits, undo, repairing a broken tree on opening |
 | `src/core/sort-key.ts` | Fractional keys that keep the order of siblings |
 | `src/core/ids.ts` | Node ids (ULIDs) |
-| `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures: out to both sides, downwards as an org chart, or along a timeline |
+| `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures: out to both sides, downwards as an org chart, along a timeline, or in a board's columns |
 | `src/core/navigate.ts` | Which node an arrow key moves to |
 | `src/core/branches.ts` | The side and colour a new branch of a map's centre is given, and the palette |
 | `src/core/search.ts` | Searching titles and notes, in memory, and ranking what is found |
@@ -63,7 +63,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/history.ts` | The maps visited, for back and forward |
 | `src/core/clipboard.ts` | Copy, cut and paste of branches: copies as outlines, cuts moved whole |
 | `src/core/picture.ts` | A picture of a map as plain shapes, and writing it as SVG |
-| `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre |
+| `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre, from column to column |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
 | `src/store/memory-store.ts` | The store in tests, and in a browser (`npm run dev`) |
@@ -133,14 +133,15 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **A new column needs a migration.** Add a step to `MIGRATIONS` in `db.rs`;
   never change a step that has been released. Add the field to `Node` in both
   `node.ts` and `db.rs`, and to their `SELECT` and upsert.
-- **A map is drawn one of three ways.** `layout` on its centre is null for out
-  to both sides, `"org"` for downwards, or `"timeline"` along a line. The last
-  two have no sides (`Placed.side` is null, `Layout.down` is true) and
+- **A map is drawn one of four ways.** `layout` on its centre is null for out
+  to both sides, `"org"` for downwards, `"timeline"` along a line, or `"board"`
+  in columns. The last three have no sides (`Placed.side` is null, `Layout.down` is true) and
   everything turns a quarter: `navigate.ts`, `drop.ts`, `moveNode` and the lines in `MapView.svelte`
   each ask `layout.down`. Leaves under a node stack in a column there
   (`Placed.stacked`), where siblings run up and down as on a mind map, so
-  those ask that as well. On a timeline everything under an event is such a
-  column. The line itself is one more of the map's lines, so pictures have it.
+  those ask that as well. On a timeline and a board everything under the
+  centre's child is such a column (`Layout.columns`). A timeline's line and a
+  board's lanes are more of the map's lines, so pictures have them.
   A new style needs no migration: the column is unchecked. The nodes' stored `side` is left alone, so a map
   comes back as it was. Anything new that goes by side has to ask too.
 - **The layout does not measure.** `layoutMap` is given each node's size;
@@ -242,7 +243,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   its menus are under ☰ at the header's left (`AppMenu.svelte`, opened by
   Alt or F10 too). `customTitleBar` in `chrome.ts` says which. Linux keeps
   its own title bar and menu bar.
-- **Number keys are matched by `e.code`, not `e.key`.** ⌘1 to ⌘5 and ⌥⌘1 to ⌥⌘4
+- **Number keys are matched by `e.code`, not `e.key`.** ⌘1 to ⌘5 and ⌥⌘1 to ⌥⌘5
   look at the key's place (`Digit1`): where digits need Shift, as in French
   layouts, and with ⌥ on a Mac, `e.key` is another character.
 - **Shortcuts are letters, arrows and common punctuation.** Keys like `\`

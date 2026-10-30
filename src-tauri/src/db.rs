@@ -35,7 +35,7 @@ pub struct Node {
     /// The day it is due, as 2026-10-30, or None.
     #[serde(default)]
     pub due: Option<String>,
-    /// How a map is drawn: "org", "timeline", or None for out to both sides.
+    /// How a map is drawn: "org", "timeline", "board", or None for out to both sides.
     #[serde(default)]
     pub layout: Option<String>,
     pub created_at: i64,

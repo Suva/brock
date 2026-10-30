@@ -9,6 +9,8 @@
 // a chart of a few dozen nodes too wide to read. A map with `layout:
 // "timeline"` runs along a straight line from its centre: its children in
 // order, by turns above and below the line, each with all under it in a column.
+// A map with `layout: "board"` has those columns side by side under its centre,
+// each in a lane.
 //
 // Sizes come from outside (the window measures each node's text), so this is
 // pure and the same everywhere. Coordinates are in pixels at zoom 1, with the
@@ -49,6 +51,12 @@ export interface Layout {
   down: boolean;
   /** Whether it is a timeline, along the line through the centre's middle. */
   timeline: boolean;
+  /** Whether it is a board, with a lane for each of the centre's children. */
+  board: boolean;
+  /** Whether each child of the centre heads a column of all under it: a timeline or a board. */
+  columns: boolean;
+  /** The lanes of a board, left to right; `id` is the node heading each. */
+  lanes: { id: string; x: number; y: number; width: number; height: number }[];
   /** Every node drawn, the centre first, each parent before its children. */
   placed: Placed[];
   byId: Map<string, Placed>;
@@ -82,6 +90,10 @@ export const SPACING = {
   stem: 40,
   /** The least from one event to the next, along the line. */
   step: 72,
+  /** On a board: the narrowest a column is. */
+  column: 160,
+  /** Around a column, to the edge of its lane. */
+  lanePad: 10,
 };
 
 /** `leaveOut`: nodes not to draw, with all under them, as done tasks when they are hidden. */
@@ -155,19 +167,80 @@ export function layoutMap(
     }
   };
 
+  const lanes: Layout["lanes"] = [];
+
   const finish = (): Layout => {
     const bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
-    for (const p of placed) {
+    for (const p of [...placed, ...lanes]) {
       bounds.left = Math.min(bounds.left, p.x);
       bounds.top = Math.min(bounds.top, p.y);
       bounds.right = Math.max(bounds.right, p.x + p.width);
       bounds.bottom = Math.max(bounds.bottom, p.y + p.height);
     }
     const timeline = centre.layout === "timeline";
-    return { centreId, down: timeline || centre.layout === "org", timeline, placed, byId, bounds };
+    const board = centre.layout === "board";
+    return { centreId, down: centre.layout !== null, timeline, board, columns: timeline || board, lanes, placed, byId, bounds };
   };
 
   const c = sizeOf(centre);
+
+  /** A child of the centre and all under it, in the order they are drawn down a column. */
+  const columnOf = (top: Node) => {
+    const column: { node: Node; depth: number }[] = [];
+    const collect = (node: Node, depth: number) => {
+      column.push({ node, depth });
+      for (const kid of shown(node)) collect(kid, depth + 1);
+    };
+    collect(top, 1);
+    return column;
+  };
+  type Column = ReturnType<typeof columnOf>;
+  const indent = (depth: number) => SPACING.stackIndent * (depth - 1);
+  const columnHeight = (column: Column) =>
+    column.reduce((sum, { node }) => sum + sizeOf(node).height, 0) + SPACING.between * (column.length - 1);
+  const columnWidth = (column: Column) => Math.max(...column.map(({ node, depth }) => indent(depth) + sizeOf(node).width));
+  /** Places a column with its top left corner at `left`, `top`, each level stepped in. */
+  const placeColumn = (column: Column, left: number, top: number, branch: number) => {
+    let y = top;
+    for (const { node, depth } of column) {
+      const s = sizeOf(node);
+      put({
+        node,
+        x: left + indent(depth),
+        y,
+        width: s.width,
+        height: s.height,
+        side: null,
+        depth,
+        branch,
+        stacked: depth > 1,
+        hidden: shown(node).length === 0 ? tree.children(node.id).length : 0,
+      });
+      y += s.height + SPACING.between;
+    }
+  };
+
+  if (centre.layout === "board") {
+    put({ node: centre, x: -c.width / 2, y: -c.height / 2, width: c.width, height: c.height, side: null, depth: 0, branch: -1, stacked: false, hidden: 0 });
+    const columns = shown(centre).map(columnOf);
+    // All one width, as a board's columns are; all as tall as the tallest.
+    const width = Math.max(SPACING.column, ...columns.map(columnWidth));
+    const height = Math.max(0, ...columns.map(columnHeight));
+    const step = width + 2 * SPACING.lanePad + SPACING.beside;
+    const top = c.height / 2 + SPACING.down;
+    columns.forEach((column, i) => {
+      const left = (i - (columns.length - 1) / 2) * step - width / 2;
+      placeColumn(column, left, top, i);
+      lanes.push({
+        id: column[0].node.id,
+        x: left - SPACING.lanePad,
+        y: top - SPACING.lanePad,
+        width: width + 2 * SPACING.lanePad,
+        height: height + 2 * SPACING.lanePad,
+      });
+    });
+    return finish();
+  }
 
   if (centre.layout === "timeline") {
     put({ node: centre, x: -c.width / 2, y: -c.height / 2, width: c.width, height: c.height, side: null, depth: 0, branch: -1, stacked: false, hidden: 0 });
@@ -175,35 +248,11 @@ export function layoutMap(
     const ends = [c.width / 2 + SPACING.centreAcross, c.width / 2 + SPACING.centreAcross];
     let last = -Infinity;
     shown(centre).forEach((event, i) => {
-      const column: { node: Node; depth: number }[] = [];
-      const collect = (node: Node, depth: number) => {
-        column.push({ node, depth });
-        for (const kid of shown(node)) collect(kid, depth + 1);
-      };
-      collect(event, 1);
-      const indent = (depth: number) => SPACING.stackIndent * (depth - 1);
-      const height = column.reduce((sum, { node }) => sum + sizeOf(node).height, 0) + SPACING.between * (column.length - 1);
-      const width = Math.max(...column.map(({ node, depth }) => indent(depth) + sizeOf(node).width));
+      const column = columnOf(event);
       const above = i % 2 === 0 ? 0 : 1;
       const left = Math.max(ends[above], last + SPACING.step);
-      let y = above === 0 ? -SPACING.stem - height : SPACING.stem;
-      for (const { node, depth } of column) {
-        const s = sizeOf(node);
-        put({
-          node,
-          x: left + indent(depth),
-          y,
-          width: s.width,
-          height: s.height,
-          side: null,
-          depth,
-          branch: i,
-          stacked: depth > 1,
-          hidden: shown(node).length === 0 ? tree.children(node.id).length : 0,
-        });
-        y += s.height + SPACING.between;
-      }
-      ends[above] = left + width + SPACING.centreBeside;
+      placeColumn(column, left, above === 0 ? -SPACING.stem - columnHeight(column) : SPACING.stem, i);
+      ends[above] = left + columnWidth(column) + SPACING.centreBeside;
       last = left;
     });
     return finish();

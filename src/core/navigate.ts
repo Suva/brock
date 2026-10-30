@@ -9,7 +9,8 @@
 // drawn downwards the same turns a quarter: up and down follow the tree, left
 // and right go along the rows. Nodes stacked in a column go up and down it. On
 // a timeline left and right go along the line, and up and down through an
-// event's column.
+// event's column; a board's columns work the same, and the top of one leads up
+// to the centre.
 
 import type { Layout, Placed } from "./layout.ts";
 
@@ -18,8 +19,10 @@ export type Direction = "up" | "down" | "left" | "right";
 export function neighbour(layout: Layout, id: string, direction: Direction): string | null {
   const from = layout.byId.get(id);
   if (!from) return null;
-  if (layout.timeline && from.depth === 0) return direction === "right" ? (layout.placed[1]?.node.id ?? null) : null;
-  if (layout.timeline && (direction === "up" || direction === "down")) return alongColumn(layout, from, direction);
+  if (layout.columns && from.depth === 0) {
+    return direction === (layout.board ? "down" : "right") ? (layout.placed[1]?.node.id ?? null) : null;
+  }
+  if (layout.columns && (direction === "up" || direction === "down")) return alongColumn(layout, from, direction);
   if (layout.down) {
     if (direction === "left" || direction === "right") return alongRow(layout, from, direction);
     if (from.stacked) return alongStack(layout, from, direction);
@@ -72,10 +75,11 @@ function childBelow(layout: Layout, from: Placed): string | null {
   return best?.node.id ?? null;
 }
 
-/** On a timeline: the next in the event's column, its title first. */
+/** The next in the column of a timeline or board, its title first. */
 function alongColumn(layout: Layout, from: Placed, direction: "up" | "down"): string | null {
   const column = layout.placed.filter((p) => p.branch === from.branch);
-  return column[column.indexOf(from) + (direction === "up" ? -1 : 1)]?.node.id ?? null;
+  const next = column[column.indexOf(from) + (direction === "up" ? -1 : 1)];
+  return next?.node.id ?? (layout.board && direction === "up" ? layout.centreId : null);
 }
 
 /** The next in the column; past the top, its parent. */
@@ -88,11 +92,15 @@ function alongStack(layout: Layout, from: Placed, direction: "up" | "down"): str
 /** The sibling that way; past the last, the nearest node in the row; then in the rows above it. */
 function alongRow(layout: Layout, from: Placed, direction: "left" | "right"): string | null {
   if (from.depth === 0) return null;
+  // What shares its column is never to the side, however long its title.
+  const sameColumn = (p: Placed) =>
+    from.stacked && (p.node.parentId === from.node.parentId || (layout.columns && p.branch === from.branch));
   const ahead = layout.placed.filter(
-    (p) => p !== from && (direction === "left" ? middleX(p) < middleX(from) : middleX(p) > middleX(from)),
+    (p) => p !== from && !sameColumn(p) && (direction === "left" ? middleX(p) < middleX(from) : middleX(p) > middleX(from)),
   );
-  // By distance, not only sideways: of a column, the node level with this one.
-  const far = (p: Placed) => Math.hypot(middleX(p) - middleX(from), middleY(p) - middleY(from));
+  // Of a column, the node level with this one: height counts for more than
+  // sideways, where a long title moves a node's middle.
+  const far = (p: Placed) => Math.abs(middleX(p) - middleX(from)) + 4 * Math.abs(middleY(p) - middleY(from));
   const nearest = (candidates: Placed[]) =>
     candidates.reduce<Placed | null>((best, p) => (!best || far(p) < far(best) ? p : best), null);
   // Siblings go by order along the row or line, wherever each sits on it.

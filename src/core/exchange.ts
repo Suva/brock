@@ -229,7 +229,7 @@ function checked(raw: unknown): Outline {
     doneAt: typeof o.doneAt === "number" ? o.doneAt : null,
     priority: typeof o.priority === "number" && o.priority >= 1 && o.priority <= 5 ? Math.round(o.priority) : null,
     due: typeof o.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.due) ? o.due : null,
-    layout: o.layout === "org" || o.layout === "timeline" ? o.layout : null,
+    layout: o.layout === "org" || o.layout === "timeline" || o.layout === "board" ? o.layout : null,
     children: Array.isArray(o.children) ? o.children.map(checked) : [],
   };
 }
