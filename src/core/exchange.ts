@@ -27,6 +27,7 @@ export interface Outline {
   doneAt: number | null;
   priority: number | null;
   due: string | null;
+  layout: "org" | null;
   children: Outline[];
 }
 
@@ -51,6 +52,7 @@ export function outlineOf(vault: Vault, id: string): Outline {
     doneAt: node.doneAt,
     priority: node.priority,
     due: node.due,
+    layout: node.layout,
     children: vault.children(id).map((child) => outlineOf(vault, child.id)),
   };
 }
@@ -141,6 +143,7 @@ export function fromText(text: string): Outline[] {
       doneAt: null,
       priority: null,
       due: null,
+      layout: null,
       children: [],
     };
     while (open.length && open.at(-1)!.indent >= indent) open.pop();
@@ -226,6 +229,7 @@ function checked(raw: unknown): Outline {
     doneAt: typeof o.doneAt === "number" ? o.doneAt : null,
     priority: typeof o.priority === "number" && o.priority >= 1 && o.priority <= 5 ? Math.round(o.priority) : null,
     due: typeof o.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.due) ? o.due : null,
+    layout: o.layout === "org" ? "org" : null,
     children: Array.isArray(o.children) ? o.children.map(checked) : [],
   };
 }
@@ -260,6 +264,7 @@ export function fromOPML(xml: string): Outline[] {
       doneAt: null,
       priority: null,
       due: null,
+      layout: null,
       children: [],
     };
     (open.at(-1)?.children ?? top).push(outline);
@@ -314,6 +319,7 @@ export function importInto(
         doneAt: o.task === "done" ? o.doneAt : null,
         priority: o.priority,
         due: o.due,
+        layout: o.layout,
         ...(o.color ? { color: o.color } : {}),
       });
       if (o.id) newId.set(o.id, node.id);

@@ -251,21 +251,37 @@
     others = next;
   }
 
-  /** A curve from each parent's outer edge to its child's inner edge. */
+  /** The line from a parent to its child: a curve, or on a map drawn downwards, right angles from its bottom. */
+  function edgeCurve(parent: Placed, p: Placed): string {
+    if (p.stacked) {
+      // One line down the column's left, which each node's own joins.
+      const [x1, y1] = [parent.x + SPACING.stackIndent / 2, parent.y + parent.height];
+      const [x2, y2] = [p.x, p.y + p.height / 2];
+      return `M${x1},${y1} V${y2} H${x2}`;
+    }
+    if (layout.down) {
+      const [x1, y1] = [parent.x + parent.width / 2, parent.y + parent.height];
+      const [x2, y2] = [p.x + p.width / 2, p.y];
+      const my = (y1 + y2) / 2;
+      return `M${x1},${y1} V${my} H${x2} V${y2}`;
+    }
+    const right = p.side === "right";
+    const x1 = right ? parent.x + parent.width : parent.x;
+    const y1 = parent.y + parent.height / 2;
+    const x2 = right ? p.x : p.x + p.width;
+    const y2 = p.y + p.height / 2;
+    const mx = (x1 + x2) / 2;
+    return `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+  }
+
+  /** A line from each parent's outer edge to its child's inner edge. */
   const edges = $derived(
     layout.placed
       .filter((p) => p.depth > 0)
       .map((p) => {
-        const parent = layout.byId.get(p.node.parentId!)!;
-        const right = p.side === "right";
-        const x1 = right ? parent.x + parent.width : parent.x;
-        const y1 = parent.y + parent.height / 2;
-        const x2 = right ? p.x : p.x + p.width;
-        const y2 = p.y + p.height / 2;
-        const mx = (x1 + x2) / 2;
         return {
           id: p.node.id,
-          d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`,
+          d: edgeCurve(layout.byId.get(p.node.parentId!)!, p),
           colour: colours.get(p.node.id),
           width: p.depth === 1 ? 3 : 2,
         };
@@ -341,7 +357,8 @@
       if (cameraOf === id) return;
       if (cameraOf !== null) cameras.set(cameraOf, camera);
       cameraOf = id;
-      setCamera(cameras.get(id) ?? centreOn(0, 0, 1, width, height));
+      // An org chart grows down from its centre, which starts near the top.
+      setCamera(cameras.get(id) ?? centreOn(0, layout.down ? height / 2 - 64 : 0, 1, width, height));
       if (entering) enter(entering);
       entering = null;
     });
@@ -690,8 +707,15 @@
     const beside = moving?.drop?.beside;
     const p = beside && layout.byId.get(beside.id);
     if (!p) return null;
+    const THICK = 3;
+    if (layout.down && !p.stacked) {
+      const gap = (p.depth === 1 ? SPACING.centreBeside : SPACING.beside) / 2;
+      const x = beside.after ? p.x + p.width + gap : p.x - gap;
+      return { x: x - THICK / 2, y: p.y, width: THICK, height: p.height };
+    }
     const gap = (p.depth === 1 ? SPACING.centreBetween : SPACING.between) / 2;
-    return { x: p.x, y: beside.after ? p.y + p.height + gap : p.y - gap, width: p.width };
+    const y = beside.after ? p.y + p.height + gap : p.y - gap;
+    return { x: p.x, y: y - THICK / 2, width: p.width, height: THICK };
   });
 
   function zoomBy(factor: number) {
@@ -716,7 +740,8 @@
   /**
    * Zoomed out, the centre and its branches are drawn larger, up to almost
    * twice, so that their names can still be read. Only the drawing grows; the
-   * layout keeps their sizes, and nothing else moves.
+   * layout keeps their sizes, and nothing else moves. On an org chart only the
+   * centre does: its branches are side by side and would run into each other.
    */
   const labelScale = $derived(camera.zoom < FAR_ZOOM ? Math.min(1.8, FAR_ZOOM / camera.zoom) : 1);
 
@@ -806,6 +831,14 @@
   $effect(() => {
     void layout;
     if (fitting && width > 0 && height > 0) untrack(fitAll);
+  });
+
+  // A map drawn the other way is another shape: what was on screen says little.
+  let drawn: { mapId: string; down: boolean } | null = null;
+  $effect(() => {
+    const now = { mapId, down: layout.down };
+    if (now.mapId === drawn?.mapId && now.down !== drawn.down) fitting = true;
+    drawn = now;
   });
 
   // ---- Editing -------------------------------------------------------------
@@ -1010,7 +1043,16 @@
 
   /** Alt with the arrow keys moves the selected node instead of the selection. */
   function moveNode(id: string, direction: Direction) {
-    const where = { centreId: mapId, columns: true };
+    const where = { centreId: mapId, columns: !layout.down };
+    const stacked = layout.byId.get(id)?.stacked;
+    if (stacked && (direction === "left" || direction === "right")) {
+      return direction === "right" ? indent(vault, id, where) : outdent(vault, id, where);
+    }
+    if (layout.down && !stacked) {
+      // A quarter turn from the mind map: siblings are side by side, and in is down.
+      if (direction === "left" || direction === "right") return reorder(vault, id, direction === "left" ? -1 : 1, where);
+      return direction === "down" ? indent(vault, id, where) : outdent(vault, id, where);
+    }
     if (direction === "up" || direction === "down") return reorder(vault, id, direction === "up" ? -1 : 1, where);
     const side = layout.byId.get(id)?.side;
     if (!side) return false;
@@ -1188,11 +1230,12 @@
         class:selected={chosen.has(node.id)}
         class:primary={selected === node.id && chosen.size > 1}
         class:left={p.side === "left"}
+        class:down={layout.down}
         class:moving={movingBranch.has(node.id)}
         class:drop-onto={moving?.drop?.onto === node.id}
         data-id={node.id}
         use:measure
-        style:transform="translate({Math.round(p.x)}px, {Math.round(p.y)}px){p.depth <= 1 && labelScale > 1
+        style:transform="translate({Math.round(p.x)}px, {Math.round(p.y)}px){(p.depth === 0 || (p.depth === 1 && !layout.down)) && labelScale > 1
           ? ` scale(${labelScale})`
           : ''}"
         style:--branch={colours.get(node.id) ?? "var(--fg)"}
@@ -1338,8 +1381,9 @@
     {#if dropLine}
       <div
         class="drop-line"
-        style:transform="translate({dropLine.x}px, {dropLine.y - 1.5}px)"
+        style:transform="translate({dropLine.x}px, {dropLine.y}px)"
         style:width="{dropLine.width}px"
+        style:height="{dropLine.height}px"
       ></div>
     {/if}
   </div>
@@ -1554,7 +1598,6 @@
     position: absolute;
     left: 0;
     top: 0;
-    height: 3px;
     border-radius: 2px;
     background: var(--accent);
     pointer-events: none;
@@ -1740,6 +1783,15 @@
     right: 100%;
     margin-left: 0;
     margin-right: 4px;
+  }
+
+  /* Under the node, where its children are. */
+  .node.down .fold {
+    left: 50%;
+    top: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+    transform: translateX(-50%);
   }
 
   .node:hover .fold,

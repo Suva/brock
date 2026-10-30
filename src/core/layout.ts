@@ -2,7 +2,11 @@
 // two columns to its right and left, and each branch grows outwards from
 // there. Every node's branch takes a band of height, its children are stacked
 // in it, and the node sits halfway down its children: the layout most mind map
-// apps use, which reads as a list on each side.
+// apps use, which reads as a list on each side. A map with `layout: "org"`
+// goes downwards instead, as an org chart: each level a row, a node centred
+// over its children. Nodes whose children are all leaves stack them in a
+// column under themselves, as org charts do: a row of every leaf would make
+// a chart of a few dozen nodes too wide to read.
 //
 // Sizes come from outside (the window measures each node's text), so this is
 // pure and the same everywhere. Coordinates are in pixels at zoom 1, with the
@@ -22,18 +26,22 @@ export interface Placed {
   y: number;
   width: number;
   height: number;
-  /** Null for the centre. */
+  /** Null for the centre, and on a map drawn downwards, which has no sides. */
   side: Side | null;
   /** 0 for the centre, 1 for its children and so on. */
   depth: number;
   /** Which child of the centre this node's branch starts from, in order; -1 for the centre. */
   branch: number;
+  /** Whether it is in a column with its siblings under their parent, on a map drawn downwards. */
+  stacked: boolean;
   /** Whether the node has children that are not drawn: folded away, or inside a map. */
   hidden: number;
 }
 
 export interface Layout {
   centreId: string;
+  /** Whether it is drawn downwards, as an org chart, not out to both sides. */
+  down: boolean;
   /** Every node drawn, the centre first, each parent before its children. */
   placed: Placed[];
   byId: Map<string, Placed>;
@@ -55,6 +63,14 @@ export const SPACING = {
   between: 8,
   /** Between the centre's children, which start whole branches. */
   centreBetween: 16,
+  /** On a map drawn downwards: from a row to the next. */
+  down: 48,
+  /** Between siblings side by side, which need more room than stacked ones. */
+  beside: 16,
+  /** Between the centre's children side by side. */
+  centreBeside: 32,
+  /** How far a stacked column starts to the right of its parent's left edge. */
+  stackIndent: 18,
 };
 
 /** `leaveOut`: nodes not to draw, with all under them, as done tasks when they are hidden. */
@@ -115,6 +131,7 @@ export function layoutMap(
       side,
       depth,
       branch,
+      stacked: false,
       hidden: shown(node).length === 0 ? tree.children(node.id).length : 0,
     });
     const kids = shown(node);
@@ -127,7 +144,100 @@ export function layoutMap(
     }
   };
 
+  const finish = (): Layout => {
+    const bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+    for (const p of placed) {
+      bounds.left = Math.min(bounds.left, p.x);
+      bounds.top = Math.min(bounds.top, p.y);
+      bounds.right = Math.max(bounds.right, p.x + p.width);
+      bounds.bottom = Math.max(bounds.bottom, p.y + p.height);
+    }
+    return { centreId, down: centre.layout === "org", placed, byId, bounds };
+  };
+
   const c = sizeOf(centre);
+
+  if (centre.layout === "org") {
+    /** Whether a node's children go in a column. One child sits right under it, and the centre keeps its branches in a row. */
+    const stacks = (node: Node, depth: number) =>
+      depth > 0 && shown(node).length > 1 && shown(node).every((k) => shown(k).length === 0);
+    const stackHeight = (node: Node) =>
+      shown(node).reduce((sum, k) => sum + sizeOf(k).height, 0) + SPACING.between * (shown(node).length - 1);
+
+    // One height for each level, so that rows line up across the branches.
+    const heights: number[] = [];
+    const measureRows = (node: Node, depth: number) => {
+      heights[depth] = Math.max(heights[depth] ?? 0, sizeOf(node).height);
+      if (stacks(node, depth)) heights[depth + 1] = Math.max(heights[depth + 1] ?? 0, stackHeight(node));
+      else for (const kid of shown(node)) measureRows(kid, depth + 1);
+    };
+    measureRows(centre, 0);
+    const tops = [-c.height / 2];
+    for (const height of heights) tops.push(tops[tops.length - 1] + height + SPACING.down);
+
+    const gap = (depth: number) => (depth === 0 ? SPACING.centreBeside : SPACING.beside);
+    const row = (node: Node, depth: number) =>
+      shown(node).reduce((sum, k) => sum + span(k, depth + 1), 0) + gap(depth) * Math.max(0, shown(node).length - 1);
+    const spans = new Map<string, number>();
+    const span = (node: Node, depth: number): number => {
+      let w = spans.get(node.id);
+      if (w === undefined) {
+        const under = stacks(node, depth) ? stackWidth(node) : row(node, depth);
+        spans.set(node.id, (w = Math.max(sizeOf(node).width, under)));
+      }
+      return w;
+    };
+    const stackWidth = (node: Node) => SPACING.stackIndent + Math.max(...shown(node).map((k) => sizeOf(k).width));
+
+    /** Places a node and its branch in the span starting at `left`. */
+    const placeDown = (node: Node, left: number, depth: number, branch: number) => {
+      const s = sizeOf(node);
+      const middle = left + span(node, depth) / 2;
+      // Over a column it stays at the left, for the column's line to drop from it.
+      const stacked = stacks(node, depth);
+      put({
+        node,
+        x: stacked ? left : middle - s.width / 2,
+        y: tops[depth],
+        width: s.width,
+        height: s.height,
+        side: null,
+        depth,
+        branch,
+        stacked: false,
+        hidden: depth > 0 && shown(node).length === 0 ? tree.children(node.id).length : 0,
+      });
+      if (stacked) {
+        const x = left + SPACING.stackIndent;
+        let y = tops[depth + 1];
+        for (const kid of shown(node)) {
+          const k = sizeOf(kid);
+          put({
+            node: kid,
+            x,
+            y,
+            width: k.width,
+            height: k.height,
+            side: null,
+            depth: depth + 1,
+            branch,
+            stacked: true,
+            hidden: tree.children(kid.id).length,
+          });
+          y += k.height + SPACING.between;
+        }
+        return;
+      }
+      let x = middle - row(node, depth) / 2;
+      shown(node).forEach((kid, i) => {
+        placeDown(kid, x, depth + 1, depth === 0 ? i : branch);
+        x += span(kid, depth + 1) + gap(depth);
+      });
+    };
+    placeDown(centre, -span(centre, 0) / 2, 0, -1);
+    return finish();
+  }
+
   put({
     node: centre,
     x: -c.width / 2,
@@ -137,6 +247,7 @@ export function layoutMap(
     side: null,
     depth: 0,
     branch: -1,
+    stacked: false,
     hidden: 0,
   });
   const kids = shown(centre);
@@ -153,14 +264,7 @@ export function layoutMap(
     }
   }
 
-  const bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
-  for (const p of placed) {
-    bounds.left = Math.min(bounds.left, p.x);
-    bounds.top = Math.min(bounds.top, p.y);
-    bounds.right = Math.max(bounds.right, p.x + p.width);
-    bounds.bottom = Math.max(bounds.bottom, p.y + p.height);
-  }
-  return { centreId, placed, byId, bounds };
+  return finish();
 }
 
 /**

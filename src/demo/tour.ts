@@ -218,7 +218,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("The **‹ ›** buttons at the top, or **⌘[** and **⌘]**, go back and forward through the maps you've visited."),
   });
   add(finding, "Map or outline", {
-    body: notes("The switch at the top shows the same map as an indented list, for writing quickly. **⌥⌘1** and **⌥⌘2** switch between them."),
+    body: notes("The switch at the top shows the same map as an indented list, for writing quickly. **⌥⌘1** and **⌥⌘2** switch between them. With a map's centre selected, **Style** at the top of this panel draws it as an org chart instead, or **⌥⌘3**, and each map keeps its own."),
   });
   add(finding, "Zoom and pan", {
     body: notes("Scroll to move around; pinch, or hold **⌘** and scroll, to zoom. **⌘0** shows the whole map. The minimap shows where you are."),

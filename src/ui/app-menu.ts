@@ -27,6 +27,7 @@ export interface MenuActions {
   search(): void;
   link(): void;
   view(view: "map" | "outline"): void;
+  toggleLayout(): void;
   toggleSidebar(): void;
   showTasks(): void;
   toggleNotes(): void;
@@ -43,6 +44,7 @@ export interface MenuActions {
 /** What the window tells the menu as it changes, for its check marks. */
 export interface MenuChecks {
   view(view: "map" | "outline"): void;
+  orgChart(on: boolean): void;
   sidebar(open: boolean): void;
   notes(open: boolean): void;
   source(on: boolean): void;
@@ -90,6 +92,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
 
   const mapItem = await check("Map", () => a.view("map"), "Alt+CmdOrCtrl+1");
   const outlineItem = await check("Outline", () => a.view("outline"), "Alt+CmdOrCtrl+2");
+  const orgChartItem = await check("Draw as Org Chart", a.toggleLayout, "Alt+CmdOrCtrl+3");
   const sidebarItem = await check("Sidebar", a.toggleSidebar, mac() ? "Ctrl+Cmd+S" : "Ctrl+Shift+S");
   const notesItem = await check("Notes", a.toggleNotes, "CmdOrCtrl+Shift+N");
   const sourceItem = await check("Notes as Markdown Source", a.toggleSource, "CmdOrCtrl+E");
@@ -163,6 +166,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
       items: [
         mapItem,
         outlineItem,
+        orgChartItem,
         await line(),
         sidebarItem,
         await item("Tasks", a.showTasks, "CmdOrCtrl+Shift+T"),
@@ -232,6 +236,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
       mapItem.setChecked(v === "map");
       outlineItem.setChecked(v === "outline");
     },
+    orgChart: (on) => orgChartItem.setChecked(on),
     sidebar: (open) => sidebarItem.setChecked(open),
     notes: (open) => notesItem.setChecked(open),
     source: (on) => sourceItem.setChecked(on),

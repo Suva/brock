@@ -1,6 +1,7 @@
 <!--
   The selected node beside the map: whether it is a task, its priority and
-  the day it is due, its colour and icon; its notes, edited where their Markdown is drawn or as
+  the day it is due, its colour and icon; on the centre of the open map, how
+  that map is drawn; its notes, edited where their Markdown is drawn or as
   its source (saved as typed, undone a run of typing at a time); and the
   nodes it links to and those linking to it, each a way there.
   Links in the notes go to nodes, open web addresses, files or the window's panels; ⌘L while writing puts
@@ -213,6 +214,15 @@
         <button class="remove" onclick={() => vault.update(nodeId, { due: null })} title="Take the due date away" aria-label="Take the due date away">×</button>
       {/if}
     </div>
+    {#if centre}
+      <div class="row">
+        <span id="map-style">Style</span>
+        <div class="choice" role="radiogroup" aria-labelledby="map-style">
+          <button role="radio" aria-checked={node.layout === null} class:on={node.layout === null} onclick={() => vault.update(nodeId, { layout: null })} title="Out to both sides of the centre (⌥⌘3)">Mind map</button>
+          <button role="radio" aria-checked={node.layout === "org"} class:on={node.layout === "org"} onclick={() => vault.update(nodeId, { layout: "org" })} title="Downwards from the centre, each level in a row (⌥⌘3)">Org chart</button>
+        </div>
+      </div>
+    {/if}
     <div class="style">
       {#if !centre}
         <div class="swatches" role="radiogroup" aria-label="Colour">
@@ -490,6 +500,30 @@
     padding: 0.1rem 0.3rem;
     border: 1px solid var(--line);
     border-radius: 6px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .choice {
+    display: inline-flex;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  .choice button {
+    padding: 0.05rem 0.5rem;
+  }
+
+  .choice button.on {
+    color: var(--accent);
+    background: var(--accent-soft);
   }
 
   .style {

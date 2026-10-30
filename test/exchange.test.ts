@@ -14,7 +14,7 @@ function sample() {
   vault.link(shibuya.id, kyoto.id);
   vault.toggleTask(shibuya.id);
   vault.tick(shibuya.id);
-  vault.update(shibuya.id, { priority: 2, due: "2026-11-02" });
+  vault.update(shibuya.id, { priority: 2, due: "2026-11-02", layout: "org" });
   vault.delete(vault.addChild(vault.rootId, { title: "Gone" }).id);
   return { vault, tokyo, shibuya, kyoto };
 }
@@ -91,6 +91,7 @@ test("JSON comes back in whole: maps, icons, colours and links", () => {
   assert.equal(shibuya.task, "done", "and tasks come back done or not");
   assert.equal(shibuya.priority, 2, "with their priority");
   assert.equal(shibuya.due, "2026-11-02", "and the day they are due");
+  assert.equal(shibuya.layout, "org", "and how they are drawn");
   other.undo();
   assert.deepEqual(other.children(other.rootId), [], "bringing it in is one step");
 });

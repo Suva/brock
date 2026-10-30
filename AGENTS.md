@@ -49,7 +49,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/vault.ts` | The vault in memory: reading the tree, edits, undo, repairing a broken tree on opening |
 | `src/core/sort-key.ts` | Fractional keys that keep the order of siblings |
 | `src/core/ids.ts` | Node ids (ULIDs) |
-| `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures |
+| `src/core/layout.ts` | Where each node of a map goes, from the sizes the window measures: out to both sides, or downwards as an org chart |
 | `src/core/navigate.ts` | Which node an arrow key moves to |
 | `src/core/branches.ts` | The side and colour a new branch of a map's centre is given, and the palette |
 | `src/core/search.ts` | Searching titles and notes, in memory, and ranking what is found |
@@ -133,6 +133,14 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **A new column needs a migration.** Add a step to `MIGRATIONS` in `db.rs`;
   never change a step that has been released. Add the field to `Node` in both
   `node.ts` and `db.rs`, and to their `SELECT` and upsert.
+- **A map is drawn one of two ways.** `layout` on its centre is null for out
+  to both sides, or `"org"` for downwards. Downwards there are no sides
+  (`Placed.side` is null, `Layout.down` is true) and everything turns a
+  quarter: `navigate.ts`, `drop.ts`, `moveNode` and the lines in `MapView.svelte`
+  each ask `layout.down`. Leaves under a node stack in a column there
+  (`Placed.stacked`), where siblings run up and down as on a mind map, so
+  those ask that as well. The nodes' stored `side` is left alone, so a map
+  comes back as it was. Anything new that goes by side has to ask too.
 - **The layout does not measure.** `layoutMap` is given each node's size;
   the map measures its nodes with a ResizeObserver and lays them out again
   when a size changes. A node's look must come from CSS that its size
@@ -232,7 +240,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   its menus are under ☰ at the header's left (`AppMenu.svelte`, opened by
   Alt or F10 too). `customTitleBar` in `chrome.ts` says which. Linux keeps
   its own title bar and menu bar.
-- **Number keys are matched by `e.code`, not `e.key`.** ⌘1 to ⌘5 and ⌥⌘1
+- **Number keys are matched by `e.code`, not `e.key`.** ⌘1 to ⌘5 and ⌥⌘1 to ⌥⌘3
   look at the key's place (`Digit1`): where digits need Shift, as in French
   layouts, and with ⌥ on a Mac, `e.key` is another character.
 - **Shortcuts are letters, arrows and common punctuation.** Keys like `\`

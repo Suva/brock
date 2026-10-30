@@ -212,6 +212,18 @@
     }
     return vault.rootId;
   });
+  /** Whether the open map is drawn as an org chart. */
+  const orgChart = $derived.by(() => {
+    void version;
+    return vault.get(mapId)?.layout === "org";
+  });
+
+  /** Draws the open map the other way, which shows on the map, not in the outline. */
+  function toggleLayout() {
+    vault.update(mapId, { layout: orgChart ? null : "org" });
+    view = "map";
+  }
+
   const breadcrumbs = $derived.by(() => {
     void version;
     return vault.mapPath(mapId);
@@ -371,6 +383,7 @@
         searching = "link";
       },
       view: (v) => (view = v),
+      toggleLayout,
       toggleSidebar: () => (sidebarOpen = !sidebarOpen),
       showTasks: () => showTab("tasks"),
       toggleNotes: () => (notesOpen = !notesOpen),
@@ -391,10 +404,11 @@
   });
   const quit = () => void getCurrentWindow().close();
   const appMenuItems = $derived(
-    menuItems(menuActions, { view, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone }, quit),
+    menuItems(menuActions, { view, orgChart, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone }, quit),
   );
   $effect(() => {
     menuChecks?.view(view);
+    menuChecks?.orgChart(orgChart);
     menuChecks?.sidebar(sidebarOpen);
     menuChecks?.notes(notesOpen);
     menuChecks?.source(notesSource);
@@ -440,10 +454,12 @@
     } else if (key === "e" && !event.shiftKey && !event.altKey) {
       notesSource = !notesSource;
     } else if (event.altKey && event.code === "Digit1" && !event.shiftKey) {
-      // ⌥⌘1 and ⌥⌘2: ⌘1 to ⌘5 set priorities.
+      // ⌥⌘1 to ⌥⌘3: ⌘1 to ⌘5 set priorities.
       view = "map";
     } else if (event.altKey && event.code === "Digit2" && !event.shiftKey) {
       view = "outline";
+    } else if (event.altKey && event.code === "Digit3" && !event.shiftKey) {
+      toggleLayout();
     } else {
       return;
     }

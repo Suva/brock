@@ -65,3 +65,56 @@ test("up and down go to a sibling before a deeper node that sits nearer", () => 
   assert.equal(neighbour(layout, thirdChild.id, "down"), ohNo.id);
   assert.equal(neighbour(layout, last.id, "down"), null, "the last on its side");
 });
+
+function chart() {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "org" });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const a1 = vault.addChild(a.id, { title: "a1" });
+  const a2 = vault.addChild(a.id, { title: "a2" });
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  const b1 = vault.addChild(b.id, { title: "b1" });
+  const c = vault.addChild(vault.rootId, { title: "c" });
+  // With a child of its own, a1 keeps a's children in a row.
+  vault.addChild(a1.id, { title: "below" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  return { vault, layout, a, a1, a2, b, b1, c };
+}
+
+test("drawn downwards, up and down follow the tree", () => {
+  const { vault, layout, a, a1, b, b1 } = chart();
+  assert.equal(neighbour(layout, vault.rootId, "up"), null);
+  assert.equal(neighbour(layout, vault.rootId, "down"), b.id, "the child most nearly under it");
+  assert.equal(neighbour(layout, b.id, "down"), b1.id);
+  assert.equal(neighbour(layout, a1.id, "up"), a.id);
+  assert.equal(neighbour(layout, a.id, "up"), vault.rootId);
+  assert.equal(neighbour(layout, b1.id, "down"), null);
+});
+
+test("drawn downwards, left and right go along the row, across branches", () => {
+  const { vault, layout, a, a1, a2, b, b1, c } = chart();
+  assert.equal(neighbour(layout, a.id, "right"), b.id);
+  assert.equal(neighbour(layout, c.id, "left"), b.id);
+  assert.equal(neighbour(layout, a1.id, "right"), a2.id);
+  assert.equal(neighbour(layout, a2.id, "right"), b1.id, "into the next branch");
+  assert.equal(neighbour(layout, b1.id, "right"), c.id, "past the row's end, the row above");
+  assert.equal(neighbour(layout, c.id, "right"), null);
+  assert.equal(neighbour(layout, vault.rootId, "left"), null);
+});
+
+test("drawn downwards, a column goes up and down, and off to either side", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "org" });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const [a1, a2] = [1, 2].map((n) => vault.addChild(a.id, { title: `a${n}` }));
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  const [b1, b2] = [1, 2].map((n) => vault.addChild(b.id, { title: `b${n}` }));
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  assert.equal(neighbour(layout, a.id, "down"), a1.id, "into the top of the column");
+  assert.equal(neighbour(layout, a1.id, "down"), a2.id);
+  assert.equal(neighbour(layout, a2.id, "down"), null);
+  assert.equal(neighbour(layout, a2.id, "up"), a1.id);
+  assert.equal(neighbour(layout, a1.id, "up"), a.id);
+  assert.equal(neighbour(layout, a2.id, "right"), b2.id, "the node level with it");
+  assert.equal(neighbour(layout, b1.id, "left"), a1.id);
+});

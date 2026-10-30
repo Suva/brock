@@ -169,3 +169,44 @@ test("in the outline, a row dropped on the centre keeps the other branches' side
   assert.deepEqual([r1, l1, r2].map((n) => vault.get(n.id)!.side), ["right", "left", "right"]);
   assert.notEqual(vault.get(deep.id)!.side, null);
 });
+
+test("drawn downwards, the ends of a node mean beside it, to its left or right", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "org" });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  const c = vault.addChild(vault.rootId, { title: "c" });
+  const d = vault.addChild(c.id, { title: "d" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  const p = layout.byId.get(b.id)!;
+  const y = p.y + 10;
+
+  const onto = dropAt(vault, layout, d.id, p.x + 40, y)!;
+  assert.equal(onto.onto, b.id);
+  assert.equal(onto.side, null);
+
+  const before = dropAt(vault, layout, d.id, p.x + 4, y)!;
+  assert.deepEqual([before.parentId, before.index, before.beside], [vault.rootId, 1, { id: b.id, after: false }]);
+  assert.equal(before.side, null, "no sides to carry it to");
+
+  const after = dropAt(vault, layout, d.id, p.x + 76, y)!;
+  assert.deepEqual([after.index, after.beside], [2, { id: b.id, after: true }]);
+
+  const centre = layout.byId.get(vault.rootId)!;
+  assert.equal(dropAt(vault, layout, d.id, centre.x + 2, centre.y + 2)!.side, null);
+  assert.equal(a.parentId, vault.rootId);
+});
+
+test("drawn downwards, nodes in a column go before and after by height, as on a mind map", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "org" });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const [a1, a2] = [1, 2].map((n) => vault.addChild(a.id, { title: `a${n}` }));
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  const p = layout.byId.get(a2.id)!;
+  const above = dropAt(vault, layout, b.id, p.x + 40, p.y + 2)!;
+  assert.deepEqual([above.parentId, above.index, above.beside], [a.id, 1, { id: a2.id, after: false }]);
+  assert.equal(dropAt(vault, layout, b.id, p.x + 40, p.y + 10)!.onto, a2.id);
+  void a1;
+});

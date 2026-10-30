@@ -114,3 +114,82 @@ test("the bounds hold every node", () => {
     assert.ok(p.y >= layout.bounds.top && p.y + p.height <= layout.bounds.bottom);
   }
 });
+
+function chart() {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "org" });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const a1 = vault.addChild(a.id, { title: "a1" });
+  const a2 = vault.addChild(a.id, { title: "a2" });
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  // With a child of its own, a1 keeps a and its siblings in a row.
+  vault.addChild(a1.id, { title: "below" });
+  return { vault, a, a1, a2, b };
+}
+
+test("drawn downwards, each level is a row and a node is centred over its children", () => {
+  const { vault, a, a1, a2, b } = chart();
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  assert.equal(layout.down, true);
+  const at = (id: string) => layout.byId.get(id)!;
+  const centre = at(vault.rootId);
+  assert.deepEqual([centre.x + centre.width / 2, centre.y + centre.height / 2], [0, 0], "the centre stays at the origin");
+  assert.equal(at(a.id).y, at(b.id).y, "a row");
+  assert.ok(at(a.id).y > centre.y + centre.height);
+  assert.equal(at(a1.id).y, at(a2.id).y);
+  assert.ok(at(a1.id).y > at(a.id).y + at(a.id).height);
+  assert.ok(at(a2.id).x >= at(a1.id).x + 80, "side by side, without touching");
+  assert.ok(at(b.id).x >= at(a2.id).x + 80, "a branch keeps clear of the next");
+  assert.equal(at(a.id).x + 40, (at(a1.id).x + at(a2.id).x + 80) / 2);
+  assert.ok(layout.placed.every((p) => p.side === null), "no sides");
+});
+
+test("drawn downwards, the tallest node of a level sets its row for every branch", () => {
+  const { vault, a, a1, b } = chart();
+  const b1 = vault.addChild(b.id, { title: "b1" });
+  const layout = layoutMap(vault, vault.rootId, (n) => ({ width: 80, height: n.id === a.id ? 60 : 20 }));
+  assert.equal(layout.byId.get(a1.id)!.y, layout.byId.get(b1.id)!.y);
+});
+
+test("a map drawn downwards still leaves folded branches and maps inside out", () => {
+  const { vault, a, a1 } = chart();
+  vault.update(a.id, { collapsed: true });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  assert.equal(layout.byId.has(a1.id), false);
+  assert.equal(layout.byId.get(a.id)!.hidden, 2);
+});
+
+test("drawn downwards, leaves stack in a column under their parent", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "org" });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const leaves = [1, 2, 3].map((n) => vault.addChild(a.id, { title: `leaf ${n}` }));
+  const only = vault.addChild(vault.rootId, { title: "only" });
+  const single = vault.addChild(only.id, { title: "single" });
+  const lone = vault.addChild(vault.rootId, { title: "lone" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  const at = (id: string) => layout.byId.get(id)!;
+
+  const column = leaves.map((n) => at(n.id));
+  assert.ok(column.every((p) => p.stacked && p.x === column[0].x && p.depth === 2));
+  assert.ok(column[1].y >= column[0].y + 20 && column[2].y >= column[1].y + 20, "one under the other");
+  assert.ok(column[0].y > at(a.id).y + 20);
+  assert.equal(at(single.id).stacked, false, "a single child sits right under its parent");
+  assert.equal(at(lone.id).stacked, false, "the centre's branches stay in a row");
+  assert.ok(at(only.id).x >= column[0].x + 80, "the next branch keeps clear of the column");
+});
+
+test("a column makes room in its row for what is deeper elsewhere", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "org" });
+  const a = vault.addChild(vault.rootId, { title: "a" });
+  const [l1, l2, l3] = [1, 2, 3].map((n) => vault.addChild(a.id, { title: `leaf ${n}` }));
+  const b = vault.addChild(vault.rootId, { title: "b" });
+  const b1 = vault.addChild(b.id, { title: "b1" });
+  const b2 = vault.addChild(b1.id, { title: "b2" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  const at = (id: string) => layout.byId.get(id)!;
+  assert.equal(at(l1.id).y, at(b1.id).y, "the column starts with the row");
+  assert.ok(at(b2.id).y > at(l3.id).y + 20, "the next row starts under the column");
+  void l2;
+});

@@ -40,6 +40,11 @@ export interface Node {
    * that it stays the same day wherever it is read.
    */
   due: string | null;
+  /**
+   * How a map is drawn: "org" for downwards from its centre, as an org chart,
+   * or null for out to both sides. Only a map's centre reads it.
+   */
+  layout: "org" | null;
   /** Milliseconds since 1970, as `Date.now()` gives them. */
   createdAt: number;
   updatedAt: number;
@@ -60,4 +65,4 @@ export interface Change {
 }
 
 /** The fields an edit may set directly. */
-export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt" | "priority" | "due">;
+export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt" | "priority" | "due" | "layout">;

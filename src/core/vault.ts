@@ -212,6 +212,7 @@ export class Vault {
         doneAt: null,
         priority: null,
         due: null,
+        layout: null,
         ...fields,
         createdAt: now,
         updatedAt: now,
@@ -583,6 +584,7 @@ export class Vault {
         doneAt: null,
         priority: null,
         due: null,
+        layout: null,
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
@@ -647,7 +649,7 @@ export class Vault {
 
 /** A node as stored, with the fields added since it was saved given their defaults. */
 function withDefaults(node: Node): Node {
-  if (Array.isArray(node.links) && node.task !== undefined && node.doneAt !== undefined && node.priority !== undefined && node.due !== undefined) {
+  if (Array.isArray(node.links) && node.task !== undefined && node.doneAt !== undefined && node.priority !== undefined && node.due !== undefined && node.layout !== undefined) {
     return node;
   }
   return {
@@ -657,6 +659,7 @@ function withDefaults(node: Node): Node {
     doneAt: node.doneAt ?? null,
     priority: node.priority ?? null,
     due: node.due ?? null,
+    layout: node.layout ?? null,
   };
 }
 

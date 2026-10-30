@@ -12,6 +12,7 @@ export type Item =
 /** What the window is showing, for the check marks. */
 export interface MenuState {
   view: "map" | "outline";
+  orgChart: boolean;
   sidebar: boolean;
   notes: boolean;
   source: boolean;
@@ -82,6 +83,7 @@ export function menuItems(a: MenuActions, s: MenuState, quit: () => void): Item[
       items: [
         { label: "Map", run: () => a.view("map"), hint: "Alt+Ctrl+1", checked: s.view === "map" },
         { label: "Outline", run: () => a.view("outline"), hint: "Alt+Ctrl+2", checked: s.view === "outline" },
+        { label: "Draw as Org Chart", run: a.toggleLayout, hint: "Alt+Ctrl+3", checked: s.orgChart },
         line,
         { label: "Sidebar", run: a.toggleSidebar, hint: "Ctrl+Shift+S", checked: s.sidebar },
         { label: "Tasks", run: a.showTasks, hint: "Ctrl+Shift+T" },

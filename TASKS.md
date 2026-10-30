@@ -58,6 +58,10 @@ stolen laptop. A few days' work:
   hovering the maximise button, and resizing at the window's edges has not
   been checked. Linux still has the system's title bar.
 
+## Ways of drawing a map
+
+- A board or week view, with the centre's children as columns, after this.
+
 ## Left from the menu bar
 
 - The menu bar was only built and checked for errors on the Mac; its items

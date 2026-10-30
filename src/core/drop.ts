@@ -2,8 +2,9 @@
 // middle of another node: it becomes that node's last child (going into it,
 // if it is a map). On the top or bottom quarter of a node, or near one: it
 // goes beside it, before or after, which also carries it across the centre
-// when that node is on the other side. Far from everything: nowhere, and
-// letting go puts it back. The outline's rows have their own, simpler rule:
+// when that node is on the other side. On a map drawn downwards, where
+// siblings are side by side, it is the left or right quarter that means beside
+// it, unless they are stacked in a column. Far from everything: nowhere, and letting go puts it back. The outline's rows have their own, simpler rule:
 // `outlineDropAt`.
 
 import { sidesOf, type Layout, type Placed, type Tree } from "./layout.ts";
@@ -19,7 +20,7 @@ export interface Drop extends Place {
 
 /** How near a node the point has to be to go beside it, in pixels of the map. */
 const REACH = 120;
-/** The share of a node's height at its top and bottom that means beside it, not onto it. */
+/** The share of a node's length at each end that means beside it, not onto it. */
 const EDGE = 0.25;
 
 /** `dragged`: the node dragged, or all the nodes dragged together. */
@@ -40,14 +41,18 @@ export function dropAt(tree: Tree, layout: Layout, dragged: string | string[], x
   const others = (id: string) => tree.children(id).filter((n) => !ids.has(n.id));
   const sideOfPoint: Side = x < 0 ? "left" : "right";
 
+  /** How far past a node's middle the point is, the way its siblings go, and its length that way. */
+  const past = (p: Placed) =>
+    layout.down && !p.stacked ? [x - (p.x + p.width / 2), p.width] : [y - (p.y + p.height / 2), p.height];
+
   const on = candidates.find((p) => x >= p.x && x <= p.x + p.width && y >= p.y && y <= p.y + p.height);
-  const edge = on && on.depth > 0 && Math.abs(y - (on.y + on.height / 2)) > on.height * (0.5 - EDGE);
+  const edge = on && on.depth > 0 && Math.abs(past(on)[0]) > past(on)[1] * (0.5 - EDGE);
   if (on && !edge) {
     const isCentre = on.depth === 0;
     return {
       parentId: on.node.id,
       index: others(on.node.id).length,
-      side: isCentre ? sideOfPoint : null,
+      side: isCentre && !layout.down ? sideOfPoint : null,
       onto: on.node.id,
       beside: null,
     };
@@ -67,7 +72,7 @@ export function dropAt(tree: Tree, layout: Layout, dragged: string | string[], x
   }
   if (!near) return null;
   const parentId = near.node.parentId!;
-  const after = y > near.y + near.height / 2;
+  const after = past(near)[0] > 0;
   return {
     parentId,
     index: others(parentId).findIndex((n) => n.id === near!.node.id) + (after ? 1 : 0),
