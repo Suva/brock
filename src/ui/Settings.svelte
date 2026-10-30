@@ -9,6 +9,7 @@
   import { applyTheme, savedTheme, type Theme } from "./theme.ts";
   import { clearBackground, setClearBackground } from "./picture.ts";
   import { setUpdatesOn, updatesOn } from "./updates.ts";
+  import { connectCommand } from "../core/agent.ts";
   import { agents, agentScript, canHostAgents } from "./agents.svelte.ts";
   import { writeText } from "./system-clipboard.ts";
   import type { Live } from "./live.svelte.ts";
@@ -36,7 +37,7 @@
     void live.version;
     return agents.shared.flatMap((id) => (live.vault.isLive(id) && live.vault.get(id)?.isMap ? [live.vault.get(id)!] : []));
   });
-  const command = $derived(`claude mcp add brock -- node ${script ? JSON.stringify(script) : "/path/to/brock-mcp.mjs"}`);
+  const command = $derived(connectCommand(script, navigator.platform.startsWith("Win")));
 
   $effect(() => {
     if (app) invoke<Backups>("list_backups").then((b) => (backups = b), (e) => (problem = String(e)));

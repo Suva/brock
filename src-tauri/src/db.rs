@@ -164,7 +164,28 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE nodes ADD COLUMN flag TEXT;
     UPDATE nodes SET flag = 'attention' WHERE attention = 1;
     "#,
+    // 9: the log is looked through by node, to join typing as it is written
+    // and by the background tidying, and when a node is purged.
+    r#"
+    CREATE INDEX ops_node ON ops (node_id, seq);
+    "#,
 ];
+
+/// Edits to one node's words made this close together are one entry in the log.
+pub const SAME_RUN_MS: i64 = 2 * 60 * 1000;
+
+/// Whether two states of a node, as JSON, differ in their title and text only
+/// (and when they were saved): typing, which the log keeps as one entry.
+pub fn words_only(a: &serde_json::Value, b: &serde_json::Value) -> bool {
+    let (Some(a), Some(b)) = (a.as_object(), b.as_object()) else { return false };
+    const WORDS: [&str; 3] = ["title", "body", "updatedAt"];
+    a.keys().chain(b.keys()).filter(|k| !WORDS.contains(&k.as_str())).all(|k| a.get(k) == b.get(k))
+}
+
+/// Whether two states have the same title and text.
+pub fn same_words(a: &serde_json::Value, b: &serde_json::Value) -> bool {
+    a.get("title") == b.get("title") && a.get("body") == b.get("body")
+}
 
 pub struct Db {
     conn: Connection,
@@ -251,6 +272,18 @@ impl Db {
                 .prepare_cached("INSERT INTO ops (at, node_id, before, after, source) VALUES (?1, ?2, ?3, ?4, ?5)")
                 .map_err(err)?;
             for change in changes {
+                if changes.len() == 1 && extend_typing(&tx, change, source, at)? {
+                    let n = &change.after;
+                    upsert
+                        .execute(params![
+                            n.id, n.parent_id, n.sort_key, n.side, n.title, n.body, n.is_map, n.collapsed,
+                            n.color, n.icon, n.created_at, n.updated_at, n.deleted_at,
+                            serde_json::to_string(&n.links).unwrap(),
+                            n.task, n.done_at, n.priority, n.due, n.layout, n.flag
+                        ])
+                        .map_err(|e| format!("Cannot save node {}: {e}", n.id))?;
+                    continue;
+                }
                 let n = &change.after;
                 upsert
                     .execute(params![
@@ -349,6 +382,52 @@ impl Db {
             .optional()
             .map_err(err)
     }
+}
+
+/// Joins an edit of a node's words to the entry for the one before it, when
+/// that was the last thing written, by the same hand a moment ago: typing
+/// then costs one entry in the log, not one for each pause. Returns whether
+/// it did, in which case the caller writes the node and not a new entry. A
+/// run that ends where it began is taken out of the log: nothing changed.
+fn extend_typing(tx: &rusqlite::Transaction, change: &Change, source: &str, at: i64) -> Result<bool, String> {
+    use rusqlite::OptionalExtension;
+    let Some(before) = &change.before else { return Ok(false) };
+    let after = serde_json::to_value(&change.after).unwrap();
+    if !words_only(&serde_json::to_value(before).unwrap(), &after) {
+        return Ok(false);
+    }
+    let last: Option<(i64, i64, String, Option<String>)> = tx
+        .query_row(
+            "SELECT seq, at, source, before FROM ops WHERE node_id = ?1 ORDER BY seq DESC LIMIT 1",
+            [&change.after.id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .optional()
+        .map_err(err)?;
+    let Some((seq, last_at, last_source, Some(first))) = last else { return Ok(false) };
+    if last_source != source || at - last_at > SAME_RUN_MS || at < last_at {
+        return Ok(false);
+    }
+    // It must be the last entry of all, and a step of its own: the one before
+    // it was written at another moment.
+    let newest: i64 = tx.query_row("SELECT max(seq) FROM ops", [], |r| r.get(0)).map_err(err)?;
+    let earlier: Option<i64> = tx.query_row("SELECT at FROM ops WHERE seq = ?1", [seq - 1], |r| r.get(0)).optional().map_err(err)?;
+    if newest != seq || earlier == Some(last_at) {
+        return Ok(false);
+    }
+    // And itself only words, so that what is joined is typing.
+    let first: serde_json::Value = serde_json::from_str(&first).map_err(|e| e.to_string())?;
+    let last_after: String = tx.query_row("SELECT after FROM ops WHERE seq = ?1", [seq], |r| r.get(0)).map_err(err)?;
+    let last_after: serde_json::Value = serde_json::from_str(&last_after).map_err(|e| e.to_string())?;
+    if !words_only(&first, &last_after) {
+        return Ok(false);
+    }
+    if same_words(&first, &after) {
+        tx.execute("DELETE FROM ops WHERE seq = ?1", [seq]).map_err(err)?;
+    } else {
+        tx.execute("UPDATE ops SET after = ?1, at = ?2 WHERE seq = ?3", params![after.to_string(), at, seq]).map_err(err)?;
+    }
+    Ok(true)
 }
 
 /// Copies the vault kept under the app's old name into `new_dir`, once: when
@@ -581,6 +660,93 @@ mod tests {
         assert_eq!(log[0].before.as_ref().unwrap().title, "Card");
         assert!(log[1].before.is_none());
         assert_eq!(db.history(1).unwrap().len(), 1, "the limit counts entries");
+    }
+
+    /// Applies the node as the next step; a few milliseconds apart, as the log tells steps by when they were made.
+    fn step(db: &mut Db, before: &Node, after: &Node, source: &str) {
+        std::thread::sleep(std::time::Duration::from_millis(3));
+        db.apply_from(&[Change { before: Some(before.clone()), after: after.clone() }], source).unwrap();
+    }
+
+    fn typed(db: &mut Db, node: &mut Node, text: &str, source: &str) {
+        let before = node.clone();
+        node.title = text.into();
+        step(db, &before, node, source);
+    }
+
+    fn started(titles: &[&str]) -> (Db, Vec<Node>) {
+        let mut db = Db::in_memory().unwrap();
+        let mut nodes = vec![node("root", None, "Home")];
+        for t in titles {
+            nodes.push(node(t, Some("root"), ""));
+        }
+        let changes: Vec<Change> = nodes.iter().map(|n| Change { before: None, after: n.clone() }).collect();
+        db.apply(&changes).unwrap();
+        (db, nodes)
+    }
+
+    #[test]
+    fn typing_in_one_node_is_one_entry_in_the_log() {
+        let (mut db, mut nodes) = started(&["a"]);
+        let mut a = nodes.remove(1);
+        for text in ["H", "He", "Hel", "Hell", "Hello"] {
+            typed(&mut db, &mut a, text, "user");
+        }
+        let log = db.history(50).unwrap();
+        // The root and "a" made together, and then one entry for all the typing.
+        assert_eq!(log.len(), 3);
+        assert_eq!(log[0].before.as_ref().unwrap().title, "", "from where the typing began");
+        assert_eq!(log[0].after.title, "Hello", "to where it got");
+        assert_eq!(db.get("a").unwrap().unwrap().title, "Hello", "the node itself is saved every time");
+    }
+
+    #[test]
+    fn typing_is_joined_only_with_typing_by_the_same_hand_just_before() {
+        let (mut db, mut nodes) = started(&["a", "b"]);
+        let mut b = nodes.pop().unwrap();
+        let mut a = nodes.pop().unwrap();
+        typed(&mut db, &mut a, "one", "user");
+        typed(&mut db, &mut a, "one two", "user");
+        assert_eq!(db.history(50).unwrap().len(), 4, "joined: three made, one entry typed");
+
+        typed(&mut db, &mut b, "other", "user");
+        typed(&mut db, &mut a, "one two three", "user");
+        assert_eq!(db.history(50).unwrap().len(), 6, "another node's entry came between");
+
+        typed(&mut db, &mut a, "one two three four", "agent");
+        assert_eq!(db.history(50).unwrap().len(), 7, "another hand");
+
+        let before = a.clone();
+        a.priority = Some(1);
+        step(&mut db, &before, &a, "agent");
+        typed(&mut db, &mut a, "after the priority", "agent");
+        assert_eq!(db.history(50).unwrap().len(), 9, "something other than words came between");
+    }
+
+    #[test]
+    fn typing_that_ends_where_it_began_leaves_nothing_in_the_log() {
+        let (mut db, mut nodes) = started(&["a"]);
+        let mut a = nodes.remove(1);
+        typed(&mut db, &mut a, "x", "user");
+        assert_eq!(db.history(50).unwrap().len(), 3);
+        typed(&mut db, &mut a, "", "user");
+        assert_eq!(db.history(50).unwrap().len(), 2, "only the root and the node made");
+    }
+
+    #[test]
+    fn an_edit_of_several_nodes_is_never_joined() {
+        let (mut db, mut nodes) = started(&["a", "b"]);
+        let b = nodes.pop().unwrap();
+        let a = nodes.pop().unwrap();
+        let (mut a2, mut b2) = (a.clone(), b.clone());
+        a2.title = "x".into();
+        b2.title = "y".into();
+        std::thread::sleep(std::time::Duration::from_millis(3));
+        db.apply(&[Change { before: Some(a), after: a2.clone() }, Change { before: Some(b), after: b2 }]).unwrap();
+        let before = a2.clone();
+        a2.title = "xx".into();
+        step(&mut db, &before, &a2, "user");
+        assert_eq!(db.history(50).unwrap().len(), 6, "3 made, 2 typed together, then 1 typed: not joined with a step of two");
     }
 
     #[test]

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { answer, MAX_CHARS, parseRequest } from "../src/core/agent.ts";
+import { answer, connectCommand, MAX_CHARS, parseRequest } from "../src/core/agent.ts";
 import { Vault } from "../src/core/vault.ts";
 
 // Home
@@ -409,4 +409,31 @@ test("flag_node needs a map to edit, and checks its level", () => {
   assert.deepEqual(parseRequest({ tool: "flag_node", id: "a", level: "ok", reason: "why" }), { tool: "flag_node", id: "a", level: "ok", reason: "why" });
   assert.deepEqual(parseRequest({ tool: "flag_node", id: "a" }), { tool: "flag_node", id: "a" });
   assert.match(parseRequest({ tool: "flag_node", id: "a", level: "red" }) as string, /ok, attention or critical/);
+});
+
+test("the command that connects Claude Code quotes the script's path for the shell it is typed in", () => {
+  const mac = "/Applications/Brock.app/Contents/Resources/brock-mcp.mjs";
+  assert.equal(connectCommand(mac, false), `claude mcp add brock -- node ${mac}`, "nothing to quote");
+  assert.equal(
+    connectCommand("/Users/me/My Maps/it's here/brock-mcp.mjs", false),
+    "claude mcp add brock -- node '/Users/me/My Maps/it'\\''s here/brock-mcp.mjs'",
+    "spaces and a quote",
+  );
+  assert.equal(connectCommand("/tmp/$HOME/x.mjs", false), "claude mcp add brock -- node '/tmp/$HOME/x.mjs'", "nothing is expanded");
+  assert.equal(connectCommand(null, false), "claude mcp add brock -- node /path/to/brock-mcp.mjs");
+
+  // Windows: double quotes, backslashes as they are, and no \\?\ in front.
+  assert.equal(
+    connectCommand("C:\\Program Files\\Brock\\brock-mcp.mjs", true),
+    'claude mcp add brock -- node "C:\\Program Files\\Brock\\brock-mcp.mjs"',
+  );
+  assert.equal(
+    connectCommand("\\\\?\\C:\\Users\\me\\Brock\\brock-mcp.mjs", true),
+    'claude mcp add brock -- node "C:\\Users\\me\\Brock\\brock-mcp.mjs"',
+  );
+  assert.equal(
+    connectCommand("\\\\server\\share\\brock-mcp.mjs", true),
+    'claude mcp add brock -- node "\\\\server\\share\\brock-mcp.mjs"',
+    "a network path keeps its two backslashes",
+  );
 });

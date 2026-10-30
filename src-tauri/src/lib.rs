@@ -5,6 +5,7 @@
 mod agent;
 mod backups;
 mod db;
+mod maintenance;
 
 use db::{Change, Db, LogEntry, Node};
 use serde::Serialize;
@@ -338,6 +339,8 @@ pub fn run() {
                     }
                 }
             });
+            // Tidying the log and giving space back, in the background, a while after the window is up.
+            maintenance::spawn(path.clone());
             app.manage(Vault { db, backups });
             // A file left by an earlier run points at a door that is gone.
             let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();

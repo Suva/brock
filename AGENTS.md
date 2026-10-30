@@ -113,9 +113,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `site/` | The website's page; `scripts/build-site.mjs` builds it, with the demo, into `_site/` |
 | `CHANGELOG.md` | What each release changes, for the people using it; the website's "What's new" and the releases' notes |
 | `scripts/changelog.mjs` | Reads `CHANGELOG.md`: dates a release, gives a version's notes, writes the "What's new" page |
-| `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, the log with who made each change and its reading for the History tab, a full-text search not used yet |
+| `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, the log with who made each change, typing joined as it is written, and its reading for the History tab, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
 | `brand/` | The logo and the icon, kept out of the app's package. `brock-logo.svg` and `brock-logo-plain.svg` are the logo with its wordmark, on a tile with a grey surround and on plain black. `brock-icon.svg` is the app icon: the logo without the wordmark, with two more branches where the word was. Every size is made from it with `npx tauri icon brand/brock-icon.svg -o src-tauri/icons`; delete the `android` and `ios` folders that makes, and copy `64x64.png` to `static/favicon.png` |
+| `src-tauri/src/maintenance.rs` | Keeping the vault small in the background: joining old typing in the log, and giving free space back, in small steps on its own connection |
 | `src-tauri/src/agent.rs` | The door agents knock on: a loopback listener while agents are allowed, `agent.json` with its port and secret, and one request per connection passed to the window |
 | `scripts/brock-mcp.mjs` | The MCP server an agent starts: it relays tool calls to the app through that door and holds no data; shipped with the app as a resource |
 | `src-tauri/src/backups.rs` | Daily copies of the vault, the last seven kept |
@@ -326,6 +327,19 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   orange and red as asking and green apart, in grey. Marks made when it was a
   yes or no (`attention`) read as "attention" (`withDefaults`, migration 8).
   It is a field like any other: migration, both `Node`s, `withDefaults`.
+- **Tidying the vault happens in the background and is never noticed.**
+  `maintenance.rs` starts a while after the app, works on its own connection
+  in small transactions with a pause between, and never holds the window's;
+  anything new that is long must do the same, not run at startup or under the
+  window's lock. It joins runs of typing in the log (`compact_log`; new typing
+  is joined as it is written, `extend_typing` in `db.rs`) and gives free pages
+  back. The one `VACUUM` it does turns on incremental vacuuming. SQLite's
+  documentation says a `VACUUM` may renumber the rows of `nodes`, which the
+  search index follows by number; a test here did not see it happen, but the
+  index is rebuilt after it and checked every round (`heal_search_index`), so
+  do the same after any other `VACUUM`. Entries of a step
+  of several nodes, and changes of more than words, are never joined: the
+  History tab and Revert read steps from the log.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

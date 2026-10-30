@@ -1,7 +1,8 @@
 //! Copies of the vault: one a day, the last few kept, in a `Backups` folder
 //! beside it. SQLite writes each copy whole and consistent while the app goes
 //! on using the vault (`VACUUM INTO`), to a temporary name first, so a copy
-//! is never left half written.
+//! is never left half written. A temporary file left by an app quit midway is
+//! removed by the next copy made, whatever day it is for.
 
 use rusqlite::Connection;
 use serde::Serialize;
@@ -40,10 +41,30 @@ pub fn make(conn: &Connection, dir: &Path) -> Result<(), String> {
     let path = dir.join(name_for(today()));
     let partial = path.with_extension("partial");
     let _ = std::fs::remove_file(&partial);
+    remove_stale_partials(dir);
     conn.execute("VACUUM INTO ?1", [partial.to_string_lossy()])
         .map_err(|e| format!("Cannot copy the vault: {e}"))?;
     std::fs::rename(&partial, &path).map_err(|e| format!("Cannot keep the copy: {e}"))?;
     prune(dir)
+}
+
+/// How old a temporary file must be to be one left behind, not one being written now.
+const STALE: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
+/// Removes temporary copies left by an app that was quit while making one. Their
+/// names are of the day they were started, so the next day's copy would never
+/// replace them. A copy takes seconds, so a recent one is being made, and stays.
+fn remove_stale_partials(dir: &Path) {
+    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !(name.starts_with("vault-") && name.ends_with(".partial")) {
+            continue;
+        }
+        let old = entry.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age > STALE);
+        if old {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 }
 
 /// The copies there are, the latest first.
@@ -111,6 +132,26 @@ mod tests {
         assert_eq!(civil_from_days(19_723), (2024, 1, 1));
         assert_eq!(civil_from_days(19_782), (2024, 2, 29));
         assert_eq!(civil_from_days(20_746), (2026, 10, 20));
+    }
+
+    #[test]
+    fn a_copy_left_half_made_is_removed_by_the_next_one_but_one_being_made_is_not() {
+        let dir = std::env::temp_dir().join(format!("brock-backups-partial-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let (left, being_made) = (dir.join("vault-2000-01-01.partial"), dir.join("vault-2000-01-02.partial"));
+        std::fs::write(&left, b"half").unwrap();
+        std::fs::write(&being_made, b"half").unwrap();
+        // Old enough to have been left behind.
+        let old = std::time::SystemTime::now() - STALE - std::time::Duration::from_secs(60);
+        std::fs::File::options().write(true).open(&left).unwrap().set_modified(old).unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE t (x);").unwrap();
+        make(&conn, &dir).unwrap();
+        assert!(!left.exists(), "left by an app that was quit");
+        assert!(being_made.exists(), "this one may be being written");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

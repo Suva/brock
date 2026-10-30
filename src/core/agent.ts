@@ -51,6 +51,23 @@ const MAX_HITS = 50;
 const MAX_NODES = 500;
 const MAX_TITLE = 1000;
 
+/**
+ * The command that gives Claude Code the Brock server, with the script's path
+ * quoted for the shell it is typed in: single quotes where there are any
+ * special characters on Mac and Linux, double quotes on Windows, whose paths
+ * keep their single backslashes. Windows paths from the app may start with
+ * `\\?\`, which is dropped, as it only confuses.
+ */
+export function connectCommand(script: string | null, windows: boolean): string {
+  let path = script ?? "/path/to/brock-mcp.mjs";
+  if (windows) {
+    path = path.replace(/^\\\\\?\\(?=[A-Za-z]:\\)/, "");
+    return `claude mcp add brock -- node "${path}"`;
+  }
+  const quoted = /^[A-Za-z0-9_./:@%+=,-]+$/.test(path) ? path : `'${path.replace(/'/g, `'\\''`)}'`;
+  return `claude mcp add brock -- node ${quoted}`;
+}
+
 /** Whether `id` is a live map that is shared. */
 export function isShared(vault: Vault, shared: Shared, id: string): boolean {
   return shared.has(id) && vault.isLive(id) && vault.get(id)!.isMap;

@@ -262,6 +262,13 @@ One SQLite file, `vault.sqlite`, in the app's data folder:
 `~/.local/share/app.getbrock.brock` on Linux. Set `BROCK_DATA` to a folder to
 use a vault there instead.
 
+The vault keeps a log of every change, which the History tab reads. Typing
+in a node is kept in it as one entry, not one for each letter, and a while
+after the app starts, and once a day while it stays open, it joins older runs
+of typing that earlier versions wrote one by one and gives the space back to
+the system. That runs quietly in the background, in small steps, and makes a
+copy of the vault first if today's is not made yet.
+
 Before the app was called Brock, its folder was `com.jaanpullerits.mindmap`.
 On its first start under the new name, the app copies the vault and its daily
 copies from there, and leaves the old folder as it was; once the vault is

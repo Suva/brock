@@ -167,8 +167,8 @@ stolen laptop. A few days' work:
 
 - Undo lasts only until the app closes. Keep it across restarts, from the
   `ops` table, or decide it is not needed.
-- The `ops` log grows forever. Decide how long to keep it once syncing is
-  planned.
+- The `ops` log still grows with use, though typing is joined now. Decide
+  how long to keep it once syncing is planned.
 - Bodies are loaded with everything else. Measure a vault with long bodies;
   load them on demand if it is slow.
 - The search command in Rust exists but nothing calls it: search runs in
