@@ -6,6 +6,13 @@ export type Side = "left" | "right";
 /** A way of drawing a map other than out to both sides. */
 export type MapLayout = "org" | "timeline" | "board";
 
+/**
+ * A mark for the person, in three levels: "ok" (green) for what is resolved or
+ * ready to look at, "attention" (orange) for what needs them, and "critical"
+ * (red) for what is blocked or cannot wait.
+ */
+export type Flag = "ok" | "attention" | "critical";
+
 export interface Node {
   id: string;
   /** Null only for the top node of the vault. */
@@ -49,6 +56,12 @@ export interface Node {
    * out to both sides. Only a map's centre reads it.
    */
   layout: MapLayout | null;
+  /**
+   * A mark for the person, set by them or by an agent: see `Flag`. Shown on
+   * the node and under the bell in the header. Agents may only raise a mark;
+   * the person lowers or clears it. Null for none.
+   */
+  flag: Flag | null;
   /** Milliseconds since 1970, as `Date.now()` gives them. */
   createdAt: number;
   updatedAt: number;
@@ -69,4 +82,4 @@ export interface Change {
 }
 
 /** The fields an edit may set directly. */
-export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt" | "priority" | "due" | "layout">;
+export type NodeFields = Pick<Node, "title" | "body" | "side" | "collapsed" | "color" | "icon" | "links" | "task" | "doneAt" | "priority" | "due" | "layout" | "flag">;

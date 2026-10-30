@@ -17,7 +17,7 @@ export interface SaverOptions {
 
 export class Saver {
   #store: Store;
-  #queue: (Change[] | { purge: string[] })[] = [];
+  #queue: ({ changes: Change[]; origin: string } | { purge: string[] })[] = [];
   #running: Promise<void> | null = null;
   #retryMs: number;
   #listeners: (() => void)[] = [];
@@ -30,9 +30,10 @@ export class Saver {
     this.#retryMs = options.retryMs ?? 2000;
   }
 
-  push(changes: Change[]): void {
+  /** `origin` says who made the changes, for the history: "user" if not said. */
+  push(changes: Change[], origin = "user"): void {
     if (changes.length === 0) return;
-    this.#queue.push(changes);
+    this.#queue.push({ changes, origin });
     this.#running ??= this.#run();
   }
 
@@ -60,12 +61,19 @@ export class Saver {
     this.#set("saving", null);
     while (this.#queue.length > 0) {
       const first = this.#queue[0];
-      // Changes in a row go together; a removal goes on its own.
+      // Changes in a row by the same hand go together; a removal goes on its own.
       let count = 1;
-      if (Array.isArray(first)) while (count < this.#queue.length && Array.isArray(this.#queue[count])) count++;
+      if ("changes" in first) {
+        while (count < this.#queue.length) {
+          const next = this.#queue[count];
+          if (!("changes" in next) || next.origin !== first.origin) break;
+          count++;
+        }
+      }
       try {
-        if (Array.isArray(first)) await this.#store.save((this.#queue.slice(0, count) as Change[][]).flat());
-        else await this.#store.purge(first.purge);
+        if ("changes" in first) {
+          await this.#store.save((this.#queue.slice(0, count) as { changes: Change[] }[]).flatMap((q) => q.changes), first.origin);
+        } else await this.#store.purge(first.purge);
         this.#queue.splice(0, count);
         if (this.status === "failed") this.#set("saving", null);
       } catch (error) {

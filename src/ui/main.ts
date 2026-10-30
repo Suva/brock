@@ -7,6 +7,7 @@ import { MemoryStore } from "../store/memory-store.ts";
 import { Saver } from "../store/saver.ts";
 import type { Store } from "../store/store.ts";
 import { inTauri, TauriStore } from "../store/tauri-store.ts";
+import { watchAgents } from "./agents.svelte.ts";
 import { Live } from "./live.svelte.ts";
 import { customTitleBar } from "./chrome.ts";
 import { savedSession, saveSession } from "./session.ts";
@@ -26,7 +27,7 @@ async function start(target: HTMLElement) {
       : new MemoryStore([], localStorage);
   const saver = new Saver(store);
   const vault = new Vault(await store.load(), {
-    onChange: (changes) => saver.push(changes),
+    onChange: (changes, origin) => saver.push(changes, origin),
     onPurge: (ids) => saver.purge(ids),
   });
   if (import.meta.env.MODE !== "demo") {
@@ -39,8 +40,9 @@ async function start(target: HTMLElement) {
   }
   // The whole tour in view as it opens.
   if (freshTour) fitWhenOpened();
-  mount(App, { target, props: { live: new Live(vault, saver) } });
+  mount(App, { target, props: { live: new Live(vault, saver, (limit) => store.history(limit)) } });
   showWindow();
+  watchAgents(vault).catch((e) => console.error(e));
   keepUntilSaved(saver);
   fitTitleBar();
 }

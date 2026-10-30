@@ -27,8 +27,11 @@
   import Palette from "./Palette.svelte";
   import { saveUsage, usage } from "./usage.ts";
   import OutlineView from "./OutlineView.svelte";
+  import AttentionBell from "./AttentionBell.svelte";
+  import { nextFlag } from "../core/attention.ts";
   import MoreMenu from "./MoreMenu.svelte";
   import Settings from "./Settings.svelte";
+  import { agents } from "./agents.svelte.ts";
   import UpdateOffer from "./UpdateOffer.svelte";
   import { canUpdate, findUpdate, watchForUpdates, type Update } from "./updates.ts";
   import Resizer from "./Resizer.svelte";
@@ -89,6 +92,7 @@
     else trashOpen = true;
   }
   let moreOpen = $state(false);
+  let attentionOpen = $state(false);
   let trashOpen = $state(false);
   let settingsOpen = $state(false);
   /** A line in the footer for a few seconds: what an export or import did. */
@@ -290,6 +294,13 @@
    * Goes to a node found by searching: a map opens; any other node is
    * selected in the map it is in, with the branches above it unfolded.
    */
+  /** Moves the selected node's mark on: none, attention, critical, OK, and round. */
+  function flagSelected() {
+    const id = selected ?? mapId;
+    const node = live.vault.get(id);
+    if (node) live.vault.update(id, { flag: nextFlag(node.flag) });
+  }
+
   function goTo(id: string) {
     searching = false;
     const node = vault.get(id);
@@ -361,6 +372,11 @@
 
   // A quiet look for a newer version, in the app only, unless turned off.
   onMount(() => watchForUpdates((update) => (offered ??= update)));
+  // What an agent changed is said in the footer, as the person did not do it.
+  onMount(() => {
+    agents.onChanged = (what) => tell(`An agent ${what}. ⌘Z undoes it.`);
+    return () => (agents.onChanged = null);
+  });
 
   // The menu bar, in the app: every command, with its key.
   let menuChecks = $state<MenuChecks | null>(null);
@@ -387,6 +403,9 @@
       toggleLayout,
       toggleSidebar: () => (sidebarOpen = !sidebarOpen),
       showTasks: () => showTab("tasks"),
+      showHistory: () => showTab("history"),
+      flagSelected,
+      showAttention: () => (attentionOpen = !attentionOpen),
       toggleNotes: () => (notesOpen = !notesOpen),
       toggleSource: () => (notesSource = !notesSource),
       toggleHideDone: () => (hideDone = !hideDone),
@@ -450,6 +469,12 @@
       hideDone = !hideDone;
     } else if (key === "t" && event.shiftKey) {
       showTab("tasks");
+    } else if (key === "y" && event.shiftKey) {
+      showTab("history");
+    } else if (key === "a" && event.shiftKey && !event.altKey) {
+      flagSelected();
+    } else if (key === "b" && event.shiftKey && !event.altKey) {
+      attentionOpen = !attentionOpen;
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "e" && !event.shiftKey && !event.altKey) {
@@ -531,6 +556,13 @@
           {#if hideDone}<path d="M2.5 13.5 13.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />{/if}
         </svg>
       </button>
+      <AttentionBell
+        {live}
+        open={attentionOpen}
+        onToggle={() => (attentionOpen = !attentionOpen)}
+        onClose={() => (attentionOpen = false)}
+        onGoTo={goTo}
+      />
       <button class="icon-button" onclick={() => (searching = "go")} title="Search everything (⌘K)" aria-label="Search">
         <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
           <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6" />
@@ -554,7 +586,7 @@
         class="knob"
         onmousedown={(e) => e.preventDefault()}
         onclick={() => (sidebarOpen = true)}
-        title="Maps and tasks (⌃⌘S, ⇧⌘T)"
+        title="Maps, tasks and history (⌃⌘S, ⇧⌘T, ⇧⌘Y)"
         aria-label="Show the sidebar"
       >
         ›
@@ -570,6 +602,7 @@
         onClose={() => (sidebarOpen = false)}
         onOpen={open}
         onGoTo={goTo}
+        onTell={(text) => tell(text)}
       />
       <Resizer width={sidebarWidth} edge="left" onResize={(w) => (sidebarWidth = w)} onClose={() => (sidebarOpen = false)} />
     {/if}
@@ -636,7 +669,7 @@
       }} />
   {/if}
   {#if settingsOpen}
-    <Settings onClose={() => (settingsOpen = false)} onCheck={checkForUpdates} />
+    <Settings {live} onClose={() => (settingsOpen = false)} onCheck={checkForUpdates} />
   {/if}
   {#if offered}
     <UpdateOffer update={offered} saved={live.saved} onLater={() => (offered = null)} />

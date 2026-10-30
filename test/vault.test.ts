@@ -31,6 +31,7 @@ function node(id: string, parentId: string | null, fields: Partial<Node> = {}): 
     priority: null,
     due: null,
     layout: null,
+    flag: null,
     createdAt: 1,
     updatedAt: 1,
     deletedAt: null,

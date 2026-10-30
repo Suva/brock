@@ -31,6 +31,9 @@ export interface MenuActions {
   toggleLayout(layout: MapLayout): void;
   toggleSidebar(): void;
   showTasks(): void;
+  showHistory(): void;
+  flagSelected(): void;
+  showAttention(): void;
   toggleNotes(): void;
   toggleSource(): void;
   toggleHideDone(): void;
@@ -157,6 +160,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         await line(),
         await item("Task", () => press(cmd({ key: "t" })), "CmdOrCtrl+T"),
         await item("Tick Task (Space)", () => press({ key: " " })),
+        await item("Mark: Attention, Critical, OK, None", a.flagSelected, "CmdOrCtrl+Shift+A"),
         priorities,
         await line(),
         await item("Make Map or Undo It", () => press(cmd({ key: "M", shiftKey: true })), "CmdOrCtrl+Shift+M"),
@@ -175,6 +179,8 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         await line(),
         sidebarItem,
         await item("Tasks", a.showTasks, "CmdOrCtrl+Shift+T"),
+        await item("History", a.showHistory, "CmdOrCtrl+Shift+Y"),
+        await item("Marked Nodes (the Bell)", a.showAttention, "CmdOrCtrl+Shift+B"),
         notesItem,
         sourceItem,
         hideDoneItem,

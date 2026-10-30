@@ -38,9 +38,23 @@ pub struct Node {
     /// How a map is drawn: "org", "timeline", "board", or None for out to both sides.
     #[serde(default)]
     pub layout: Option<String>,
+    /// A mark for the person: "ok", "attention" or "critical", or None.
+    #[serde(default)]
+    pub flag: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
+}
+
+/// One line of the log: a node changed, when, and by whom.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogEntry {
+    pub seq: i64,
+    pub at: i64,
+    pub source: String,
+    pub before: Option<Node>,
+    pub after: Node,
 }
 
 /// One node changed; `before` is None for a node just made.
@@ -136,6 +150,20 @@ const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE nodes ADD COLUMN layout TEXT;
     "#,
+    // 7: a node can be marked as needing attention, and the log says who made
+    // each change: the person ('user') or something working for them.
+    r#"
+    ALTER TABLE nodes ADD COLUMN attention INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE ops ADD COLUMN source TEXT NOT NULL DEFAULT 'user';
+    "#,
+    // 8: the mark has three levels, so it is text: 'ok', 'attention' or
+    // 'critical'. Unchecked, as a new level should not need the table rebuilt.
+    // Marks made with step 7's yes-or-no column come over as 'attention'; that
+    // column stays, unused, as a released step is never changed.
+    r#"
+    ALTER TABLE nodes ADD COLUMN flag TEXT;
+    UPDATE nodes SET flag = 'attention' WHERE attention = 1;
+    "#,
 ];
 
 pub struct Db {
@@ -183,7 +211,7 @@ impl Db {
             .conn
             .prepare(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links, task, done_at, priority, due, layout
+                        created_at, updated_at, deleted_at, links, task, done_at, priority, due, layout, flag
                  FROM nodes",
             )
             .map_err(err)?;
@@ -192,15 +220,22 @@ impl Db {
     }
 
     /// Writes one edit's changes, all or none, and adds them to the log.
+    #[cfg(test)]
     pub fn apply(&mut self, changes: &[Change]) -> Result<(), String> {
+        self.apply_from(changes, "user")
+    }
+
+    /// Like `apply`, saying in the log who made the changes: 'user', or
+    /// something working for the person, such as 'agent'.
+    pub fn apply_from(&mut self, changes: &[Change], source: &str) -> Result<(), String> {
         let at = now();
         let tx = self.conn.transaction().map_err(err)?;
         {
             let mut upsert = tx
                 .prepare_cached(
                     "INSERT INTO nodes (id, parent_id, sort_key, side, title, body, is_map, collapsed,
-                                        color, icon, created_at, updated_at, deleted_at, links, task, done_at, priority, due, layout)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
+                                        color, icon, created_at, updated_at, deleted_at, links, task, done_at, priority, due, layout, flag)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
                      ON CONFLICT (id) DO UPDATE SET
                         parent_id = excluded.parent_id, sort_key = excluded.sort_key,
                         side = excluded.side, title = excluded.title, body = excluded.body,
@@ -209,11 +244,11 @@ impl Db {
                         created_at = excluded.created_at, updated_at = excluded.updated_at,
                         deleted_at = excluded.deleted_at, links = excluded.links,
                         task = excluded.task, done_at = excluded.done_at, priority = excluded.priority,
-                        due = excluded.due, layout = excluded.layout",
+                        due = excluded.due, layout = excluded.layout, flag = excluded.flag",
                 )
                 .map_err(err)?;
             let mut log = tx
-                .prepare_cached("INSERT INTO ops (at, node_id, before, after) VALUES (?1, ?2, ?3, ?4)")
+                .prepare_cached("INSERT INTO ops (at, node_id, before, after, source) VALUES (?1, ?2, ?3, ?4, ?5)")
                 .map_err(err)?;
             for change in changes {
                 let n = &change.after;
@@ -222,12 +257,12 @@ impl Db {
                         n.id, n.parent_id, n.sort_key, n.side, n.title, n.body, n.is_map, n.collapsed,
                         n.color, n.icon, n.created_at, n.updated_at, n.deleted_at,
                         serde_json::to_string(&n.links).unwrap(),
-                        n.task, n.done_at, n.priority, n.due, n.layout
+                        n.task, n.done_at, n.priority, n.due, n.layout, n.flag
                     ])
                     .map_err(|e| format!("Cannot save node {}: {e}", n.id))?;
                 let before = change.before.as_ref().map(|b| serde_json::to_string(b).unwrap());
                 let after = serde_json::to_string(n).unwrap();
-                log.execute(params![at, n.id, before, after]).map_err(err)?;
+                log.execute(params![at, n.id, before, after, source]).map_err(err)?;
             }
         }
         tx.commit().map_err(err)
@@ -272,6 +307,29 @@ impl Db {
     }
 
     /// How many changes the log holds.
+    /// The latest `limit` entries of the log, newest first: what the History
+    /// tab shows. Entries made by one write share `at` and `source`.
+    pub fn history(&self, limit: usize) -> Result<Vec<LogEntry>, String> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT seq, at, source, before, after FROM ops ORDER BY seq DESC LIMIT ?1")
+            .map_err(err)?;
+        let rows = stmt
+            .query_map([limit as i64], |r| {
+                Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, String>(2)?, r.get::<_, Option<String>>(3)?, r.get::<_, String>(4)?))
+            })
+            .map_err(err)?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (seq, at, source, before, after) = row.map_err(err)?;
+            // An entry that cannot be read (written by something newer) is left out, not an error.
+            let Ok(after) = serde_json::from_str::<Node>(&after) else { continue };
+            let before = before.and_then(|b| serde_json::from_str::<Node>(&b).ok());
+            out.push(LogEntry { seq, at, source, before, after });
+        }
+        Ok(out)
+    }
+
     #[cfg(test)]
     pub fn log_length(&self) -> Result<i64, String> {
         self.conn.query_row("SELECT count(*) FROM ops", [], |r| r.get(0)).map_err(err)
@@ -283,7 +341,7 @@ impl Db {
         self.conn
             .query_row(
                 "SELECT id, parent_id, sort_key, side, title, body, is_map, collapsed, color, icon,
-                        created_at, updated_at, deleted_at, links, task, done_at, priority, due, layout
+                        created_at, updated_at, deleted_at, links, task, done_at, priority, due, layout, flag
                  FROM nodes WHERE id = ?1",
                 [id],
                 node_from_row,
@@ -380,6 +438,7 @@ fn node_from_row(r: &Row) -> rusqlite::Result<Node> {
         priority: r.get(16)?,
         due: r.get(17)?,
         layout: r.get(18)?,
+        flag: r.get(19)?,
     })
 }
 
@@ -413,6 +472,7 @@ mod tests {
             priority: None,
             due: None,
             layout: None,
+            flag: None,
             created_at: 1,
             updated_at: 1,
             deleted_at: None,
@@ -503,6 +563,71 @@ mod tests {
         assert!(db.get("gone").unwrap().is_none());
         assert_eq!(db.log_length().unwrap(), 1, "only the root's entry is left");
         assert!(db.search("secret", 10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_log_says_who_made_each_change_and_comes_newest_first() {
+        let mut db = Db::in_memory().unwrap();
+        db.apply(&[Change { before: None, after: node("root", None, "Home") }]).unwrap();
+        let mut card = node("card", Some("root"), "Card");
+        db.apply_from(&[Change { before: None, after: card.clone() }], "agent").unwrap();
+        let before = card.clone();
+        card.title = "Renamed".into();
+        db.apply(&[Change { before: Some(before), after: card }]).unwrap();
+
+        let log = db.history(10).unwrap();
+        assert_eq!(log.iter().map(|e| e.source.as_str()).collect::<Vec<_>>(), ["user", "agent", "user"]);
+        assert_eq!(log[0].after.title, "Renamed");
+        assert_eq!(log[0].before.as_ref().unwrap().title, "Card");
+        assert!(log[1].before.is_none());
+        assert_eq!(db.history(1).unwrap().len(), 1, "the limit counts entries");
+    }
+
+    #[test]
+    fn a_node_marked_keeps_its_mark_and_level() {
+        let mut db = Db::in_memory().unwrap();
+        let mut a = node("a", None, "A");
+        a.flag = Some("critical".into());
+        db.apply(&[Change { before: None, after: a.clone() }]).unwrap();
+        assert_eq!(db.get("a").unwrap().unwrap().flag.as_deref(), Some("critical"));
+        assert_eq!(db.load().unwrap()[0].flag.as_deref(), Some("critical"));
+        let mut cleared = a.clone();
+        cleared.flag = None;
+        db.apply(&[Change { before: Some(a), after: cleared }]).unwrap();
+        assert_eq!(db.get("a").unwrap().unwrap().flag, None);
+    }
+
+    #[test]
+    fn marks_made_as_yes_or_no_come_over_as_attention() {
+        // A vault as step 7 left it: the yes-or-no column, set on one node.
+        let conn = Connection::open_in_memory().unwrap();
+        for sql in &MIGRATIONS[..7] {
+            conn.execute_batch(sql).unwrap();
+        }
+        conn.pragma_update(None, "user_version", 7).unwrap();
+        for (id, attention) in [("marked", 1), ("plain", 0)] {
+            conn.execute(
+                "INSERT INTO nodes (id, sort_key, created_at, updated_at, attention) VALUES (?1, 'a0', 1, 1, ?2)",
+                params![id, attention],
+            )
+            .unwrap();
+        }
+        let db = Db::setup(conn).unwrap();
+        assert_eq!(db.get("marked").unwrap().unwrap().flag.as_deref(), Some("attention"));
+        assert_eq!(db.get("plain").unwrap().unwrap().flag, None);
+    }
+
+    #[test]
+    fn log_entries_from_before_levels_still_read() {
+        let mut db = Db::in_memory().unwrap();
+        db.apply(&[Change { before: None, after: node("a", None, "A") }]).unwrap();
+        // An entry as an earlier version wrote it: a yes-or-no `attention`, and no `flag`.
+        db.conn
+            .execute("UPDATE ops SET after = json_set(json_remove(after, '$.flag'), '$.attention', json('true'))", [])
+            .unwrap();
+        let log = db.history(5).unwrap();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].after.flag, None);
     }
 
     #[test]

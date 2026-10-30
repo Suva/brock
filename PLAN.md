@@ -189,44 +189,138 @@ Ctrl in place of ⌘ on Windows and Linux.
 
 Later: Markdown in bodies, images, more vaults, syncing and a web version, phones.
 
-## Agents (an idea, not started)
+## Agents
 
-Let AI agents read the vault, and create and edit in the maps the user shares
-with them, through an MCP server, `brock-mcp`, that works with the app closed.
+Let AI agents read the vault, and later create and edit in the maps the user
+shares with them, through an MCP server, `brock-mcp`.
 
-- **A standalone binary** shares the database code with the app (`db.rs` split
-  into a small crate), opens the vault's SQLite file in WAL mode with a busy
-  timeout, and speaks MCP over stdio. Settings has the switch and a config
-  snippet to paste.
-- **Tools:** `list_maps`, `read_map` (a Markdown outline with node ids),
-  `search`, then `create_map`, `add_nodes` (an indented outline under a
-  parent), `set_notes`, `add_link`. Nothing deletes.
-- **Writes are ordinary changes**, `{ before, after }` per node, written to the
-  log by the same `apply_changes`. One whose `before` no longer matches is
-  refused, so an agent cannot overwrite what the user just edited.
-- **The window learns of outside changes.** It checks the log's latest position
-  on focus and every second or so, loads what is new and applies it to the vault
-  in memory as external changes: saved and shown, not in ⌘Z by default (as the
-  tour is). A node the user has an unsaved edit on takes the stored version,
-  and says so.
-- **Sharing is per map:** *none* (default), *read* or *write*, inherited by the
-  maps under it, stored in the vault (a column, a migration, `withDefaults`).
-  The shim enforces it, so it works with the app closed. It is a guardrail, not
-  a sandbox: anything that can read the file can bypass it, and the README
-  should say so.
-- **Agent work is marked** (`created_by` or a source on the log entry) and
-  shown as added by an agent until the user accepts it; it is easy to undo or
-  trash, since nothing is really deleted.
-- **Order:** share the database code and add the setting; a read-only
-  `brock-mcp`; the window's watcher for outside changes, with tests for the
-  `before` conflict; then the write tools and the marking.
-- **For sync later:** give each log entry a device id, a logical timestamp and
-  a source (user, agent, remote) from the start, while only agents write; the
-  same path that applies an agent's changes is the one that will apply another
-  device's. Sibling order needs a tiebreak by node id, as two devices can make
-  equal sort keys. How conflicts merge (per node, last writer wins, or a
-  text merge for notes) is to be decided before the log gains a field that
-  assumes either.
+**Built: reading and editing, with the app open.** The window answers, since it
+holds the vault and is the only thing that edits it.
+
+```
+agent → brock-mcp (stdio) → loopback door (agent.rs) → window → core/agent.ts → answer
+```
+
+- **Sharing is per map and per computer.** Select a map's centre and choose
+  Can read or Can edit under Agents in the notes; the ids are kept in the window's storage
+  (`agents.svelte.ts`), not on the nodes, so they do not travel in backups,
+  exports or sync. A map inside a shared one is a closed portal until shared.
+  Settings › Agents is a master switch, off by default; the door exists only
+  while it is on.
+- **Reading:** `list_maps`, `read_map` (an outline with ids, tasks, priority,
+  due dates and notes), `read_node` (notes, what is under it, links both ways)
+  and `search`, all limited to the maps shared. What is not shared, deleted or
+  missing all answer "not found".
+- **Editing, in maps shared to edit:** `add_nodes` (an indented outline under a
+  node, up to 500; tasks as `- [ ]`), `update_node` (title, notes or appended
+  notes, priority, due), `set_task` (open, done, none) and `move_node` (under
+  another node, at a place). Each is one edit of the vault, so one ⌘Z, and the
+  footer says what an agent changed. No tool deletes, makes or moves maps, or
+  rearranges the branches of a centre (which keep their sides and colours).
+  Added text loses anything an outline can carry beyond text (maps, ids, links,
+  colours).
+- **The door** is a listener on 127.0.0.1 with a port of the system's choosing.
+  `agent.json` beside the vault holds the port and a secret, readable by the
+  owner only, and is removed when the door closes. Not a Unix socket or a
+  named pipe, which would be two code paths and, on Windows, a new crate.
+- **`brock-mcp.mjs`** holds no data and needs only Node; the app carries it as a
+  resource and Settings shows the command to add it to Claude Code.
+- **Not done:** a menu command for sharing (it is a setting in the notes
+  panel); trying a packaged build (the script as a resource); other agents
+  than Claude Code; a way to see what an agent has read.
+
+- **History and attention (built).** Every change is in the log with who made it
+  (`source`: you or `agent`); the sidebar's History tab shows the steps and takes
+  one back for the nodes unchanged since. Agent edits are not on ⌘Z (`vault.as`).
+  `flag_node` sets a mark in three levels, green (OK), orange (needs attention)
+  or red (critical), that the bell in the header counts, the green ones apart in
+  grey, and lists; an agent only raises a mark, and only the person lowers or
+  clears it.
+
+**Next:** `create_map` (the new map taking its parent's sharing), `add_link`,
+moving the branches of a centre as the app does (`pinSides`), marking what an
+agent added until the person accepts it, and, for boards, roles on columns and
+the flag in the Boards section below.
+
+**Later: with the app closed.** This would need a second reader of the
+database, beside the window:
+
+- `brock-mcp` as a standalone Rust binary sharing the database code (`db.rs`
+  split into a small crate), opening the vault in WAL mode with a busy timeout.
+- Writes as `{ before, after }` changes through `apply_changes`, refused when
+  `before` no longer matches (it does not check today), and the window
+  watching the log for outside changes, applying them as external changes (not
+  in ⌘Z), with an unsaved edit on the same node taking the stored version.
+- The share setting would have to be readable without the window: in the
+  vault, or in a file beside it.
+- Anyone able to read the file can bypass sharing, as the README says.
+
+**For sync:** give each log entry a device id, a logical timestamp and a source
+(user, agent, remote) while only agents write; the same path that applies an
+agent's changes will apply another device's. Sibling order needs a tiebreak by
+node id, as two devices can make equal sort keys. How conflicts merge (per node,
+last writer wins, or a text merge for notes) is to be decided before the log
+gains a field that assumes either.
+
+## Boards that agents work (an idea, not started)
+
+A board (the map style with columns) as a workflow: drag a card to Todo and an
+agent picks it up, does it and moves it on. Builds on the Agents section above.
+
+- **Columns have roles,** set once on the board's centre, not read from their
+  titles, so renaming a column breaks nothing: *trigger* (Todo), *working*,
+  *review* (User testing), *needs feedback*, *done*.
+- **A card is the task:** its title is the request, its notes the detail, its
+  children the steps or what counts as done.
+- **The loop.** A card entering the trigger column is claimed by moving it to
+  the working column; the write is refused if the card has moved since, so two
+  runners never take one card. The agent writes what it did into the notes,
+  adds children for results, and moves the card to review. When stuck it writes
+  its question in the notes, flags the card and moves it to needs feedback; the
+  user answers in the notes and drags it back to Todo, and the agent resumes
+  with the whole thread. A failure, a limit hit or a refused tool ends the same
+  way, with the reason on the card, so nothing stalls in working.
+- **A flag.** A colour or icon can stand in at first; a real "needs attention"
+  field (migration, `withDefaults`, both `Node`s) is better, as the agent and
+  the window both read it.
+- **A runner is needed,** as MCP only answers. A `brock-agent` command, run by
+  hand first (`brock-agent run --board X`) and later as a helper that watches
+  the log, reads the database as `brock-mcp` does, so it works with the app
+  closed, and starts an agent headlessly (for Claude Code, `claude -p` with the
+  Brock server attached and the card's id) for each card that enters a trigger
+  column.
+- **Permission profiles** say how much power an agent has on a board. The card
+  says what to do; it never says how much power to use.
+  - A profile holds: the working folder (a project checkout, or an empty
+    scratch folder); the tools allowed (an allowlist, so no arbitrary shell,
+    installing or `git push` unless named); the network (off, open, or named
+    hosts); a budget per card (time, turns, spending) and a cap on cards in
+    progress; what it may do in the vault (read this board, move cards between
+    its columns, edit their notes, add children; never other maps, never
+    delete, enforced by the sharing setting); and what to do on wanting more:
+    stop, write the request in the notes, flag, move to needs feedback.
+  - **It lives where a card cannot write.** The board's centre holds only a
+    profile's name; the profiles are in the app's settings or a file beside the
+    vault. In a note, anything able to write one (another agent, text pasted
+    from a page) could raise the agent's power.
+  - **The launcher enforces it,** not the agent: the allowed tools and folder are
+    passed on the command line, and a mode that skips permission checks is never
+    used. Nobody is there to click deny in an unattended run, so a tool not
+    listed fails closed and the refusal lands on the card. For real isolation,
+    run in a container or a macOS sandbox limited to the folder, which matters
+    most for boards that run a project's scripts.
+  - **A card is data, not authority.** Notes from outside (pasted pages,
+    synced from another person) can be marked, so the runner uses a tighter
+    profile for them or asks first.
+  - **Start with three fixed profiles:** read-only (answers, adds notes),
+    research (web and a scratch folder) and project (edits and tests in one
+    folder, no network, no push). A board picks one; custom ones wait until
+    someone needs them.
+- **Order:** the sharing setting and a `brock-mcp` that reads and writes; a
+  `move_card` tool with the claim-by-move rule; board roles and the flag; then
+  the runner, by hand before it watches.
+- **With a phone:** a card dragged to Todo on the phone is picked up by the
+  computer when they next sync.
 
 ## Syncing devices (an idea, not started)
 

@@ -326,6 +326,7 @@ dependencies = [
 name = "brock"
 version = "0.6.1"
 dependencies = [
+ "getrandom 0.3.4",
  "rusqlite",
  "serde",
  "serde_json",

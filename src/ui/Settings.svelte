@@ -9,8 +9,11 @@
   import { applyTheme, savedTheme, type Theme } from "./theme.ts";
   import { clearBackground, setClearBackground } from "./picture.ts";
   import { setUpdatesOn, updatesOn } from "./updates.ts";
+  import { agents, agentScript, canHostAgents } from "./agents.svelte.ts";
+  import { writeText } from "./system-clipboard.ts";
+  import type { Live } from "./live.svelte.ts";
 
-  let { onClose, onCheck }: { onClose: () => void; /** Looks for an update now. */ onCheck: () => void } = $props();
+  let { live, onClose, onCheck }: { live: Live; onClose: () => void; /** Looks for an update now. */ onCheck: () => void } = $props();
 
   interface Backups {
     folder: string;
@@ -26,11 +29,30 @@
   let working = $state(false);
   let problem = $state<string | null>(null);
   const app = inTauri();
+  let script = $state<string | null>(null);
+  let copied = $state(false);
+  /** The maps shared with agents that still exist, by name. */
+  const sharedMaps = $derived.by(() => {
+    void live.version;
+    return agents.shared.flatMap((id) => (live.vault.isLive(id) && live.vault.get(id)?.isMap ? [live.vault.get(id)!] : []));
+  });
+  const command = $derived(`claude mcp add brock -- node ${script ? JSON.stringify(script) : "/path/to/brock-mcp.mjs"}`);
 
   $effect(() => {
     if (app) invoke<Backups>("list_backups").then((b) => (backups = b), (e) => (problem = String(e)));
     if (app) import("@tauri-apps/api/app").then(({ getVersion }) => getVersion()).then((v) => (version = v));
+    if (app) agentScript().then((s) => (script = s), () => {});
   });
+
+  async function allowAgents(on: boolean) {
+    problem = await agents.allow(on);
+  }
+
+  async function copyCommand() {
+    await writeText(command);
+    copied = true;
+    setTimeout(() => (copied = false), 1500);
+  }
 
   function choose(t: Theme) {
     theme = t;
@@ -141,6 +163,49 @@
             }}>Check now</button
           >
         </div>
+      </section>
+    {/if}
+
+    {#if canHostAgents()}
+      <section>
+        <h3>Agents</h3>
+        <div class="choices" role="radiogroup" aria-label="Agents">
+          {#each [[false, "Not allowed"], [true, "Allow agents"]] as const as [value, label] (label)}
+            <button role="radio" aria-checked={agents.on === value} class:on={agents.on === value} onclick={() => allowAgents(value)}>
+              {label}
+            </button>
+          {/each}
+        </div>
+        <p class="muted">
+          Lets AI agents on this computer, such as Claude Code, work with the maps you share with them. Share a map from
+          its notes: select its centre and choose Can read or Can edit under Agents. An agent that can edit adds nodes,
+          changes titles and notes, ticks tasks and moves nodes, one step at a time that ⌘Z undoes; it never deletes.
+          Brock sends nothing anywhere; what an agent reads goes to whoever runs that agent. Agents can only ask while
+          Brock is open.
+        </p>
+        {#if agents.on}
+          <p class="muted">To give Claude Code access, run this once in a terminal. Other agents that use MCP take the same command.</p>
+          <p class="folder">{command}</p>
+          <div class="actions">
+            <button onclick={copyCommand}>{copied ? "Copied" : "Copy the command"}</button>
+          </div>
+          {#if !script}
+            <p class="muted">This copy of Brock does not carry <code>brock-mcp.mjs</code>; it is in the <code>scripts</code> folder of the source.</p>
+          {/if}
+        {/if}
+        {#if sharedMaps.length}
+          <p class="muted">Shared with agents:</p>
+          <ul>
+            {#each sharedMaps as map (map.id)}
+              <li>
+                <span>{map.title || "Untitled"} <span class="muted">· {agents.level(map.id) === "write" ? "can edit" : "can read"}</span></span>
+                <button onclick={() => agents.share(map.id, "none")}>Stop sharing</button>
+              </li>
+            {/each}
+          </ul>
+        {:else if agents.on}
+          <p class="muted">No maps are shared yet.</p>
+        {/if}
       </section>
     {/if}
 

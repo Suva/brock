@@ -22,6 +22,7 @@
   import { watchFileDrops } from "./file-drop.ts";
   import { openFile, openUrl, opensFiles } from "./open-url.ts";
   import Palette from "./Palette.svelte";
+  import { agents, canHostAgents } from "./agents.svelte.ts";
 
   let {
     live,
@@ -214,6 +215,15 @@
         <button class="remove" onclick={() => vault.update(nodeId, { due: null })} title="Take the due date away" aria-label="Take the due date away">×</button>
       {/if}
     </div>
+    <div class="row">
+      <span id="mark">Mark</span>
+      <div class="choice marks" role="radiogroup" aria-labelledby="mark">
+        <button role="radio" aria-checked={node.flag === null} class:on={node.flag === null} onclick={() => vault.update(nodeId, { flag: null })} title="No mark">None</button>
+        <button role="radio" aria-checked={node.flag === "ok"} class:on={node.flag === "ok"} class="ok" onclick={() => vault.update(nodeId, { flag: "ok" })} title="OK: resolved, or ready for a look. Counted in grey under the bell (⇧⌘A goes round the marks)">✓ OK</button>
+        <button role="radio" aria-checked={node.flag === "attention"} class:on={node.flag === "attention"} class="attention" onclick={() => vault.update(nodeId, { flag: "attention" })} title="Needs your attention: shown under the bell">⚑ Attention</button>
+        <button role="radio" aria-checked={node.flag === "critical"} class:on={node.flag === "critical"} class="critical" onclick={() => vault.update(nodeId, { flag: "critical" })} title="Critical, or blocked: first under the bell">‼ Critical</button>
+      </div>
+    </div>
     {#if centre}
       <div class="row">
         <span id="map-style">Style</span>
@@ -224,6 +234,17 @@
           <button role="radio" aria-checked={node.layout === "board"} class:on={node.layout === "board"} onclick={() => vault.update(nodeId, { layout: "board" })} title="In columns under the centre, what is under each as cards (⌥⌘5)">Board</button>
         </div>
       </div>
+      {#if canHostAgents()}
+        <div class="row">
+          <span id="map-agents">Agents</span>
+          <div class="choice" role="radiogroup" aria-labelledby="map-agents">
+            <button role="radio" aria-checked={agents.level(nodeId) === "none"} class:on={agents.level(nodeId) === "none"} onclick={() => agents.share(nodeId, "none")} title="AI agents cannot see this map">Can't see</button>
+            <button role="radio" aria-checked={agents.level(nodeId) === "read"} class:on={agents.level(nodeId) === "read"} onclick={() => agents.share(nodeId, "read")} title="AI agents you allow in Settings can read this map, and not change it">Can read</button>
+            <button role="radio" aria-checked={agents.level(nodeId) === "write"} class:on={agents.level(nodeId) === "write"} onclick={() => agents.share(nodeId, "write")} title="AI agents you allow in Settings can read this map and change it: add nodes, edit titles and notes, tick tasks, move nodes. Never delete. ⌘Z undoes what they do">Can edit</button>
+          </div>
+          {#if agents.level(nodeId) !== "none" && !agents.on}<span class="hint">Allow agents in Settings</span>{/if}
+        </div>
+      {/if}
     {/if}
     <div class="style">
       {#if !centre}
@@ -526,6 +547,18 @@
   .choice button.on {
     color: var(--accent);
     background: var(--accent-soft);
+  }
+
+  .marks button.ok.on {
+    color: var(--ok);
+  }
+
+  .marks button.attention.on {
+    color: var(--warning);
+  }
+
+  .marks button.critical.on {
+    color: var(--danger);
   }
 
   .style {

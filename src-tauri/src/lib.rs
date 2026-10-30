@@ -2,15 +2,18 @@
 //! window's few requests. The vault's logic lives in the window
 //! (`src/core/`), so this stays small.
 
+mod agent;
 mod backups;
 mod db;
 
-use db::{Change, Db, Node};
+use db::{Change, Db, LogEntry, Node};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -53,14 +56,85 @@ fn lock<'a>(vault: &'a State<Vault>) -> Result<std::sync::MutexGuard<'a, Db>, St
     vault.db.lock().map_err(|e| e.to_string())
 }
 
+/// How long a request from an agent waits for the window's answer.
+const AGENT_ANSWER_WITHIN: Duration = Duration::from_secs(15);
+
+/// The door agents knock on, while they are allowed, and the requests that
+/// have been passed to the window and wait for its answer.
+struct Agents {
+    /// The vault's folder, where `agent.json` is written.
+    dir: PathBuf,
+    door: Mutex<Option<agent::Door>>,
+    waiting: Arc<Mutex<HashMap<u64, mpsc::Sender<serde_json::Value>>>>,
+    count: Arc<AtomicU64>,
+}
+
+/// Opens or closes the door. The window asks for it by what the person has
+/// allowed (Settings), and again each time the app starts.
+#[tauri::command]
+fn agent_enable(app: tauri::AppHandle, agents: State<Agents>, enabled: bool) -> Result<(), String> {
+    let mut door = agents.door.lock().map_err(|e| e.to_string())?;
+    if !enabled {
+        *door = None;
+        return Ok(());
+    }
+    if door.is_some() {
+        return Ok(());
+    }
+    let (waiting, count) = (agents.waiting.clone(), agents.count.clone());
+    let handler: agent::Handler = Arc::new(move |request| {
+        let id = count.fetch_add(1, Ordering::Relaxed);
+        let (send, receive) = mpsc::channel();
+        if let Ok(mut waiting) = waiting.lock() {
+            waiting.insert(id, send);
+        }
+        let answer = match app.emit_to("main", "agent-request", serde_json::json!({ "id": id, "request": request })) {
+            Ok(()) => receive
+                .recv_timeout(AGENT_ANSWER_WITHIN)
+                .unwrap_or_else(|_| serde_json::json!({ "ok": false, "error": "Brock did not answer in time." })),
+            Err(e) => serde_json::json!({ "ok": false, "error": format!("Brock cannot be reached: {e}") }),
+        };
+        if let Ok(mut waiting) = waiting.lock() {
+            waiting.remove(&id);
+        }
+        answer
+    });
+    *door = Some(agent::Door::open(&agents.dir, handler)?);
+    Ok(())
+}
+
+/// The window's answer to a request it was passed.
+#[tauri::command]
+fn agent_reply(agents: State<Agents>, id: u64, reply: serde_json::Value) {
+    let sender = agents.waiting.lock().ok().and_then(|mut waiting| waiting.remove(&id));
+    if let Some(sender) = sender {
+        let _ = sender.send(reply);
+    }
+}
+
+/// Where `brock-mcp.mjs` is, to tell the person what to give their agent; none
+/// if this copy of the app does not carry it.
+#[tauri::command]
+fn agent_script(app: tauri::AppHandle) -> Option<String> {
+    let path = app.path().resolve("brock-mcp.mjs", tauri::path::BaseDirectory::Resource).ok()?;
+    path.exists().then(|| path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn load_vault(vault: State<Vault>) -> Result<Vec<Node>, String> {
     lock(&vault)?.load()
 }
 
+/// `source` says who made the changes ('user' if not said), for the History tab.
 #[tauri::command]
-fn apply_changes(vault: State<Vault>, changes: Vec<Change>) -> Result<(), String> {
-    lock(&vault)?.apply(&changes)
+fn apply_changes(vault: State<Vault>, changes: Vec<Change>, source: Option<String>) -> Result<(), String> {
+    lock(&vault)?.apply_from(&changes, source.as_deref().unwrap_or("user"))
+}
+
+/// The latest entries of the log, newest first.
+#[tauri::command]
+fn load_history(vault: State<Vault>, limit: usize) -> Result<Vec<LogEntry>, String> {
+    lock(&vault)?.history(limit.min(5000))
 }
 
 #[tauri::command]
@@ -265,6 +339,10 @@ pub fn run() {
                 }
             });
             app.manage(Vault { db, backups });
+            // A file left by an earlier run points at a door that is gone.
+            let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
+            let _ = std::fs::remove_file(dir.join(agent::FILE));
+            app.manage(Agents { dir, door: Mutex::new(None), waiting: Arc::default(), count: Arc::default() });
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(SHOW_ANYWAY);
@@ -277,6 +355,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_vault,
             apply_changes,
+            load_history,
             purge_nodes,
             search,
             list_backups,
@@ -285,7 +364,10 @@ pub fn run() {
             open_file,
             save_text,
             save_bytes,
-            open_text
+            open_text,
+            agent_enable,
+            agent_reply,
+            agent_script
         ])
         .run(tauri::generate_context!())
         .expect("error while running the app");

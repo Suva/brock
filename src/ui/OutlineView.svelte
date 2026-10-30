@@ -6,6 +6,7 @@
   import { tick } from "svelte";
   import { branchBeside, newBranch } from "../core/branches.ts";
   import { doneToHide, setPriority } from "../core/tasks.ts";
+  import { flagGlyph, flagName } from "../core/attention.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import { indent, outdent, place, reorder } from "../core/moves.ts";
   import { outlineDropAt, type Drop, type Row } from "../core/drop.ts";
@@ -300,6 +301,7 @@
         />
       {/if}
       {#if node.priority}<span class="priority"><PriorityBadge priority={node.priority} /></span>{/if}
+      {#if node.flag}<span class="flag {node.flag}" title={flagName(node.flag)} role="img" aria-label={flagName(node.flag)}>{flagGlyph(node.flag)}</span>{/if}
       {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
       <input
         id="row-{node.id}"
@@ -418,6 +420,24 @@
   .icon,
   .priority {
     margin-left: 0.4rem;
+  }
+
+  .flag {
+    flex: none;
+    margin-left: 0.4rem;
+    font-size: 0.85em;
+  }
+
+  .flag.ok {
+    color: var(--ok);
+  }
+
+  .flag.attention {
+    color: var(--warning);
+  }
+
+  .flag.critical {
+    color: var(--danger);
   }
 
   .priority {

@@ -15,7 +15,7 @@ export interface VaultOptions {
    * while the vault opens if the nodes had to be repaired, or the vault was
    * empty and its first node was made.
    */
-  onChange?: (changes: Change[]) => void;
+  onChange?: (changes: Change[], origin: string) => void;
   /** Called with the ids of nodes removed for good, when the trash is emptied. */
   onPurge?: (ids: string[]) => void;
 }
@@ -51,7 +51,9 @@ export class Vault {
   #children = new Map<string, Node[]>();
   #rootId = "";
   #now: () => number;
-  #listeners: ((changes: Change[]) => void)[] = [];
+  #listeners: ((changes: Change[], origin: string) => void)[] = [];
+  /** Who the edit under way is made for, when not the person at the keyboard. */
+  #origin: string | null = null;
   #onPurge: ((ids: string[]) => void) | undefined;
   #undo: Step[] = [];
   #redo: Step[] = [];
@@ -213,6 +215,7 @@ export class Vault {
         priority: null,
         due: null,
         layout: null,
+        flag: null,
         ...fields,
         createdAt: now,
         updatedAt: now,
@@ -347,7 +350,7 @@ export class Vault {
     this.#redo = [];
     this.#version++;
     this.#onPurge?.([...gone]);
-    for (const listener of this.#listeners) listener([]);
+    for (const listener of this.#listeners) listener([], "user");
     return gone.size;
   }
 
@@ -413,6 +416,46 @@ export class Vault {
     this.#redo = [];
   }
 
+  /**
+   * Runs edits made for someone else, such as an agent: they are saved and
+   * shown, and told to the listeners with `origin`, but are not steps for ⌘Z,
+   * so that undoing never takes back what the person did not do. The history
+   * brings them back with `revert`.
+   */
+  as<T>(origin: string, edit: () => T): T {
+    const was = this.#origin;
+    this.#origin = origin;
+    try {
+      return edit();
+    } finally {
+      this.#origin = was;
+    }
+  }
+
+  /**
+   * Puts nodes back as they were before `changes`, as one step like any
+   * other, which ⌘Z undoes. A node the change made is marked deleted, never
+   * removed. Returns the ids put back; a node whose old parent is gone, or
+   * would now be under itself, is left as it is.
+   */
+  revert(changes: Change[]): string[] {
+    const done: string[] = [];
+    this.transact(() => {
+      const now = this.#now();
+      for (const { before, after } of [...changes].reverse()) {
+        if (!this.#nodes.has(after.id)) continue;
+        const parent = before?.parentId ?? null;
+        if (before && parent !== null) {
+          const loop = parent === before.id || this.ancestors(parent).some((n) => n.id === before.id);
+          if (!this.#nodes.has(parent) || loop) continue;
+        }
+        this.#write({ ...(before ?? { ...after, deletedAt: after.deletedAt ?? now }), updatedAt: now });
+        done.push(after.id);
+      }
+    });
+    return done;
+  }
+
   /** Undoes the last step and returns its changes, or null if there is none. */
   undo(): Change[] | null {
     const step = this.#undo.pop();
@@ -454,7 +497,7 @@ export class Vault {
   // ---- Listening -----------------------------------------------------------
 
   /** Calls `listener` with the changes of every edit; returns a way to stop. */
-  onChange(listener: (changes: Change[]) => void): () => void {
+  onChange(listener: (changes: Change[], origin: string) => void): () => void {
     this.#listeners.push(listener);
     return () => {
       this.#listeners = this.#listeners.filter((l) => l !== listener);
@@ -540,7 +583,9 @@ export class Vault {
     const changes = joinChanges(raw);
     if (changes.length === 0) return;
     this.#version++;
-    if (undoable) {
+    // What is done for someone else is the person's to see and take back in
+    // the history, not by ⌘Z, which is for their own steps.
+    if (undoable && this.#origin === null) {
       const last = this.#undo.at(-1);
       if (mergeKey !== undefined && last?.mergeKey === mergeKey && this.#redo.length === 0) {
         last.changes = joinChanges([...last.changes, ...changes]);
@@ -552,7 +597,7 @@ export class Vault {
       }
       this.#redo = [];
     }
-    for (const listener of this.#listeners) listener(changes);
+    for (const listener of this.#listeners) listener(changes, this.#origin ?? "user");
   }
 
   /**
@@ -585,6 +630,7 @@ export class Vault {
         priority: null,
         due: null,
         layout: null,
+        flag: null,
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
@@ -649,7 +695,7 @@ export class Vault {
 
 /** A node as stored, with the fields added since it was saved given their defaults. */
 function withDefaults(node: Node): Node {
-  if (Array.isArray(node.links) && node.task !== undefined && node.doneAt !== undefined && node.priority !== undefined && node.due !== undefined && node.layout !== undefined) {
+  if (Array.isArray(node.links) && node.task !== undefined && node.doneAt !== undefined && node.priority !== undefined && node.due !== undefined && node.layout !== undefined && node.flag !== undefined) {
     return node;
   }
   return {
@@ -660,6 +706,8 @@ function withDefaults(node: Node): Node {
     priority: node.priority ?? null,
     due: node.due ?? null,
     layout: node.layout ?? null,
+    // A mark made before it had levels was a yes or no.
+    flag: node.flag ?? ((node as { attention?: boolean }).attention === true ? "attention" : null),
   };
 }
 

@@ -8,7 +8,7 @@ export interface Session {
   node: string | null;
   view: "map" | "outline";
   sidebarOpen: boolean;
-  sidebarTab: "maps" | "tasks";
+  sidebarTab: "maps" | "tasks" | "history";
   notesOpen: boolean;
   /** Whether notes show their Markdown source rather than drawn. */
   notesSource: boolean;
@@ -38,7 +38,7 @@ export function savedSession(): Session {
       node: str(raw.node),
       view: raw.view === "outline" ? "outline" : "map",
       sidebarOpen: raw.sidebarOpen === true,
-      sidebarTab: raw.sidebarTab === "tasks" ? "tasks" : "maps",
+      sidebarTab: raw.sidebarTab === "tasks" || raw.sidebarTab === "history" ? raw.sidebarTab : "maps",
       notesOpen: raw.notesOpen === true,
       notesSource: raw.notesSource === true,
       hideDone: raw.hideDone === true,

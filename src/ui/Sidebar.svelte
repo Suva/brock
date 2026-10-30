@@ -1,15 +1,16 @@
 <!--
   The sidebar on the left: lists of places in the vault to go to, as tabs,
-  the maps (⌃⌘S) and the tasks (⇧⌘T). The right side is for the selected
-  node; this side is for the vault. It is worked with the mouse and leaves
+  the maps (⌃⌘S), the tasks (⇧⌘T) and the history (⇧⌘Y). The right side is
+  for the selected node; this side is for the vault. It is worked with the mouse and leaves
   the keyboard with the map.
 -->
 <script lang="ts">
   import type { Live } from "./live.svelte.ts";
+  import HistoryList from "./HistoryList.svelte";
   import MapsList from "./MapsList.svelte";
   import TasksList from "./TasksList.svelte";
 
-  export type Tab = "maps" | "tasks";
+  export type Tab = "maps" | "tasks" | "history";
 
   let {
     live,
@@ -20,6 +21,7 @@
     onClose,
     onOpen,
     onGoTo,
+    onTell,
   }: {
     live: Live;
     mapId: string;
@@ -29,6 +31,8 @@
     onClose: () => void;
     onOpen: (id: string) => void;
     onGoTo: (id: string) => void;
+    /** Says something in the footer. */
+    onTell: (text: string) => void;
   } = $props();
 </script>
 
@@ -41,13 +45,18 @@
     <button role="tab" aria-selected={tab === "tasks"} class:on={tab === "tasks"} tabindex="-1" onclick={() => onTab("tasks")} title="Tasks (⇧⌘T)"
       >Tasks</button
     >
+    <button role="tab" aria-selected={tab === "history"} class:on={tab === "history"} tabindex="-1" onclick={() => onTab("history")} title="History (⇧⌘Y)"
+      >History</button
+    >
     <button class="close" tabindex="-1" onclick={onClose} title="Hide the sidebar (⌃⌘S)" aria-label="Hide the sidebar">‹</button>
   </div>
   <div class="content" role="tabpanel">
     {#if tab === "maps"}
       <MapsList {live} {mapId} {onOpen} />
-    {:else}
+    {:else if tab === "tasks"}
       <TasksList {live} {mapId} {onGoTo} />
+    {:else}
+      <HistoryList {live} {onGoTo} {onTell} />
     {/if}
   </div>
 </aside>

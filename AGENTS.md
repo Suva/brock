@@ -63,11 +63,15 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/history.ts` | The maps visited, for back and forward |
 | `src/core/clipboard.ts` | Copy, cut and paste of branches: copies as outlines, cuts moved whole |
 | `src/core/picture.ts` | A picture of a map as plain shapes, and writing it as SVG |
+| `src/core/activity.ts` | The history read from the log: steps (what one write put there, typing joined), their wording, and taking a step back for the nodes still as it left them |
+| `src/core/attention.ts` | The marks for the person, green, orange and red: the nodes carrying one, their order and counts for the bell, going round them, setting them |
+| `src/core/agent.ts` | What an AI agent may read and change of the vault, in the maps shared with it: the requests it can make, checked, and how they are answered as text |
 | `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre, from column to column |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
 | `src/store/memory-store.ts` | The store in tests, and in a browser (`npm run dev`) |
 | `src/store/saver.ts` | Writes changes in order, one write at a time, retrying failures |
+| `src/ui/agents.svelte.ts` | Whether agents are allowed and which maps are shared with them, to read or to edit, kept in the window's storage; answers the requests the native side passes on |
 | `src/ui/main.ts` | Opens the store and the vault, and the window |
 | `src/ui/live.svelte.ts` | The vault and saver made reactive for Svelte |
 | `src/ui/App.svelte` | The window: breadcrumbs, the view, notes, the undo keys |
@@ -98,7 +102,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/NotesPanel.svelte` | The selected node: task, priority, colour, icon, its notes, its links and the nodes linking to it |
 | `src/ui/NoteEditor.svelte` | The notes' editor (CodeMirror), drawn as they are written or as their Markdown source |
 | `src/ui/live-preview.ts` | What the editor draws in place of the Markdown: marks hidden but where the cursor is, checkboxes, links, tables |
-| `src/ui/Sidebar.svelte` | The sidebar on the left, with the Maps and Tasks tabs; places to go in the vault |
+| `src/ui/Sidebar.svelte` | The sidebar on the left, with the Maps, Tasks and History tabs; places to go in the vault |
+| `src/ui/HistoryList.svelte` | The sidebar's History tab: the steps by day, who made them, and Revert |
+| `src/ui/AttentionBell.svelte` | The bell in the header: the badges (orange or red for what asks, grey for the green ones) and the list of marked nodes that opens from it |
 | `src/ui/MapsList.svelte` | The sidebar's Maps tab: every map of the vault as a tree |
 | `src/ui/Resizer.svelte` | The handle that drags a side panel's edge to change its width; widths are kept in the session |
 | `src/ui/Palette.svelte` | Search (⌘K): the field, the results and going to one |
@@ -107,9 +113,11 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `site/` | The website's page; `scripts/build-site.mjs` builds it, with the demo, into `_site/` |
 | `CHANGELOG.md` | What each release changes, for the people using it; the website's "What's new" and the releases' notes |
 | `scripts/changelog.mjs` | Reads `CHANGELOG.md`: dates a release, gives a version's notes, writes the "What's new" page |
-| `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, a full-text search not used yet |
+| `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, the log with who made each change and its reading for the History tab, a full-text search not used yet |
 | `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
 | `brand/` | The logo and the icon, kept out of the app's package. `brock-logo.svg` and `brock-logo-plain.svg` are the logo with its wordmark, on a tile with a grey surround and on plain black. `brock-icon.svg` is the app icon: the logo without the wordmark, with two more branches where the word was. Every size is made from it with `npx tauri icon brand/brock-icon.svg -o src-tauri/icons`; delete the `android` and `ios` folders that makes, and copy `64x64.png` to `static/favicon.png` |
+| `src-tauri/src/agent.rs` | The door agents knock on: a loopback listener while agents are allowed, `agent.json` with its port and secret, and one request per connection passed to the window |
+| `scripts/brock-mcp.mjs` | The MCP server an agent starts: it relays tool calls to the app through that door and holds no data; shipped with the app as a resource |
 | `src-tauri/src/backups.rs` | Daily copies of the vault, the last seven kept |
 
 ## Rules that are easy to break
@@ -172,7 +180,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   larger branch names come from CSS and transforms; text keeps its place, so
   measured sizes, and with them the layout, stay the same at every zoom.
 - **Left for the vault, right for the node.** The sidebar on the left holds
-  lists of places to go (maps, tasks), as tabs; the panel on the right is
+  lists of places to go (maps, tasks, history), as tabs; the panel on the right is
   about the selected node (notes, colour, links). A new list goes in the
   sidebar as a tab, not as a panel of its own. The sidebar is worked by
   mouse and keeps the focus where it was, so the map's keys go on working.
@@ -285,6 +293,39 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   in `skipped`. The PNG is drawn from the shapes on a canvas, not by drawing
   the SVG into one, which WebKit may then refuse to read back. SVG never
   holds HTML (no `foreignObject`), so other programs open it.
+- **Agents see shared maps only, and change only maps shared to edit, through
+  the window.** `core/agent.ts` answers from the vault in memory for the ids in
+  the shared set; a map that is not shared is a closed portal in the one around
+  it, and anything not shared, deleted or missing gets the same "not found".
+  Check it with `isShared` and `holder` for reading and `editable` for every
+  change, never by hand, for every new tool. A change is the vault's own edit
+  (one step, so ⌘Z undoes it, and saved like any), reports what it changed in
+  `changed` so the window can say so, and goes through `importInto`,
+  `newBranch` and the like, not around them. Agents never delete, lower or clear a mark, and never
+  make, move or restyle maps or rearrange the branches of a centre; keep it
+  so, and say any widening in the README. Text an agent adds is stripped of
+  maps, ids, links, colours and ways of drawing (`plain`). The sharing is kept
+  per computer in the window's storage (`agents.svelte.ts`), not on the nodes,
+  so it does not travel in a backup, export or sync. The door (`agent.rs`) is
+  closed unless Settings › Agents is on, listens on loopback only, and wants
+  the secret from `agent.json` (owner-only); it never learns what a request
+  means. `scripts/brock-mcp.mjs` takes the tool's name from the call, never
+  from its arguments.
+- **Edits made for someone else are not steps for ⌘Z.** An agent's edits run
+  inside `vault.as("agent", …)`: they are saved, shown and told to the listeners
+  with that origin, which the saver passes to the store so the log says who made
+  them (`source` in `ops`), but they do not go on the undo stack, so ⌘Z never
+  takes back what the person did not do. The History tab (`core/activity.ts`) is
+  how they, and the person's own steps, are taken back: `vault.revert`, which
+  is a step like any other, only for nodes still as the step left them. A new
+  kind of helper that edits for the person uses `as` with its own name.
+- **The mark is the person's to lower or clear.** A node's `flag` is "ok"
+  (green), "attention" (orange) or "critical" (red); an agent may only raise
+  it (`flag_node`, by `rank` in `attention.ts`) and no tool lowers or clears
+  it, as the bell is how the person finds what an agent needs. The bell counts
+  orange and red as asking and green apart, in grey. Marks made when it was a
+  yes or no (`attention`) read as "attention" (`withDefaults`, migration 8).
+  It is a field like any other: migration, both `Node`s, `withDefaults`.
 - **Saved changes are written in order.** The saver never writes an edit
   before an earlier one that failed; keep it that way.
 

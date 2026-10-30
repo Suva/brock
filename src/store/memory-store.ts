@@ -2,6 +2,7 @@
 // the window is opened in a browser (`npm run dev`) to work on the interface
 // without the app around it.
 
+import type { LogEntry } from "../core/activity.ts";
 import type { Change, Node } from "../core/node.ts";
 import type { Store } from "./store.ts";
 
@@ -17,6 +18,11 @@ export class MemoryStore implements Store {
   #key: string;
   /** Every call to `save`, for tests. */
   saves: Change[][] = [];
+  /** What `save` was told of who made each, for tests. */
+  origins: string[] = [];
+  /** The log, oldest first; kept for this session only. */
+  #log: LogEntry[] = [];
+  #seq = 0;
   /** Set to make the next saves fail, for tests. */
   failing: Error | null = null;
 
@@ -31,15 +37,23 @@ export class MemoryStore implements Store {
     return [...this.#nodes.values()].map((n) => ({ ...n }));
   }
 
-  async save(changes: Change[]): Promise<void> {
+  async save(changes: Change[], origin = "user"): Promise<void> {
     if (this.failing) throw this.failing;
     this.saves.push(changes);
+    this.origins.push(origin);
+    const at = Date.now();
+    for (const { before, after } of changes) this.#log.push({ seq: ++this.#seq, at, source: origin, before, after });
     for (const { after } of changes) this.#nodes.set(after.id, { ...after });
     this.#storage?.setItem(this.#key, JSON.stringify([...this.#nodes.values()]));
   }
 
+  async history(limit: number): Promise<LogEntry[]> {
+    return this.#log.slice(-limit).reverse();
+  }
+
   async purge(ids: string[]): Promise<void> {
     if (this.failing) throw this.failing;
+    this.#log = this.#log.filter((e) => !ids.includes(e.after.id));
     for (const id of ids) this.#nodes.delete(id);
     this.#storage?.setItem(this.#key, JSON.stringify([...this.#nodes.values()]));
   }

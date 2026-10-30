@@ -9,7 +9,7 @@
 // under one node, as one step that can be undone.
 
 import { newBranch } from "./branches.ts";
-import type { MapLayout, Node } from "./node.ts";
+import type { Flag, MapLayout, Node } from "./node.ts";
 import type { Vault } from "./vault.ts";
 
 /** A branch as it goes out and comes in, independent of the vault's ids. */
@@ -28,6 +28,8 @@ export interface Outline {
   priority: number | null;
   due: string | null;
   layout: MapLayout | null;
+  /** The mark for the person; absent in files from before it. */
+  flag?: Flag | null;
   children: Outline[];
 }
 
@@ -53,6 +55,7 @@ export function outlineOf(vault: Vault, id: string): Outline {
     priority: node.priority,
     due: node.due,
     layout: node.layout,
+    flag: node.flag,
     children: vault.children(id).map((child) => outlineOf(vault, child.id)),
   };
 }
@@ -230,6 +233,7 @@ function checked(raw: unknown): Outline {
     priority: typeof o.priority === "number" && o.priority >= 1 && o.priority <= 5 ? Math.round(o.priority) : null,
     due: typeof o.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.due) ? o.due : null,
     layout: o.layout === "org" || o.layout === "timeline" || o.layout === "board" ? o.layout : null,
+    flag: o.flag === "ok" || o.flag === "attention" || o.flag === "critical" ? o.flag : o.attention === true ? "attention" : null,
     children: Array.isArray(o.children) ? o.children.map(checked) : [],
   };
 }
@@ -320,6 +324,7 @@ export function importInto(
         priority: o.priority,
         due: o.due,
         layout: o.layout,
+        flag: o.flag ?? null,
         ...(o.color ? { color: o.color } : {}),
       });
       if (o.id) newId.set(o.id, node.id);

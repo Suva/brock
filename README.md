@@ -83,9 +83,12 @@ the arrow keys, then:
 | ⌘← ⌘→, or ⌘[ ⌘] | Back and forward through the maps visited, as in a browser |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
-| ⌃⌘S | Shows or hides the sidebar on the left: every map of the vault as a tree, or the tasks |
+| ⌃⌘S | Shows or hides the sidebar on the left: every map of the vault as a tree, the tasks, or the history |
 | ⇧⌘H | Hides done tasks on the map and in the outline, or shows them again |
 | ⇧⌘T | Shows the tasks of the open map, or of all maps, in the sidebar |
+| ⇧⌘Y | Shows the history in the sidebar: what was changed, when and by whom |
+| ⇧⌘A | Goes round the node's mark: attention (orange), critical (red), OK (green), none |
+| ⇧⌘B | Opens the bell: the marked nodes |
 | ⌘L | Links the selected node to any other, chosen as in search |
 | ⌘K | Searches every title and note in the vault; Tab narrows it to the open map, then to maps |
 | ⌘1 to ⌘5 | Gives the node a priority, 1 to 5; the same number again takes it off |
@@ -162,14 +165,34 @@ its title. In the tasks list, priorities 1 to 3 come before tasks that have
 none, and 4 and 5 after them.
 
 The sidebar on the left, opened by the small tab on the left edge or ⌃⌘S,
-lists places in the vault to go to, as two tabs:
-Maps, every map as a tree with what each holds, and Tasks, what is still to
-do, grouped by map, with what is done folded away at the bottom. Done tasks
+lists places in the vault to go to, as three tabs:
+Maps, every map as a tree with what each holds, History, which is told below,
+and Tasks, what is still to do, grouped by map, with what is done folded away at the bottom. Done tasks
 are grouped by when they were done: today, yesterday, this week and earlier,
 handy for a stand-up or for reporting time. Each group has its own Clear,
 which moves its tasks to the trash, so last week's can go while this week's
 stay. Tick tasks there, or click one to go to it. The panel on the right is about the selected
 node, so a task's notes show beside the list.
+
+The History tab lists what was changed, newest first, by day: "Ticked “Buy
+seeds”", "Added 3 nodes", "Renamed …", each with the time and whether you or
+an agent did it. Click one to go to the node. Revert puts the nodes of that
+step back as they were, as a step of its own that ⌘Z undoes; a node that has
+changed since is left as it is, and the row says so. Typing in one node is
+one step, not one for each pause. The history is kept with the vault, so it is
+there after a restart. Changes agents make are not on ⌘Z, which is only for
+your own steps; the history is where to take them back.
+
+A node can be marked for you, in three levels: orange ⚑ when it needs your
+attention, red ‼ when it is critical or blocked, and green ✓ when it is OK:
+resolved, or ready for a look. Choose one under Mark in the notes panel, or go
+round them with ⇧⌘A. The mark shows on the node, and the bell at the top right
+counts them: an orange badge for those that ask something of you, red if any is
+critical, and a grey one for the green ones, which ask nothing and are there to
+review. Open the bell to see them all, the critical first; a click goes to the
+node, the tick marks one OK, and the cross on a green one clears its mark.
+An agent can set a mark, with its reason in the node's notes, but only raise
+one, never lower or clear it: that is yours.
 
 The notes panel also makes a node a task and sets its priority, as ⌘T and
 ⌘1 to ⌘5 do, its colour, which carries down everything under it, and an icon
@@ -203,7 +226,7 @@ The app starts where you left it: the same map and node, view and panels.
 ## Nothing leaves your computer
 
 The app works without a network, and your vault never leaves your computer.
-Two things reach outside it:
+Two things reach outside it, and a third only if you allow it:
 
 - A web address in your notes that you click, which opens in your browser,
   as does What's new when an update is offered.
@@ -215,6 +238,19 @@ Two things reach outside it:
   when you click Install and restart, and is checked against the signature
   the app was built with before it is installed. Settings › Updates turns
   the looking off; Help › Check for Updates… still looks when asked.
+
+- AI agents, only if you turn on Settings › Agents, which is off. While it
+  is on, the app listens on this computer's loopback address, which no other
+  computer can reach, and answers an agent that knocks with a secret kept in
+  a file only you can read (`agent.json`, beside the vault). Agents can ask
+  only for the maps you have shared with them, one by one, to read or to
+  edit. In a map shared to edit an agent can add nodes, change titles, notes,
+  priorities and due dates, tick tasks and move nodes, each a step that ⌘Z
+  undoes; it can never delete, or make or move maps. Brock itself sends
+  nothing; what an agent reads goes to whoever runs that agent, such as the
+  company behind its model. Anything on this computer that can read your
+  files can bypass the sharing, as it can read the vault: it is a guard
+  against asking for too much, not a lock.
 
 The clipboard is read only when you paste.
 

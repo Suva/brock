@@ -50,6 +50,7 @@
   import { capture } from "./picture.ts";
   import { readText, writeText } from "./system-clipboard.ts";
   import type { Live } from "./live.svelte.ts";
+  import { flagGlyph, flagName } from "../core/attention.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
 
   let {
@@ -1327,6 +1328,7 @@
           >
         {/if}
         {#if node.priority}<PriorityBadge priority={node.priority} />{/if}
+        {#if node.flag}<span class="flag {node.flag}" title={flagName(node.flag)} role="img" aria-label={flagName(node.flag)}>{flagGlyph(node.flag)}</span>{/if}
         {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
         {#if editing === node.id}
           <span
@@ -1591,6 +1593,23 @@
 
   .icon {
     flex: none;
+  }
+
+  .flag {
+    flex: none;
+    font-size: 0.85em;
+  }
+
+  .flag.ok {
+    color: var(--ok);
+  }
+
+  .flag.attention {
+    color: var(--warning);
+  }
+
+  .flag.critical {
+    color: var(--danger);
   }
 
   /* The selection ring, 2px outside the border. It is a box of its own rather
