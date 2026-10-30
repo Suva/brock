@@ -210,3 +210,19 @@ test("drawn downwards, nodes in a column go before and after by height, as on a 
   assert.equal(dropAt(vault, layout, b.id, p.x + 40, p.y + 10)!.onto, a2.id);
   void a1;
 });
+
+test("on a timeline events go before and after along the line, and a column by height", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "timeline" });
+  const [one, two] = ["one", "two"].map((title) => vault.addChild(vault.rootId, { title }));
+  const [a, b] = ["a", "b"].map((title) => vault.addChild(one.id, { title }));
+  const c = vault.addChild(two.id, { title: "c" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  const e = layout.byId.get(two.id)!;
+  const after = dropAt(vault, layout, c.id, e.x + 76, e.y + 10)!;
+  assert.deepEqual([after.parentId, after.index, after.side], [vault.rootId, 2, null]);
+  const p = layout.byId.get(b.id)!;
+  const above = dropAt(vault, layout, c.id, p.x + 40, p.y + 2)!;
+  assert.deepEqual([above.parentId, above.index], [one.id, 1]);
+  void a;
+});

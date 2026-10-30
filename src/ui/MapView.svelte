@@ -253,6 +253,11 @@
 
   /** The line from a parent to its child: a curve, or on a map drawn downwards, right angles from its bottom. */
   function edgeCurve(parent: Placed, p: Placed): string {
+    if (layout.timeline && !p.stacked) {
+      // From the line to the near edge of the event, down the side of its column.
+      const x = p.x + SPACING.stackIndent / 2;
+      return `M${x},0 V${p.y < 0 ? p.y + p.height : p.y}`;
+    }
     if (p.stacked) {
       // One line down the column's left, which each node's own joins.
       const [x1, y1] = [parent.x + SPACING.stackIndent / 2, parent.y + parent.height];
@@ -274,9 +279,17 @@
     return `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
   }
 
+  /** The line of a timeline, from the centre to past its last event. */
+  const axis = $derived.by(() => {
+    if (!layout.timeline || layout.placed.length < 2) return [];
+    const centre = layout.byId.get(mapId)!;
+    return [{ id: "axis", d: `M${centre.x + centre.width},0 H${layout.bounds.right + 32}`, colour: "var(--muted)", width: 3 }];
+  });
+
   /** A line from each parent's outer edge to its child's inner edge. */
-  const edges = $derived(
-    layout.placed
+  const edges = $derived([
+    ...axis,
+    ...layout.placed
       .filter((p) => p.depth > 0)
       .map((p) => {
         return {
@@ -286,7 +299,7 @@
           width: p.depth === 1 ? 3 : 2,
         };
       }),
-  );
+  ]);
 
   /**
    * Links: a dashed curve where both ends are drawn on this map, and the ends
@@ -357,8 +370,10 @@
       if (cameraOf === id) return;
       if (cameraOf !== null) cameras.set(cameraOf, camera);
       cameraOf = id;
-      // An org chart grows down from its centre, which starts near the top.
-      setCamera(cameras.get(id) ?? centreOn(0, layout.down ? height / 2 - 64 : 0, 1, width, height));
+      // An org chart grows down from its centre, which starts near the top; a
+      // timeline to the right of it, which starts near the left.
+      const start = layout.timeline ? [width / 2 - 160, 0] : [0, layout.down ? height / 2 - 64 : 0];
+      setCamera(cameras.get(id) ?? centreOn(start[0], start[1], 1, width, height));
       if (entering) enter(entering);
       entering = null;
     });
@@ -834,10 +849,10 @@
   });
 
   // A map drawn the other way is another shape: what was on screen says little.
-  let drawn: { mapId: string; down: boolean } | null = null;
+  let drawn: { mapId: string; style: string } | null = null;
   $effect(() => {
-    const now = { mapId, down: layout.down };
-    if (now.mapId === drawn?.mapId && now.down !== drawn.down) fitting = true;
+    const now = { mapId, style: `${layout.down} ${layout.timeline}` };
+    if (now.mapId === drawn?.mapId && now.style !== drawn.style) fitting = true;
     drawn = now;
   });
 

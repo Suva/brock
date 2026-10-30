@@ -16,6 +16,7 @@
   import WindowButtons from "./WindowButtons.svelte";
   import { removeTour, showTour } from "./tour.ts";
   import type { Command } from "../core/markdown.ts";
+  import type { MapLayout } from "../core/node.ts";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
   import { History, type Place } from "../core/history.ts";
   import { openText, savePNG, saveText, type FileKind } from "./files.ts";
@@ -212,15 +213,15 @@
     }
     return vault.rootId;
   });
-  /** Whether the open map is drawn as an org chart. */
-  const orgChart = $derived.by(() => {
+  /** How the open map is drawn. */
+  const mapLayout = $derived.by(() => {
     void version;
-    return vault.get(mapId)?.layout === "org";
+    return vault.get(mapId)?.layout ?? null;
   });
 
-  /** Draws the open map the other way, which shows on the map, not in the outline. */
-  function toggleLayout() {
-    vault.update(mapId, { layout: orgChart ? null : "org" });
+  /** Draws the open map this way, or as a mind map again; it shows on the map, not in the outline. */
+  function toggleLayout(layout: MapLayout) {
+    vault.update(mapId, { layout: mapLayout === layout ? null : layout });
     view = "map";
   }
 
@@ -404,11 +405,11 @@
   });
   const quit = () => void getCurrentWindow().close();
   const appMenuItems = $derived(
-    menuItems(menuActions, { view, orgChart, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone }, quit),
+    menuItems(menuActions, { view, layout: mapLayout, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone }, quit),
   );
   $effect(() => {
     menuChecks?.view(view);
-    menuChecks?.orgChart(orgChart);
+    menuChecks?.layout(mapLayout);
     menuChecks?.sidebar(sidebarOpen);
     menuChecks?.notes(notesOpen);
     menuChecks?.source(notesSource);
@@ -454,12 +455,14 @@
     } else if (key === "e" && !event.shiftKey && !event.altKey) {
       notesSource = !notesSource;
     } else if (event.altKey && event.code === "Digit1" && !event.shiftKey) {
-      // ⌥⌘1 to ⌥⌘3: ⌘1 to ⌘5 set priorities.
+      // ⌥⌘1 to ⌥⌘4: ⌘1 to ⌘5 set priorities.
       view = "map";
     } else if (event.altKey && event.code === "Digit2" && !event.shiftKey) {
       view = "outline";
     } else if (event.altKey && event.code === "Digit3" && !event.shiftKey) {
-      toggleLayout();
+      toggleLayout("org");
+    } else if (event.altKey && event.code === "Digit4" && !event.shiftKey) {
+      toggleLayout("timeline");
     } else {
       return;
     }

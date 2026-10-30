@@ -60,6 +60,9 @@ stolen laptop. A few days' work:
 
 ## Ways of drawing a map
 
+- A timeline goes in the tree's order, evenly spaced: it does not read dates.
+  Placing events by their due date, with the dates on the line, could come
+  next if that is what is wanted.
 - A board or week view, with the centre's children as columns, after this.
 
 ## Left from the menu bar

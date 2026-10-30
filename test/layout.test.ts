@@ -193,3 +193,48 @@ test("a column makes room in its row for what is deeper elsewhere", () => {
   assert.ok(at(b2.id).y > at(l3.id).y + 20, "the next row starts under the column");
   void l2;
 });
+
+function timeline() {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "timeline" });
+  const events = ["one", "two", "three", "four"].map((title) => vault.addChild(vault.rootId, { title }));
+  const under = vault.addChild(events[0].id, { title: "under" });
+  const deeper = vault.addChild(under.id, { title: "deeper" });
+  return { vault, events, under, deeper };
+}
+
+test("a timeline runs from its centre, by turns above and below the line", () => {
+  const { vault, events } = timeline();
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  assert.deepEqual([layout.timeline, layout.down], [true, true]);
+  const at = (id: string) => layout.byId.get(id)!;
+  const centre = at(vault.rootId);
+  assert.deepEqual([centre.x + centre.width / 2, centre.y + centre.height / 2], [0, 0]);
+
+  const placed = events.map((e) => at(e.id));
+  assert.ok(placed[0].y + 20 < 0 && placed[2].y + 20 < 0, "the first and third above the line");
+  assert.ok(placed[1].y > 0 && placed[3].y > 0, "the second and fourth below it");
+  assert.ok(placed[0].x > centre.x + centre.width, "after the centre");
+  for (let i = 1; i < 4; i++) assert.ok(placed[i].x > placed[i - 1].x, "in order along the line");
+  assert.ok(placed[2].x >= placed[0].x + 80, "each side keeps clear of itself");
+  assert.ok(placed.every((p) => !p.stacked));
+});
+
+test("on a timeline an event's title is on top, with all under it in a column", () => {
+  const { vault, events, under, deeper } = timeline();
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  const at = (id: string) => layout.byId.get(id)!;
+  assert.ok(at(under.id).y > at(events[0].id).y, "reading downwards, above the line too");
+  assert.ok(at(deeper.id).y > at(under.id).y);
+  assert.ok(at(deeper.id).y + 20 < 0, "and all of it above the line");
+  assert.ok(at(under.id).stacked && at(deeper.id).stacked);
+  assert.ok(at(under.id).x > at(events[0].id).x && at(deeper.id).x > at(under.id).x, "stepped in by level");
+  assert.equal(at(deeper.id).branch, 0);
+});
+
+test("a wide column pushes the next event on its side along the line", () => {
+  const { vault, events } = timeline();
+  const layout = layoutMap(vault, vault.rootId, (n) => ({ width: n.id === events[0].id ? 500 : 80, height: 20 }));
+  assert.ok(layout.byId.get(events[2].id)!.x >= layout.byId.get(events[0].id)!.x + 500);
+  assert.ok(layout.byId.get(events[1].id)!.x < layout.byId.get(events[2].id)!.x);
+});

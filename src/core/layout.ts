@@ -6,7 +6,9 @@
 // goes downwards instead, as an org chart: each level a row, a node centred
 // over its children. Nodes whose children are all leaves stack them in a
 // column under themselves, as org charts do: a row of every leaf would make
-// a chart of a few dozen nodes too wide to read.
+// a chart of a few dozen nodes too wide to read. A map with `layout:
+// "timeline"` runs along a straight line from its centre: its children in
+// order, by turns above and below the line, each with all under it in a column.
 //
 // Sizes come from outside (the window measures each node's text), so this is
 // pure and the same everywhere. Coordinates are in pixels at zoom 1, with the
@@ -26,13 +28,13 @@ export interface Placed {
   y: number;
   width: number;
   height: number;
-  /** Null for the centre, and on a map drawn downwards, which has no sides. */
+  /** Null for the centre, and on an org chart or timeline, which have no sides. */
   side: Side | null;
   /** 0 for the centre, 1 for its children and so on. */
   depth: number;
   /** Which child of the centre this node's branch starts from, in order; -1 for the centre. */
   branch: number;
-  /** Whether it is in a column with its siblings under their parent, on a map drawn downwards. */
+  /** Whether it is in a column under its parent, on an org chart or timeline. */
   stacked: boolean;
   /** Whether the node has children that are not drawn: folded away, or inside a map. */
   hidden: number;
@@ -40,8 +42,13 @@ export interface Placed {
 
 export interface Layout {
   centreId: string;
-  /** Whether it is drawn downwards, as an org chart, not out to both sides. */
+  /**
+   * Whether it has no sides: an org chart or a timeline, where siblings run
+   * from left to right, unless stacked, and a node's children are below it.
+   */
   down: boolean;
+  /** Whether it is a timeline, along the line through the centre's middle. */
+  timeline: boolean;
   /** Every node drawn, the centre first, each parent before its children. */
   placed: Placed[];
   byId: Map<string, Placed>;
@@ -71,6 +78,10 @@ export const SPACING = {
   centreBeside: 32,
   /** How far a stacked column starts to the right of its parent's left edge. */
   stackIndent: 18,
+  /** On a timeline: from the line to what is above or below it. */
+  stem: 40,
+  /** The least from one event to the next, along the line. */
+  step: 72,
 };
 
 /** `leaveOut`: nodes not to draw, with all under them, as done tasks when they are hidden. */
@@ -152,10 +163,51 @@ export function layoutMap(
       bounds.right = Math.max(bounds.right, p.x + p.width);
       bounds.bottom = Math.max(bounds.bottom, p.y + p.height);
     }
-    return { centreId, down: centre.layout === "org", placed, byId, bounds };
+    const timeline = centre.layout === "timeline";
+    return { centreId, down: timeline || centre.layout === "org", timeline, placed, byId, bounds };
   };
 
   const c = sizeOf(centre);
+
+  if (centre.layout === "timeline") {
+    put({ node: centre, x: -c.width / 2, y: -c.height / 2, width: c.width, height: c.height, side: null, depth: 0, branch: -1, stacked: false, hidden: 0 });
+    // Each side only has to keep clear of itself, so the two interlock.
+    const ends = [c.width / 2 + SPACING.centreAcross, c.width / 2 + SPACING.centreAcross];
+    let last = -Infinity;
+    shown(centre).forEach((event, i) => {
+      const column: { node: Node; depth: number }[] = [];
+      const collect = (node: Node, depth: number) => {
+        column.push({ node, depth });
+        for (const kid of shown(node)) collect(kid, depth + 1);
+      };
+      collect(event, 1);
+      const indent = (depth: number) => SPACING.stackIndent * (depth - 1);
+      const height = column.reduce((sum, { node }) => sum + sizeOf(node).height, 0) + SPACING.between * (column.length - 1);
+      const width = Math.max(...column.map(({ node, depth }) => indent(depth) + sizeOf(node).width));
+      const above = i % 2 === 0 ? 0 : 1;
+      const left = Math.max(ends[above], last + SPACING.step);
+      let y = above === 0 ? -SPACING.stem - height : SPACING.stem;
+      for (const { node, depth } of column) {
+        const s = sizeOf(node);
+        put({
+          node,
+          x: left + indent(depth),
+          y,
+          width: s.width,
+          height: s.height,
+          side: null,
+          depth,
+          branch: i,
+          stacked: depth > 1,
+          hidden: shown(node).length === 0 ? tree.children(node.id).length : 0,
+        });
+        y += s.height + SPACING.between;
+      }
+      ends[above] = left + width + SPACING.centreBeside;
+      last = left;
+    });
+    return finish();
+  }
 
   if (centre.layout === "org") {
     /** Whether a node's children go in a column. One child sits right under it, and the centre keeps its branches in a row. */

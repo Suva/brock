@@ -12,6 +12,7 @@
 // Commands about nodes are sent as the key they stand for, to whatever has
 // the focus, so that the map and the outline do what their keys do.
 
+import type { MapLayout } from "../core/node.ts";
 import { inTauri } from "../store/tauri-store.ts";
 import type { FileKind } from "./files.ts";
 
@@ -27,7 +28,7 @@ export interface MenuActions {
   search(): void;
   link(): void;
   view(view: "map" | "outline"): void;
-  toggleLayout(): void;
+  toggleLayout(layout: MapLayout): void;
   toggleSidebar(): void;
   showTasks(): void;
   toggleNotes(): void;
@@ -44,7 +45,7 @@ export interface MenuActions {
 /** What the window tells the menu as it changes, for its check marks. */
 export interface MenuChecks {
   view(view: "map" | "outline"): void;
-  orgChart(on: boolean): void;
+  layout(layout: MapLayout | null): void;
   sidebar(open: boolean): void;
   notes(open: boolean): void;
   source(on: boolean): void;
@@ -92,7 +93,8 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
 
   const mapItem = await check("Map", () => a.view("map"), "Alt+CmdOrCtrl+1");
   const outlineItem = await check("Outline", () => a.view("outline"), "Alt+CmdOrCtrl+2");
-  const orgChartItem = await check("Draw as Org Chart", a.toggleLayout, "Alt+CmdOrCtrl+3");
+  const orgChartItem = await check("Draw as Org Chart", () => a.toggleLayout("org"), "Alt+CmdOrCtrl+3");
+  const timelineItem = await check("Draw as Timeline", () => a.toggleLayout("timeline"), "Alt+CmdOrCtrl+4");
   const sidebarItem = await check("Sidebar", a.toggleSidebar, mac() ? "Ctrl+Cmd+S" : "Ctrl+Shift+S");
   const notesItem = await check("Notes", a.toggleNotes, "CmdOrCtrl+Shift+N");
   const sourceItem = await check("Notes as Markdown Source", a.toggleSource, "CmdOrCtrl+E");
@@ -167,6 +169,7 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         mapItem,
         outlineItem,
         orgChartItem,
+        timelineItem,
         await line(),
         sidebarItem,
         await item("Tasks", a.showTasks, "CmdOrCtrl+Shift+T"),
@@ -236,7 +239,10 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
       mapItem.setChecked(v === "map");
       outlineItem.setChecked(v === "outline");
     },
-    orgChart: (on) => orgChartItem.setChecked(on),
+    layout: (l) => {
+      orgChartItem.setChecked(l === "org");
+      timelineItem.setChecked(l === "timeline");
+    },
     sidebar: (open) => sidebarItem.setChecked(open),
     notes: (open) => notesItem.setChecked(open),
     source: (on) => sourceItem.setChecked(on),

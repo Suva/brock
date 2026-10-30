@@ -7,7 +7,9 @@
 // centre. Nearest on screen alone would pick a node of
 // a deeper level that happens to sit a little higher over a sibling. On a map
 // drawn downwards the same turns a quarter: up and down follow the tree, left
-// and right go along the rows. Nodes stacked in a column go up and down it.
+// and right go along the rows. Nodes stacked in a column go up and down it. On
+// a timeline left and right go along the line, and up and down through an
+// event's column.
 
 import type { Layout, Placed } from "./layout.ts";
 
@@ -16,6 +18,8 @@ export type Direction = "up" | "down" | "left" | "right";
 export function neighbour(layout: Layout, id: string, direction: Direction): string | null {
   const from = layout.byId.get(id);
   if (!from) return null;
+  if (layout.timeline && from.depth === 0) return direction === "right" ? (layout.placed[1]?.node.id ?? null) : null;
+  if (layout.timeline && (direction === "up" || direction === "down")) return alongColumn(layout, from, direction);
   if (layout.down) {
     if (direction === "left" || direction === "right") return alongRow(layout, from, direction);
     if (from.stacked) return alongStack(layout, from, direction);
@@ -68,6 +72,12 @@ function childBelow(layout: Layout, from: Placed): string | null {
   return best?.node.id ?? null;
 }
 
+/** On a timeline: the next in the event's column, its title first. */
+function alongColumn(layout: Layout, from: Placed, direction: "up" | "down"): string | null {
+  const column = layout.placed.filter((p) => p.branch === from.branch);
+  return column[column.indexOf(from) + (direction === "up" ? -1 : 1)]?.node.id ?? null;
+}
+
 /** The next in the column; past the top, its parent. */
 function alongStack(layout: Layout, from: Placed, direction: "up" | "down"): string | null {
   const column = layout.placed.filter((p) => p.node.parentId === from.node.parentId);
@@ -85,13 +95,16 @@ function alongRow(layout: Layout, from: Placed, direction: "left" | "right"): st
   const far = (p: Placed) => Math.hypot(middleX(p) - middleX(from), middleY(p) - middleY(from));
   const nearest = (candidates: Placed[]) =>
     candidates.reduce<Placed | null>((best, p) => (!best || far(p) < far(best) ? p : best), null);
-  const sibling = nearest(ahead.filter((p) => p.node.parentId === from.node.parentId));
+  // Siblings go by order along the row or line, wherever each sits on it.
+  const sibling = ahead
+    .filter((p) => p.node.parentId === from.node.parentId)
+    .reduce<Placed | null>((best, p) => (!best || Math.abs(middleX(p) - middleX(from)) < Math.abs(middleX(best) - middleX(from)) ? p : best), null);
   if (sibling) return sibling.node.id;
   for (let depth = from.depth; depth > 0; depth--) {
     const inRow = nearest(ahead.filter((p) => p.depth === depth));
     if (inRow) return inRow.node.id;
   }
-  return null;
+  return layout.timeline && direction === "left" ? layout.centreId : null;
 }
 
 /** The nearest node above or below on screen on the same side, no deeper than this one. */

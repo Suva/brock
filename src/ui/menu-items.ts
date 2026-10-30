@@ -2,6 +2,7 @@
 // where the window has no menu bar of its own (see chrome.ts). The same
 // commands as app-menu.ts, which makes the native menu bar elsewhere.
 
+import type { MapLayout } from "../core/node.ts";
 import { cmd, press, type MenuActions } from "./app-menu.ts";
 
 export type Item =
@@ -12,7 +13,7 @@ export type Item =
 /** What the window is showing, for the check marks. */
 export interface MenuState {
   view: "map" | "outline";
-  orgChart: boolean;
+  layout: MapLayout | null;
   sidebar: boolean;
   notes: boolean;
   source: boolean;
@@ -83,7 +84,8 @@ export function menuItems(a: MenuActions, s: MenuState, quit: () => void): Item[
       items: [
         { label: "Map", run: () => a.view("map"), hint: "Alt+Ctrl+1", checked: s.view === "map" },
         { label: "Outline", run: () => a.view("outline"), hint: "Alt+Ctrl+2", checked: s.view === "outline" },
-        { label: "Draw as Org Chart", run: a.toggleLayout, hint: "Alt+Ctrl+3", checked: s.orgChart },
+        { label: "Draw as Org Chart", run: () => a.toggleLayout("org"), hint: "Alt+Ctrl+3", checked: s.layout === "org" },
+        { label: "Draw as Timeline", run: () => a.toggleLayout("timeline"), hint: "Alt+Ctrl+4", checked: s.layout === "timeline" },
         line,
         { label: "Sidebar", run: a.toggleSidebar, hint: "Ctrl+Shift+S", checked: s.sidebar },
         { label: "Tasks", run: a.showTasks, hint: "Ctrl+Shift+T" },

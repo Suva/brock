@@ -3,6 +3,9 @@
 
 export type Side = "left" | "right";
 
+/** A way of drawing a map other than out to both sides. */
+export type MapLayout = "org" | "timeline";
+
 export interface Node {
   id: string;
   /** Null only for the top node of the vault. */
@@ -42,9 +45,10 @@ export interface Node {
   due: string | null;
   /**
    * How a map is drawn: "org" for downwards from its centre, as an org chart,
-   * or null for out to both sides. Only a map's centre reads it.
+   * "timeline" along a line from it, or null for out to both sides. Only a
+   * map's centre reads it.
    */
-  layout: "org" | null;
+  layout: MapLayout | null;
   /** Milliseconds since 1970, as `Date.now()` gives them. */
   createdAt: number;
   updatedAt: number;

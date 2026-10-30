@@ -9,7 +9,7 @@
 // under one node, as one step that can be undone.
 
 import { newBranch } from "./branches.ts";
-import type { Node } from "./node.ts";
+import type { MapLayout, Node } from "./node.ts";
 import type { Vault } from "./vault.ts";
 
 /** A branch as it goes out and comes in, independent of the vault's ids. */
@@ -27,7 +27,7 @@ export interface Outline {
   doneAt: number | null;
   priority: number | null;
   due: string | null;
-  layout: "org" | null;
+  layout: MapLayout | null;
   children: Outline[];
 }
 
@@ -229,7 +229,7 @@ function checked(raw: unknown): Outline {
     doneAt: typeof o.doneAt === "number" ? o.doneAt : null,
     priority: typeof o.priority === "number" && o.priority >= 1 && o.priority <= 5 ? Math.round(o.priority) : null,
     due: typeof o.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.due) ? o.due : null,
-    layout: o.layout === "org" ? "org" : null,
+    layout: o.layout === "org" || o.layout === "timeline" ? o.layout : null,
     children: Array.isArray(o.children) ? o.children.map(checked) : [],
   };
 }

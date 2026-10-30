@@ -118,3 +118,25 @@ test("drawn downwards, a column goes up and down, and off to either side", () =>
   assert.equal(neighbour(layout, a2.id, "right"), b2.id, "the node level with it");
   assert.equal(neighbour(layout, b1.id, "left"), a1.id);
 });
+
+test("on a timeline left and right go along the line, up and down through a column", () => {
+  const vault = new Vault([]);
+  vault.update(vault.rootId, { layout: "timeline" });
+  const [one, two, three] = ["one", "two", "three"].map((title) => vault.addChild(vault.rootId, { title }));
+  const under = vault.addChild(one.id, { title: "under" });
+  const deeper = vault.addChild(under.id, { title: "deeper" });
+  const layout = layoutMap(vault, vault.rootId, () => ({ width: 80, height: 20 }));
+  assert.equal(neighbour(layout, vault.rootId, "right"), one.id);
+  assert.equal(neighbour(layout, vault.rootId, "left"), null);
+  assert.equal(neighbour(layout, vault.rootId, "down"), null);
+  assert.equal(neighbour(layout, one.id, "right"), two.id, "the next in order, on the other side of the line");
+  assert.equal(neighbour(layout, two.id, "right"), three.id);
+  assert.equal(neighbour(layout, three.id, "right"), null);
+  assert.equal(neighbour(layout, two.id, "left"), one.id);
+  assert.equal(neighbour(layout, one.id, "left"), vault.rootId);
+  assert.equal(neighbour(layout, one.id, "down"), under.id);
+  assert.equal(neighbour(layout, under.id, "down"), deeper.id);
+  assert.equal(neighbour(layout, deeper.id, "down"), null);
+  assert.equal(neighbour(layout, deeper.id, "up"), under.id);
+  assert.equal(neighbour(layout, one.id, "up"), null);
+});

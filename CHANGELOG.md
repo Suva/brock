@@ -8,6 +8,7 @@ and appear there once they are.
 ## Not released yet
 
 - Clicking away from a new node before typing anything now takes it back, instead of leaving an empty "Idea" behind.
+- **Timelines.** A map can also run along a straight line from its centre, its nodes by turns above and below it: choose Timeline under Style, or press ⌥⌘4. ⌥← and ⌥→ move a node along the line.
 - **Org charts.** Any map can be drawn downwards from its centre, each level in a row, joined by straight lines: select its centre and choose Org chart under Style in the notes panel, or press ⌥⌘3. Each map keeps its own, and the arrow keys, ⌥ with the arrows and dragging follow the new shape.
 - **Due dates.** Any node can have a date: set it under Due in the notes panel, and the × beside it takes it away. Tasks with a date show it in the Tasks tab, in orange on the day and in red once it has passed, and within a priority the soonest due comes first.
 
