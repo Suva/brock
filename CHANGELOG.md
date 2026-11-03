@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+- Done tasks in the Tasks tab have a group of their own for last week, between This week and Earlier. Point at a done task to see the day and time it was done.
+
 ## 0.7.0 — 30 October 2026
 
 - **A smaller vault.** The history used to keep a record for every letter typed, which made up most of the vault: a vault of two and a half thousand nodes took 17 MB, nearly all of it history. Typing in a node is now one entry, and a while after the app starts, and daily, it joins the old entries and gives the space back, quietly in the background and without a pause you would notice. In a test on a copy of a real vault, 18 MB became 3.4 MB with nothing lost but the individual letters.

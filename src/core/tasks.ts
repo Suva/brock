@@ -190,18 +190,19 @@ export function dueLabel(node: Pick<Node, "due" | "task">, now: number, locale?:
 }
 
 /** When a task was done, as the tasks panel groups them. */
-export type DoneWhen = "today" | "yesterday" | "week" | "earlier";
+export type DoneWhen = "today" | "yesterday" | "week" | "lastWeek" | "earlier";
 
 export const DONE_WHEN: { when: DoneWhen; label: string }[] = [
   { when: "today", label: "Today" },
   { when: "yesterday", label: "Yesterday" },
   { when: "week", label: "This week" },
+  { when: "lastWeek", label: "Last week" },
   { when: "earlier", label: "Earlier" },
 ];
 
 /**
  * When `doneAt` was, by the calendar of this computer's time zone, seen at
- * `now`: today, yesterday, earlier this week or before it. Weeks start on
+ * `now`: today, yesterday, earlier this week, last week or before it. Weeks start on
  * `weekStart`, 0 for Sunday to 6 for Saturday. A time a little ahead of
  * `now`, from a clock set back, counts as today; one never set, as before.
  */
@@ -214,8 +215,19 @@ export function doneWhen(doneAt: number | null, now: number, weekStart = 1): Don
   // summer time would get wrong.
   const daysBefore = (n: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() - n).getTime();
   if (doneAt >= daysBefore(1)) return "yesterday";
-  if (doneAt >= daysBefore((today.getDay() - weekStart + 7) % 7)) return "week";
+  const intoWeek = (today.getDay() - weekStart + 7) % 7;
+  if (doneAt >= daysBefore(intoWeek)) return "week";
+  if (doneAt >= daysBefore(intoWeek + 7)) return "lastWeek";
   return "earlier";
+}
+
+/**
+ * The day and time a task was done, in full, for hovering over it: the
+ * groups say only roughly when. Null for one done before times were kept.
+ */
+export function doneOn(doneAt: number | null, locale?: string): string | null {
+  if (doneAt === null) return null;
+  return new Date(doneAt).toLocaleString(locale, { dateStyle: "full", timeStyle: "short" });
 }
 
 /** Done tasks grouped by when they were done, latest group first; empty groups left out. */

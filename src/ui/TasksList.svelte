@@ -2,7 +2,7 @@
   Tasks, in the sidebar's Tasks tab (⇧⌘T): the tasks still to do in the open
   map, maps inside it included, or in all of them, grouped by the map they
   are in; the ones done fold away at the bottom, grouped by when they were
-  done (today, yesterday, this week, earlier), each group with its own Clear.
+  done (today, yesterday, this week, last week, earlier), each group with its own Clear.
   A task with a due date shows it at the end of its row, marked on the day
   and once it has passed. Within a priority, the soonest due comes first.
   Ticking works here as on the map, and a click on a task goes to it.
@@ -10,7 +10,7 @@
 <script lang="ts">
   import type { Node } from "../core/node.ts";
   import { onMount } from "svelte";
-  import { clearDone, dueLabel, groupDone, tasksUnder, type DoneWhen } from "../core/tasks.ts";
+  import { clearDone, doneOn, dueLabel, groupDone, tasksUnder, type DoneWhen } from "../core/tasks.ts";
   import PriorityBadge from "./PriorityBadge.svelte";
   import type { Live } from "./live.svelte.ts";
 
@@ -75,6 +75,7 @@
 
 {#snippet task(node: Node, map: Node)}
   {@const due = dueLabel(node, now)}
+  {@const closed = node.task === "done" ? doneOn(node.doneAt) : null}
   <li class:done={node.task === "done"}>
     <input
       type="checkbox"
@@ -83,7 +84,7 @@
       tabindex="-1"
       onchange={(e) => vault.tick(node.id, e.currentTarget.checked)}
     />
-    <button class="title" tabindex="-1" onclick={() => onGoTo(node.id)} title="Go to it">
+    <button class="title" tabindex="-1" onclick={() => onGoTo(node.id)} title={closed ? `Done ${closed}. Go to it` : "Go to it"}>
       {#if node.priority}<PriorityBadge priority={node.priority} />{/if}
       {label(node)}
       {#if under(node, map)}<span class="under">{under(node, map)}</span>{/if}
@@ -142,7 +143,7 @@
                 class="clear"
                 tabindex="-1"
                 onclick={() => clear(group.when)}
-                title="Move the tasks {where()} done {group.label === 'Earlier' ? 'before this week' : group.label.toLowerCase()} to the trash; ⌘Z brings them back. A done task stays while one done at another time, or an open one, is under it."
+                title="Move the tasks {where()} done {group.when === 'earlier' ? 'before last week' : group.label.toLowerCase()} to the trash; ⌘Z brings them back. A done task stays while one done at another time, or an open one, is under it."
                 >Clear</button
               >
             </div>

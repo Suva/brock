@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clearDone, doneToHide, doneWhen, dueLabel, groupDone, priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
+import { clearDone, doneOn, doneToHide, doneWhen, dueLabel, groupDone, priorityRank, progressUnder, setPriority, tasksUnder } from "../src/core/tasks.ts";
 import { layoutMap } from "../src/core/layout.ts";
 import { Vault } from "../src/core/vault.ts";
 
@@ -180,14 +180,17 @@ test("done tasks are grouped by the day they were done, in local time", () => {
   assert.equal(doneWhen(now + 60_000, now), "today", "a clock a little behind");
   assert.equal(doneWhen(at(20, 23), now), "yesterday");
   assert.equal(doneWhen(at(19, 9), now), "week", "Monday");
-  assert.equal(doneWhen(at(18), now), "earlier", "Sunday is last week");
+  assert.equal(doneWhen(at(18), now), "lastWeek", "Sunday is last week");
+  assert.equal(doneWhen(at(12, 0), now), "lastWeek", "from its Monday");
+  assert.equal(doneWhen(at(11, 23), now), "earlier", "and not before it");
   assert.equal(doneWhen(at(18), now, 0), "week", "unless weeks start on Sunday");
   assert.equal(doneWhen(null, now), "earlier", "done before times were kept");
 
   // On a Monday, yesterday is last week, and this week holds only today.
   const monday = new Date(2026, 9, 19, 10).getTime();
   assert.equal(doneWhen(at(18), monday), "yesterday");
-  assert.equal(doneWhen(at(17), monday), "earlier");
+  assert.equal(doneWhen(at(17), monday), "lastWeek");
+  assert.equal(doneWhen(at(11), monday), "earlier");
 
   const vault = new Vault([]);
   const task = (title: string, doneAt: number) => ({
@@ -199,6 +202,13 @@ test("done tasks are grouped by the day they were done, in local time", () => {
     [["Today", ["A", "C"]], ["Earlier", ["B"]]],
     "in order, empty groups left out, the order within kept",
   );
+});
+
+test("the time a task was done reads in full", () => {
+  const at = new Date(2026, 9, 21, 15, 30).getTime();
+  // The punctuation differs between versions of the date library, so not that.
+  assert.match(doneOn(at, "en-GB")!, /^Wednesday,? 21 October 2026 at 15:30$/);
+  assert.equal(doneOn(null), null, "done before times were kept");
 });
 
 test("due dates read as days near today, and overdue once they have passed", () => {

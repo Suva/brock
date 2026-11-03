@@ -169,8 +169,9 @@ The sidebar on the left, opened by the small tab on the left edge or ⌃⌘S,
 lists places in the vault to go to, as three tabs:
 Maps, every map as a tree with what each holds, History, which is told below,
 and Tasks, what is still to do, grouped by map, with what is done folded away at the bottom. Done tasks
-are grouped by when they were done: today, yesterday, this week and earlier,
-handy for a stand-up or for reporting time. Each group has its own Clear,
+are grouped by when they were done: today, yesterday, this week, last week and
+earlier, handy for a stand-up or for reporting time; pointing at one shows the
+day and time it was done. Each group has its own Clear,
 which moves its tasks to the trash, so last week's can go while this week's
 stay. Tick tasks there, or click one to go to it. The panel on the right is about the selected
 node, so a task's notes show beside the list.

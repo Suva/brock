@@ -166,7 +166,7 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
     body: notes("The checkbox button at the top, beside the magnifier, hides done tasks on the map, or **⇧⌘H**. Nothing is deleted."),
   });
   add(tasks, "Open the Tasks tab", { task: "done", doneAt: now, body: notes("Done today: it's under **Today** in the sidebar's [Tasks tab](brock:tasks).") });
-  add(tasks, "Grouped by day", { task: "done", doneAt: now - DAY, body: notes("Done yesterday.") });
+  add(tasks, "Grouped by day", { task: "done", doneAt: now - DAY, body: notes("Done yesterday. In the Tasks tab, point at a done task to see the day and time it was done.") });
   add(tasks, "Clear a group", {
     task: "done",
     doneAt: now - 8 * DAY,

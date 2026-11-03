@@ -32,7 +32,7 @@ test("the demo's tour is a vault the app opens as it is", () => {
   const done = tasksUnder(vault, vault.rootId).done;
   assert.deepEqual(
     groupDone(done, now).map((g) => g.label),
-    ["Today", "Yesterday", "Earlier"],
+    ["Today", "Yesterday", "Last week"],
     "the Tasks tab shows its groups",
   );
 
