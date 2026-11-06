@@ -343,7 +343,8 @@ agent picks it up, does it and moves it on. Builds on the Agents section above.
 
 Take maps to a phone, or another computer, and bring them back, with no
 service between the devices. Nothing leaves the computer unless the user pairs
-a device or picks a place to share through.
+a device or picks a place to share through. Sharing with other people is
+different, and has a service of its own (see Sharing maps).
 
 - **Identity.** Each device makes a keypair on its first start; its public key
   is its identity. Trust is a list of paired devices, each with the maps it may
@@ -366,9 +367,6 @@ a device or picks a place to share through.
   relay the user hosts (WebDAV, S3 or a small server) that holds only
   encrypted log segments; direct connections last, and probably left to a
   tunnel such as Tailscale.
-- **Sharing a map with another person** is a step beyond one's own devices: the
-  map gets its own key, encrypted for each recipient's public key, and
-  revoking someone means a new key and encrypting again. After the first.
 - **To decide first:** how conflicts merge (per node, last writer wins, which
   loses edits within notes, or a text merge for notes); how long the log is
   kept (until every paired device has seen an entry, then compacted; see
@@ -377,6 +375,83 @@ a device or picks a place to share through.
 - **Order:** the log entries' new fields and applying changes made elsewhere
   (shared with the agents work); pairing and the handshake; exchange over the
   network; then folders, then a relay.
+
+## Sharing maps (an idea, not started)
+
+Share a map with other people through a service run for Brock on Cloudflare,
+first as a link to read, then to edit together. The service holds maps only
+encrypted. Sharing is off until someone uses it, and the app goes on working
+fully without a network.
+
+- **What runs where.** A Worker is the public API: it checks access, enforces
+  limits and passes requests on. R2 holds encrypted snapshots of maps and the
+  shares to read. One Durable Object per map orders its edits, keeps the recent
+  ones and connects the people editing. D1 holds the accounts, and what each
+  has shared and how much.
+- **Not K2.** Cloudflare's event streaming looks made for the change log, but it
+  keeps records for 30 days at most, allows 20 streams per account and 100
+  subscriptions per stream, and its tokens cannot go in an app given to the
+  public. A service would still need Workers in front and snapshots beside it,
+  and a Durable Object per map already gives an ordered log and live
+  connections. These are K2's limits in its public beta, so look again if the
+  service outgrows Durable Objects.
+- **Accounts, to limit what each person shares.** Sharing needs an account;
+  the app does not, and neither does opening a read-only link. Sign-in is a code
+  sent by email, with no password, which suits a desktop app and leaves no
+  passwords to guard. The Worker counts each account's shares and stored bytes,
+  which it can do without reading anything, and refuses what goes over. An
+  account has nothing to do with the maps' keys, so it opens no map, and losing
+  one loses no key held in a link. Its session is kept by Rust, not in the
+  window's storage. People need a way to delete their account and its shares.
+- **End-to-end encryption.** The app encrypts a map before it is uploaded, and
+  only the recipient decrypts it. The key travels in the link's `#fragment`,
+  which browsers do not send to a server, so neither Cloudflare nor the service
+  can read a map.
+- **What that does not cover,** which the README must say when this ships:
+  - In a browser, the website delivers the code that decrypts, so someone
+    opening a link there trusts the site and its host as well. The app does not
+    have this weakness.
+  - The link is the key: whoever gets the whole link can read the map, and it
+    stays in browser history and in the chat it was sent through.
+  - The service sees metadata: email addresses, which shares belong to whom,
+    network addresses, when people connect, how large a map is, how often it
+    changes, and which devices share it.
+  - Removing someone protects later edits only; they keep what they have seen.
+- **The server cannot read edits, so it cannot merge them.** It orders and
+  relays; merging and snapshots happen in the apps, and there is no search or
+  preview on the server. So how notes merge is decided before editing together
+  starts (see Syncing devices).
+- **A share shows that map and nothing more.** Export closes what leads
+  elsewhere, as `core/agent.ts` does for agents: portals to maps not shared,
+  links to nodes outside the map, and `file:` links. A shared map opens with the
+  rules notes already have, never as HTML.
+- **Running a service brings:**
+  - Abuse: accounts carry the limits, but anyone can make another with a
+    throwaway address, so rate limits stay, and shares nobody opens expire.
+  - Takedowns: encrypted shares cannot be read, but there has to be a way to
+    report one, delete it by its id and block the account behind it.
+  - Personal data: email addresses make this a service holding people's data,
+    which needs a privacy notice, and a way of sending the codes.
+  - Cost: every person's use is paid for by the service. Estimate it from
+    Cloudflare's current pricing before launch, and set the limits with it.
+  - The promises: the README's "your vault never leaves your computer" changes
+    with the first step, and has to say what is uploaded, when, and that it is
+    encrypted.
+- **Order:**
+  1. Read-only links: a Worker, R2 and D1, with accounts and their limits. The
+     app encrypts the map and uploads it, and the share belongs to the account
+     that made it, which can update or delete it. The website opens it from
+     `brock.clysuva.com/s/<id>#<key>`, with no sign-in. This also tries upload,
+     limits and abuse at low risk.
+  2. The sync groundwork, in the app only: device ids, logical timestamps, an id
+     for each change so that applying one twice does nothing, applying changes
+     made elsewhere, and how notes merge. Agents and syncing one's own devices
+     use the same work.
+  3. Editing together: a Durable Object per map, invites and snapshots. Each map
+     has its own key, which an invite link carries as a read-only link does.
+     Everyone editing signs in, and a map counts against its owner's limits.
+     Removing someone shuts their account out at once; a new key and encrypting
+     again keeps them out of later edits even if they copied the key.
 
 ## A phone app (an idea, not started)
 
