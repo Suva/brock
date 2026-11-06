@@ -114,7 +114,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `CHANGELOG.md` | What each release changes, for the people using it; the website's "What's new" and the releases' notes |
 | `scripts/changelog.mjs` | Reads `CHANGELOG.md`: dates a release, gives a version's notes, writes the "What's new" page |
 | `src-tauri/src/db.rs` | The SQLite database: schema and its migrations, saving, loading, the log with who made each change, typing joined as it is written, and its reading for the History tab, a full-text search not used yet |
-| `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses |
+| `src-tauri/src/lib.rs` | The app: where the vault is, the commands the window calls, the dialogs of export and import, the opener for web addresses, a touchpad's pinch on Linux handed to the map |
 | `brand/` | The logo and the icon, kept out of the app's package. `brock-logo.svg` and `brock-logo-plain.svg` are the logo with its wordmark, on a tile with a grey surround and on plain black. `brock-icon.svg` is the app icon: the logo without the wordmark, with two more branches where the word was. Every size is made from it with `npx tauri icon brand/brock-icon.svg -o src-tauri/icons`; delete the `android` and `ios` folders that makes, and copy `64x64.png` to `static/favicon.png` |
 | `src-tauri/src/maintenance.rs` | Keeping the vault small in the background: joining old typing in the log, and giving free space back, in small steps on its own connection |
 | `src-tauri/src/agent.rs` | The door agents knock on: a loopback listener while agents are allowed, `agent.json` with its port and secret, and one request per connection passed to the window |

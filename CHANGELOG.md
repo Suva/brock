@@ -8,6 +8,7 @@ and appear there once they are.
 ## Not released yet
 
 - Done tasks in the Tasks tab have a group of their own for last week, between This week and Earlier. Point at a done task to see the day and time it was done.
+- On Linux, pinching a touchpad zooms the map, as on a Mac, rather than the whole window.
 
 ## 0.7.0 — 30 October 2026
 

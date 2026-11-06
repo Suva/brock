@@ -538,7 +538,9 @@
         setCamera({ ...camera, x: camera.x - e.deltaX * unit, y: camera.y - e.deltaY * unit });
       }
     };
-    // ...and as gestures in WebKit, the engine on macOS and Linux.
+    // ...and as gestures in WebKit on a Mac. On Linux the app sends the same
+    // gestures itself (pinch_zooms_the_map in lib.rs), as WebKitGTK zooms the
+    // whole window instead.
     let scale = 1;
     const onGestureStart = (e: Event) => {
       e.preventDefault();

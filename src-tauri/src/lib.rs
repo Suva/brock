@@ -308,6 +308,41 @@ mod tests {
     }
 }
 
+/// On Linux the webview zooms the whole window when a touchpad is pinched, and
+/// tells the page nothing. The pinch is caught before the webview sees it and
+/// handed to the page as the gesture events WebKit sends on a Mac, which the
+/// map already turns into its own zoom; elsewhere in the window it does nothing.
+#[cfg(target_os = "linux")]
+fn pinch_zooms_the_map(window: tauri::WebviewWindow) {
+    use gtk::gdk::{EventTouchpadPinch, EventType};
+    use gtk::glib::Propagation;
+    use gtk::prelude::*;
+    let page = window.clone();
+    let _ = window.with_webview(move |webview| {
+        // Handlers of "event" run before the webview's own, which is where
+        // it zooms; stopping here keeps it from ever seeing the pinch.
+        webview.inner().connect_event(move |view, event| {
+            if event.event_type() != EventType::TouchpadPinch {
+                return Propagation::Proceed;
+            }
+            let Some(pinch) = event.downcast_ref::<EventTouchpadPinch>() else {
+                return Propagation::Stop;
+            };
+            // The scale is measured from the pinch's start, where it is 1,
+            // as a gesture's is. The position is the webview's own, in the
+            // page's pixels, when the event is on its window.
+            let (x, y) = if event.window() == view.window() { pinch.position() } else { (-1.0, -1.0) };
+            let scale = pinch.scale();
+            let _ = page.eval(&format!(
+                "(() => {{ const t = document.elementFromPoint({x}, {y}); if (!t) return; \
+                 const e = new Event({scale} === 1 ? 'gesturestart' : 'gesturechange', {{ bubbles: true, cancelable: true }}); \
+                 Object.assign(e, {{ scale: {scale}, clientX: {x}, clientY: {y} }}); t.dispatchEvent(e); }})()"
+            ));
+            Propagation::Stop
+        });
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -362,6 +397,10 @@ pub fn run() {
             let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
             let _ = std::fs::remove_file(dir.join(agent::FILE));
             app.manage(Agents { dir, door: Mutex::new(None), waiting: Arc::default(), count: Arc::default() });
+            #[cfg(target_os = "linux")]
+            if let Some(window) = app.get_webview_window("main") {
+                pinch_zooms_the_map(window);
+            }
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(SHOW_ANYWAY);

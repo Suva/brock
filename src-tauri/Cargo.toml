@@ -41,3 +41,8 @@ strip = true
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
+
+# A touchpad's pinch, caught before the webview zooms the whole window with it
+# and handed to the map (pinch_zooms_the_map in lib.rs). The version Tauri uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
