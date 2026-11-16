@@ -38,8 +38,9 @@ export interface MenuActions {
   toggleNotes(): void;
   toggleSource(): void;
   toggleHideDone(): void;
-  /** Split View: a second pane, or back to one. */
-  toggleSplit(): void;
+  /** Splits the active pane in two. */
+  splitPane(): void;
+  /** Closes the active pane, when there are more. */
   closePane(): void;
   back(): void;
   forward(): void;
@@ -57,7 +58,6 @@ export interface MenuChecks {
   notes(open: boolean): void;
   source(on: boolean): void;
   hideDone(on: boolean): void;
-  split(on: boolean): void;
 }
 
 const mac = () => navigator.platform.startsWith("Mac");
@@ -108,7 +108,6 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
   const notesItem = await check("Notes", a.toggleNotes, "CmdOrCtrl+Shift+N");
   const sourceItem = await check("Notes as Markdown Source", a.toggleSource, "CmdOrCtrl+E");
   const hideDoneItem = await check("Hide Done Tasks", a.toggleHideDone, "CmdOrCtrl+Shift+H");
-  const splitItem = await check("Split View", a.toggleSplit, "CmdOrCtrl+Shift+D");
 
   const priorities = await Submenu.new({
     text: "Priority",
@@ -194,10 +193,11 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         sourceItem,
         hideDoneItem,
         await line(),
-        splitItem,
-        await item("Close This Pane", a.closePane),
+        await item("Split This Pane", a.splitPane, "CmdOrCtrl+Shift+D"),
+        await item("Close This Pane", a.closePane, "CmdOrCtrl+Shift+W"),
         // ⌃Tab is named, not taken: a key with Tab is the page's.
-        await item(`Other Pane (${mac() ? "⌃Tab" : "Ctrl+Tab"})`, () => press({ key: "Tab", ctrlKey: true })),
+        await item(`Next Pane (${mac() ? "⌃Tab" : "Ctrl+Tab"})`, () => press({ key: "Tab", ctrlKey: true })),
+        await item(`Previous Pane (${mac() ? "⌃⇧Tab" : "Ctrl+Shift+Tab"})`, () => press({ key: "Tab", ctrlKey: true, shiftKey: true })),
         await line(),
         await item("Back", a.back, "CmdOrCtrl+["),
         await item("Forward", a.forward, "CmdOrCtrl+]"),
@@ -270,6 +270,5 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
     notes: (open) => notesItem.setChecked(open),
     source: (on) => sourceItem.setChecked(on),
     hideDone: (on) => hideDoneItem.setChecked(on),
-    split: (on) => splitItem.setChecked(on),
   };
 }

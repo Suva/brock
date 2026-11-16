@@ -75,6 +75,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/main.ts` | Opens the store and the vault, and the window |
 | `src/ui/live.svelte.ts` | The vault and saver made reactive for Svelte |
 | `src/ui/App.svelte` | The window: breadcrumbs, the panes and split view, notes, the undo keys |
+| `src/ui/tiling.ts` | How the panes share the room: a tree of splits, where each pane goes, the lines between them, splitting and closing |
 | `src/ui/pane.svelte.ts` | A pane of the window: its open map, the node selected and edited there, map or outline, back and forward; one for now, two with split view |
 | `src/ui/app-menu.ts` | The menu bar in the app: every command and its key |
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
@@ -242,11 +243,16 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   `others`, chosen with it; the notes show the active pane's `selected`. Commands that make sense for several act on `topmost` of them
   (from `moves.ts`), so a branch is moved or deleted with its top, and as
   one step; the rest act on `selected`. The outline has one selected row.
-- **Two panes, one vault.** Split view (⇧⌘D) shows two panes over the one
-  vault, saver and undo; an edit in either shows in both. What belongs to one
+- **Panes, one vault.** Split view (⇧⌘D, again for each further split) shows
+  panes over the one vault, saver and undo; an edit in any shows in all. How
+  they share the room is a tree (`tiling.ts`), whose leaves are places in the
+  list of panes; each pane is drawn in its own rectangle in one keyed list, so
+  its view is never made again as the tree changes. ⌘Z straight after a split,
+  with nothing changed since, closes it (`justSplit`); splitting is otherwise
+  no step of the vault's undo. What belongs to one
   view (the map open, the selection, back and forward, the camera) is kept on
   its pane (`pane.svelte.ts`) or the view's own instance, never in a module's
-  state, in an id or in a query of the whole page, as the other pane may show
+  state, in an id or in a query of the whole page, as another pane may show
   the same map; the views' `pane` key, `$props.id()` and queries within the
   view's own element keep them apart. Tidying spares what every pane has
   selected or edits, and every pane lets go of nodes that have gone
@@ -390,7 +396,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 
 ## Testing
 
-`test/*.test.ts` covers the core, the layout, the camera, the saver and reading the session with Node's test runner;
+`test/*.test.ts` covers the core, the layout, the camera, the saver, reading the session and the panes' tiling with Node's test runner;
 `src-tauri/src/db.rs` has the database's tests. Neither drives the window.
 GitHub runs the type check and both sets of tests on every push to `main`
 and every pull request (`.github/workflows/test.yml`).

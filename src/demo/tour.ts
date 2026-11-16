@@ -244,8 +244,8 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
           "In the app, **⇧⌘D** splits the window, and **⌃Tab** goes from one side to the other.",
         )
       : notes(
-          "**⇧⌘D**, or View › Split View, shows a second map beside this one, or below it when there is more room that way. Click a side, or press **⌃Tab**, to work in it.",
-          "**⌥-click** a map in the sidebar or the breadcrumbs to open it on the other side, and drag a node across to move it to that map. **⇧⌘D** again, or the side's **×**, goes back to one.",
+          "**⇧⌘D**, or View › Split This Pane, shows a second map beside this one, or below it when there is more room that way. Press it again to split the side you are in. Click a side, or press **⌃Tab**, to work in it.",
+          "**⌥-click** a map in the sidebar or the breadcrumbs to open it on the other side, and drag a node across to move it to that map. **⇧⌘W**, or a side's **×**, closes it; **⌘Z** straight after a split takes it back.",
         ),
   });
   add(finding, "Zoom and pan", {

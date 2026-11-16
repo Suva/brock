@@ -18,7 +18,6 @@ export interface MenuState {
   notes: boolean;
   source: boolean;
   hideDone: boolean;
-  split: boolean;
 }
 
 const line = "line" as const;
@@ -101,9 +100,10 @@ export function menuItems(a: MenuActions, s: MenuState, quit: () => void): Item[
         { label: "Notes as Markdown Source", run: a.toggleSource, hint: "Ctrl+E", checked: s.source },
         { label: "Hide Done Tasks", run: a.toggleHideDone, hint: "Ctrl+Shift+H", checked: s.hideDone },
         line,
-        { label: "Split View", run: a.toggleSplit, hint: "Ctrl+Shift+D", checked: s.split },
-        { label: "Close This Pane", run: a.closePane },
-        { label: "Other Pane", run: () => press({ key: "Tab", ctrlKey: true }), hint: "Ctrl+Tab" },
+        { label: "Split This Pane", run: a.splitPane, hint: "Ctrl+Shift+D" },
+        { label: "Close This Pane", run: a.closePane, hint: "Ctrl+Shift+W" },
+        { label: "Next Pane", run: () => press({ key: "Tab", ctrlKey: true }), hint: "Ctrl+Tab" },
+        { label: "Previous Pane", run: () => press({ key: "Tab", ctrlKey: true, shiftKey: true }), hint: "Ctrl+Shift+Tab" },
         line,
         { label: "Back", run: a.back, hint: "Ctrl+[" },
         { label: "Forward", run: a.forward, hint: "Ctrl+]" },

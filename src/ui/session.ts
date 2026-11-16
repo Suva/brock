@@ -1,8 +1,10 @@
 // Where the window was left: the map open in each pane and the node selected
-// in it, each pane's view, how the window was split, and which panels were
-// open, to start there next time. It belongs to this computer, not the vault,
+// in it, each pane's view, how the window was split (tiling.ts), and which
+// panels were open, to start there next time. It belongs to this computer, not the vault,
 // so it is kept in the window's own storage: a vault synced to another
 // computer should not move what is shown there.
+
+import { SHARE_MAX, SHARE_MIN, one, readTiling, type Tiling } from "./tiling.ts";
 
 export type View = "map" | "outline";
 
@@ -13,23 +15,13 @@ export interface PanePlace {
   view: View;
 }
 
-/**
- * How the window is split in two: the second pane beside the first or below
- * it, chosen when splitting (PLAN.md), and how much of the room the first
- * pane has, as a share, so that it suits a window of another size.
- */
-export interface Split {
-  direction: "beside" | "below";
-  share: number;
-}
-
 export interface Session {
-  /** One pane, or two when split. */
+  /** One pane, or more when split. */
   panes: PanePlace[];
   /** The pane the keyboard works on. */
   active: number;
-  /** Set exactly when there are two panes. */
-  split: Split | null;
+  /** How the panes share the room; its leaves are places in `panes`. */
+  tiling: Tiling;
   sidebarOpen: boolean;
   sidebarTab: "maps" | "tasks" | "history";
   notesOpen: boolean;
@@ -44,14 +36,13 @@ export interface Session {
 
 const KEY = "mindmap-session";
 
-/** The divider's share is kept within these, so neither pane is ever squeezed to nothing. */
-export const SHARE_MIN = 0.2;
-export const SHARE_MAX = 0.8;
+/** More panes than this in storage is not a session the window made. */
+const MOST_PANES = 16;
 
 const DEFAULTS: Session = {
   panes: [{ map: null, node: null, view: "map" }],
   active: 0,
-  split: null,
+  tiling: one,
   sidebarOpen: false,
   sidebarTab: "maps",
   notesOpen: false,
@@ -74,34 +65,37 @@ function place(v: unknown): PanePlace | null {
   return { map: str(p.map), node: str(p.node), view: p.view === "outline" ? "outline" : "map" };
 }
 
-function split(v: unknown): Split | null {
+/** Two panes as saved before a pane could be split again: one split, beside or below. */
+function twoPanes(v: unknown): Tiling | null {
   if (typeof v !== "object" || v === null) return null;
   const s = v as Record<string, unknown>;
   if (s.direction !== "beside" && s.direction !== "below") return null;
   const share = typeof s.share === "number" && s.share >= SHARE_MIN && s.share <= SHARE_MAX ? s.share : 0.5;
-  return { direction: s.direction, share };
+  return { direction: s.direction, share, first: { pane: 0 }, second: { pane: 1 } };
 }
 
 /**
  * A session as stored, every field checked: storage can hold anything, or
  * nothing. A session saved before the window had panes, with one map, node
- * and view, comes back as one pane; two panes without a sensible split come
- * back as the active one alone.
+ * and view, comes back as one pane, and one with two panes and a `split` as
+ * one split. Panes whose tiling does not hold together come back as the
+ * active one alone.
  */
 export function readSession(stored: unknown): Session {
   const raw = (typeof stored === "object" && stored !== null ? stored : {}) as Record<string, unknown>;
   let panes = Array.isArray(raw.panes) ? raw.panes.map(place).filter((p): p is PanePlace => p !== null) : [];
-  if (panes.length === 0 || panes.length > 2) panes = [place(raw) ?? DEFAULTS.panes[0]];
+  if (panes.length === 0 || panes.length > MOST_PANES) panes = [place(raw) ?? DEFAULTS.panes[0]];
   let active = typeof raw.active === "number" && Number.isInteger(raw.active) && raw.active >= 0 && raw.active < panes.length ? raw.active : 0;
-  const how = panes.length === 2 ? split(raw.split) : null;
-  if (panes.length === 2 && !how) {
+  let tiling = panes.length === 1 ? one : (readTiling(raw.tiling, panes.length) ?? (panes.length === 2 ? twoPanes(raw.split) : null));
+  if (!tiling) {
     panes = [panes[active]];
     active = 0;
+    tiling = one;
   }
   return {
     panes,
     active,
-    split: how,
+    tiling,
     sidebarOpen: raw.sidebarOpen === true,
     sidebarTab: raw.sidebarTab === "tasks" || raw.sidebarTab === "history" ? raw.sidebarTab : "maps",
     notesOpen: raw.notesOpen === true,
@@ -114,7 +108,7 @@ export function readSession(stored: unknown): Session {
 
 /** A session opened on one map alone: a new vault's tour, or the demo's. */
 export function openingOn(session: Session, map: string | null, notesOpen: boolean): Session {
-  return { ...session, panes: [{ map, node: map, view: "map" }], active: 0, split: null, notesOpen };
+  return { ...session, panes: [{ map, node: map, view: "map" }], active: 0, tiling: one, notesOpen };
 }
 
 /** The session last saved. */

@@ -82,8 +82,9 @@ the arrow keys, then:
 | ⌘↓, ⌘↵ or a double click | Opens a map |
 | ⌘↑, or the ↑ button on a map's centre | Back out to the map this one is in, with the map you left selected |
 | ⌘← ⌘→, or ⌘[ ⌘] | Back and forward through the maps visited, as in a browser |
-| ⇧⌘D | Splits the window to show a second map beside the first, or below it; again, closes the other side |
-| ⌃Tab, ⌃⇧Tab | Goes to the other side of a split window |
+| ⇧⌘D | Splits the side you are in: a second map beside it, or below it, the long way; ⌘Z straight after takes the split back |
+| ⇧⌘W | Closes the side you are in, when the window is split |
+| ⌃Tab, ⌃⇧Tab | Goes to the next side of a split window, or the one before |
 | ⌥ with a click, or ⌥⌘↓ on a Mac | Opens a map on the other side of a split window, splitting it first if it is not |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |

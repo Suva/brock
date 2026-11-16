@@ -21,7 +21,9 @@
   import { Pane } from "./pane.svelte.ts";
   import { openText, savePNG, saveText, type FileKind } from "./files.ts";
   import { typingIn } from "./keys.ts";
-  import { SHARE_MAX, SHARE_MIN, savedSession, saveSession, type PanePlace, type Split } from "./session.ts";
+  import { savedSession, saveSession, type PanePlace } from "./session.ts";
+  import { close, dividers, order, setShare, split, tiles, type Direction, type Divider, type Tiling } from "./tiling.ts";
+  import { inTauri } from "../store/tauri-store.ts";
   import type { Live } from "./live.svelte.ts";
   import NotesPanel from "./NotesPanel.svelte";
   import Palette from "./Palette.svelte";
@@ -61,8 +63,10 @@
   // when a pane is added or closed.
   let panes = $state.raw(start.panes.map((p) => new Pane(untrack(() => live), p)));
   let active = $state(start.active);
-  /** How the window is split, when it has two panes. */
-  let split = $state<Split | null>(start.split);
+  /** How the panes share the room (tiling.ts); its leaves are places in `panes`. */
+  let tiling = $state.raw<Tiling>(start.tiling);
+  /** The panes in the order they were last active, the active one first: "the other pane" is the one after it. */
+  let recent: Pane[] = untrack(() => [panes[active], ...panes.filter((_, i) => i !== active)]);
 
   // ---- Split view ------------------------------------------------------------
 
@@ -70,46 +74,62 @@
   let roomWidth = $state(0);
   let roomHeight = $state(0);
   let room: HTMLElement;
-  /** Smaller than this, a pane is no use; the window is not split. */
+  /** Smaller than this, a pane is no use; it is not split. */
   const PANE_MIN = { width: 360, height: 280 };
-
-  /** View › Split View (⇧⌘D): splits the window, or closes the pane that is not active. */
-  function toggleSplit() {
-    if (panes.length > 1) closePane(active === 0 ? 1 : 0);
-    else splitWindow();
-  }
+  /** Where each pane goes, and the lines between them, as shares of the room. */
+  const placed = $derived(new Map(tiles(tiling).map((t) => [t.pane, t])));
+  const lines = $derived(dividers(tiling));
 
   /**
-   * Makes a second pane on this one's map and node, the long way: beside when
-   * the room is wider than it is tall, below otherwise, or the other way when
-   * only that leaves each pane room enough. The new pane becomes active.
-   * False, and said, when the room is too small for two either way.
+   * The split just made, while nothing has changed in the vault since: ⌘Z
+   * then closes it rather than undoing an edit made before it, as a split
+   * made by accident is what it would be pressed for.
+   */
+  let justSplit: { pane: Pane; version: number } | null = null;
+
+  /**
+   * Split View (⇧⌘D): the active pane in two, a second pane on its map and
+   * node, the long way: beside when the pane is wider than it is tall, below
+   * otherwise, or the other way when only that leaves each side room enough.
+   * The new pane becomes active. False, and said, when there is no room.
    */
   function splitWindow(): boolean {
-    const fits = (d: Split["direction"]) =>
-      d === "beside"
-        ? roomWidth / 2 >= PANE_MIN.width && roomHeight >= PANE_MIN.height
-        : roomWidth >= PANE_MIN.width && roomHeight / 2 >= PANE_MIN.height;
-    const long = roomWidth >= roomHeight ? "beside" : "below";
+    const here = placed.get(active)!;
+    const w = here.width * roomWidth;
+    const h = here.height * roomHeight;
+    const fits = (d: Direction) =>
+      d === "beside" ? w / 2 >= PANE_MIN.width && h >= PANE_MIN.height : w >= PANE_MIN.width && h / 2 >= PANE_MIN.height;
+    const long = w >= h ? "beside" : "below";
     const short = long === "beside" ? "below" : "beside";
     const direction = fits(long) ? long : fits(short) ? short : null;
     if (!direction) {
-      tell("There is not room for two maps here. Make the window larger, or close a side panel.");
+      tell("There is not room to split this pane. Make the window larger, or close a pane or a side panel.");
       return false;
     }
     const second = new Pane(untrack(() => live), { map: pane.mapId, node: pane.selected, view: pane.view });
     pane.editing = null;
+    const added = panes.length;
     panes = [...panes, second];
-    split = { direction, share: 0.5 };
-    active = panes.length - 1;
+    tiling = split(tiling, active, added, direction);
+    active = added;
+    recent = [second, ...recent];
+    justSplit = { pane: second, version: live.version };
+    tell(inTauri() ? "Split. ⌘Z or ⇧⌘W closes it again." : "Split. ⌘Z, or the pane's ×, closes it again.");
     return true;
   }
 
+  /** Closes pane `i` (⇧⌘W, or its ×); its room goes to the other side of its split, and the pane used before it becomes active. */
   function closePane(i: number) {
-    if (panes.length < 2) return;
-    panes = panes.filter((_, j) => j !== i);
-    active = 0;
-    split = null;
+    const gone = panes[i];
+    const next = gone && close(tiling, i);
+    if (!next) return;
+    const kept = i === active ? (recent.find((p) => p !== gone) ?? panes.find((p) => p !== gone)!) : panes[active];
+    if (i === active) kept.editing = null;
+    panes = panes.filter((p) => p !== gone);
+    tiling = next;
+    recent = recent.filter((p) => p !== gone);
+    active = panes.indexOf(kept);
+    if (justSplit?.pane === gone) justSplit = null;
   }
 
   /**
@@ -121,11 +141,14 @@
     if (i === active || !panes[i]) return;
     panes[active].editing = null;
     active = i;
+    recent = [panes[i], ...recent.filter((p) => p !== panes[i])];
   }
 
-  /** ⌃Tab and ⌃⇧Tab: the next pane, or the one before, becomes active. */
+  /** ⌃Tab and ⌃⇧Tab: the next pane, or the one before, left to right and top to bottom. */
   function switchPane(by: 1 | -1) {
-    if (panes.length > 1) activate((active + by + panes.length) % panes.length);
+    const round = order(tiling);
+    if (round.length < 2) return;
+    activate(round[(round.indexOf(active) + by + round.length) % round.length]);
   }
 
   // A press, a scroll or a pinch in a pane makes it active before anything in
@@ -141,39 +164,44 @@
     return () => types.forEach((type) => el.removeEventListener(type, onEvent, { capture: true }));
   });
 
-  /** Opens a map in the other pane, splitting the window first if it is not; that pane becomes active. */
+  /**
+   * Opens a map in the other pane: the one used last before this one, or,
+   * with no other pane, a new one split off. That pane becomes active.
+   */
   function openBeside(id: string) {
     if (panes.length < 2) {
       if (!splitWindow()) return;
-    } else activate(active === 0 ? 1 : 0);
+    } else activate(panes.indexOf(recent.find((p) => p !== pane) ?? panes.find((p) => p !== pane)!));
     panes[active].open(id);
   }
 
   /**
-   * Dragging the divider between the panes: the first pane's share of the
-   * room. The divider holds the pointer, so letting go anywhere ends it.
+   * Dragging a divider: the first side's share of its split. The divider
+   * holds the pointer, so letting go anywhere ends it.
    */
-  let dividing = $state(false);
-  function startDividing(e: PointerEvent) {
-    dividing = true;
+  let dividing = $state<string | null>(null);
+  function startDividing(e: PointerEvent, path: string) {
+    dividing = path;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.preventDefault();
   }
-  function divide(e: PointerEvent) {
-    if (!dividing || !split) return;
+  function divide(e: PointerEvent, d: Divider) {
+    if (dividing !== d.path) return;
     const r = room.getBoundingClientRect();
-    const at = split.direction === "beside" ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
-    split = { ...split, share: Math.min(SHARE_MAX, Math.max(SHARE_MIN, at)) };
+    const share =
+      d.direction === "beside"
+        ? (e.clientX - r.left - d.area.x * r.width) / (d.area.width * r.width)
+        : (e.clientY - r.top - d.area.y * r.height) / (d.area.height * r.height);
+    tiling = setShare(tiling, d.path, share);
   }
-  function divideByKey(e: KeyboardEvent) {
-    if (!split) return;
-    const less = split.direction === "beside" ? "ArrowLeft" : "ArrowUp";
-    const more = split.direction === "beside" ? "ArrowRight" : "ArrowDown";
+  function divideByKey(e: KeyboardEvent, d: Divider) {
+    const less = d.direction === "beside" ? "ArrowLeft" : "ArrowUp";
+    const more = d.direction === "beside" ? "ArrowRight" : "ArrowDown";
     if (e.key !== less && e.key !== more) return;
     e.preventDefault();
     e.stopPropagation();
-    const step = e.key === more ? 0.05 : -0.05;
-    split = { ...split, share: Math.min(SHARE_MAX, Math.max(SHARE_MIN, split.share + step)) };
+    const now = d.direction === "beside" ? (d.at.x - d.area.x) / d.area.width : (d.at.y - d.area.y) / d.area.height;
+    tiling = setShare(tiling, d.path, now + (e.key === more ? 0.05 : -0.05));
   }
 
   /**
@@ -237,7 +265,7 @@
   // Remembered as it changes, for the next start.
   $effect(() => {
     const places = panes.map((p): PanePlace => ({ map: p.mapId, node: p.selected, view: p.view }));
-    saveSession({ panes: places, active, split, sidebarOpen, sidebarTab, notesOpen, notesSource, hideDone, sidebarWidth, notesWidth });
+    saveSession({ panes: places, active, tiling, sidebarOpen, sidebarTab, notesOpen, notesSource, hideDone, sidebarWidth, notesWidth });
   });
 
   /** A tab's button or key: opens the sidebar on it, or closes it if it is showing. */
@@ -468,6 +496,13 @@
   }
 
   function undo(redo = false) {
+    // Straight after a split, with nothing changed since, ⌘Z takes the split back.
+    const made = justSplit;
+    justSplit = null;
+    if (!redo && made && made.version === live.version && panes.includes(made.pane)) {
+      closePane(panes.indexOf(made.pane));
+      return;
+    }
     // A title being edited is finished first; what was typed is then undone.
     pane.editing = null;
     const changes = redo ? vault.redo() : vault.undo();
@@ -545,7 +580,7 @@
       toggleNotes: () => (notesOpen = !notesOpen),
       toggleSource: () => (notesSource = !notesSource),
       toggleHideDone: () => (hideDone = !hideDone),
-      toggleSplit,
+      splitPane: () => void splitWindow(),
       closePane: () => closePane(active),
       back: () => step("back"),
       forward: () => step("forward"),
@@ -562,7 +597,7 @@
   });
   const quit = () => void getCurrentWindow().close();
   const appMenuItems = $derived(
-    menuItems(menuActions, { view: pane.view, layout: mapLayout, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone, split: panes.length > 1 }, quit),
+    menuItems(menuActions, { view: pane.view, layout: mapLayout, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone }, quit),
   );
   $effect(() => {
     menuChecks?.view(pane.view);
@@ -571,7 +606,6 @@
     menuChecks?.notes(notesOpen);
     menuChecks?.source(notesSource);
     menuChecks?.hideDone(hideDone);
-    menuChecks?.split(panes.length > 1);
   });
 
   function onWindowKey(event: KeyboardEvent) {
@@ -615,7 +649,9 @@
     } else if (key === "b" && event.shiftKey && !event.altKey) {
       attentionOpen = !attentionOpen;
     } else if (key === "d" && event.shiftKey && !event.altKey) {
-      toggleSplit();
+      splitWindow();
+    } else if (key === "w" && event.shiftKey && !event.altKey) {
+      closePane(active);
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "e" && !event.shiftKey && !event.altKey) {
@@ -747,40 +783,22 @@
       />
       <Resizer width={sidebarWidth} edge="left" onResize={(w) => (sidebarWidth = w)} onClose={() => (sidebarOpen = false)} />
     {/if}
-    <!-- The panes: one, or two side by side or one above the other. A press or a
+    <!-- The panes: one, or as many as the splits make, each placed in its share of
+         the room (tiling.ts), with the lines between them on top. A press or a
          scroll in a pane makes it the active one before anything in it sees it. -->
-    <main
-      bind:this={room}
-      bind:clientWidth={roomWidth}
-      bind:clientHeight={roomHeight}
-      class:below={split?.direction === "below"}
-    >
+    <main bind:this={room} bind:clientWidth={roomWidth} bind:clientHeight={roomHeight}>
       {#each panes as p, i (p)}
-        {#if i > 0 && split}
-          <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-          <div
-            class="divider"
-            class:dragging={dividing}
-            role="separator"
-            aria-orientation={split.direction === "beside" ? "vertical" : "horizontal"}
-            aria-label="Resize the panes"
-            aria-valuenow={Math.round(split.share * 100)}
-            tabindex="-1"
-            onpointerdown={startDividing}
-            onpointermove={divide}
-            onpointerup={() => (dividing = false)}
-            onpointercancel={() => (dividing = false)}
-            onlostpointercapture={() => (dividing = false)}
-            onkeydown={divideByKey}
-          ></div>
-        {/if}
+        {@const at = placed.get(i)}
         <section
           class="pane"
           class:active={i === active}
           class:split={panes.length > 1}
-          style:flex-grow={split ? (i === 0 ? split.share : 1 - split.share) : 1}
+          style:left="{(at?.x ?? 0) * 100}%"
+          style:top="{(at?.y ?? 0) * 100}%"
+          style:width="{(at?.width ?? 1) * 100}%"
+          style:height="{(at?.height ?? 1) * 100}%"
           data-pane={i}
-          aria-label={panes.length > 1 ? (i === active ? "Active pane" : "Other pane") : undefined}
+          aria-label={panes.length > 1 ? (i === active ? "Active pane" : `Pane ${order(tiling).indexOf(i) + 1}`) : undefined}
         >
           {#if panes.length > 1}
             {@const title = vault.get(p.mapId)}
@@ -820,6 +838,28 @@
             {/if}
           </div>
         </section>
+      {/each}
+      {#each lines as d (d.path)}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+        <div
+          class="divider"
+          class:below={d.direction === "below"}
+          class:dragging={dividing === d.path}
+          style:left="{d.at.x * 100}%"
+          style:top="{d.at.y * 100}%"
+          style:width={d.direction === "beside" ? null : `${d.at.width * 100}%`}
+          style:height={d.direction === "beside" ? `${d.at.height * 100}%` : null}
+          role="separator"
+          aria-orientation={d.direction === "beside" ? "vertical" : "horizontal"}
+          aria-label="Resize the panes"
+          tabindex="-1"
+          onpointerdown={(e) => startDividing(e, d.path)}
+          onpointermove={(e) => divide(e, d)}
+          onpointerup={() => (dividing = null)}
+          onpointercancel={() => (dividing = null)}
+          onlostpointercapture={() => (dividing = null)}
+          onkeydown={(e) => divideByKey(e, d)}
+        ></div>
       {/each}
     </main>
     {#if !notesOpen}
@@ -1067,16 +1107,11 @@
   main {
     flex: 1;
     min-width: 0;
-    display: flex;
-  }
-
-  main.below {
-    flex-direction: column;
+    position: relative;
   }
 
   .pane {
-    position: relative;
-    flex: 1 1 0;
+    position: absolute;
     min-width: 0;
     min-height: 0;
     display: flex;
@@ -1127,10 +1162,11 @@
     line-height: 1.4;
   }
 
-  /* The line between the panes, with a wider place to take hold of it. */
+  /* The lines between the panes, each with a wider place to take hold of it. */
   .divider {
-    position: relative;
-    flex: 0 0 1px;
+    position: absolute;
+    width: 1px;
+    margin-left: -1px;
     background: var(--line);
     cursor: col-resize;
     touch-action: none;
@@ -1138,7 +1174,10 @@
     outline: none;
   }
 
-  main.below .divider {
+  .divider.below {
+    width: auto;
+    height: 1px;
+    margin: -1px 0 0;
     cursor: row-resize;
   }
 
@@ -1148,7 +1187,7 @@
     inset: 0 -3px;
   }
 
-  main.below .divider::before {
+  .divider.below::before {
     inset: -3px 0;
   }
 

@@ -881,7 +881,9 @@
     };
     const fits =
       b.left >= view.x && b.right <= view.x + view.width && b.top >= view.y && b.bottom <= view.y + view.height;
-    return { box, scale, view, shown: !fits && width > 0 };
+    // A pane of a split window can be too small to give a corner to it.
+    const room = width >= MINIMAP.width * 2.5 && height >= MINIMAP.height * 3;
+    return { box, scale, view, shown: !fits && room };
   });
 
   function onMinimap(e: PointerEvent) {
