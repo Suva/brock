@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+- A map zoomed in stays sharp when part of it runs off the edge while a long list of tasks or history is open in the sidebar.
+
 ## 0.8.0 — 6 November 2026
 
 - Done tasks in the Tasks tab have a group of their own for last week, between This week and Earlier. Point at a done task to see the day and time it was done.
