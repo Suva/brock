@@ -7,7 +7,7 @@
   import { toSVG } from "../core/picture.ts";
   import { clearBackground, toCanvas, toPNG } from "./picture.ts";
   import { writePicture } from "./system-clipboard.ts";
-  import MapView, { pictureOfMap } from "./MapView.svelte";
+  import MapView, { type Elsewhere } from "./MapView.svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { installMenu, type MenuActions, type MenuChecks } from "./app-menu.ts";
   import { customTitleBar } from "./chrome.ts";
@@ -18,10 +18,10 @@
   import type { Command } from "../core/markdown.ts";
   import type { MapLayout } from "../core/node.ts";
   import { importInto, readOutlines, toJSON, toMarkdown, toOPML } from "../core/exchange.ts";
-  import { History, type Place } from "../core/history.ts";
+  import { Pane } from "./pane.svelte.ts";
   import { openText, savePNG, saveText, type FileKind } from "./files.ts";
   import { typingIn } from "./keys.ts";
-  import { savedSession, saveSession } from "./session.ts";
+  import { SHARE_MAX, SHARE_MIN, savedSession, saveSession, type PanePlace, type Split } from "./session.ts";
   import type { Live } from "./live.svelte.ts";
   import NotesPanel from "./NotesPanel.svelte";
   import Palette from "./Palette.svelte";
@@ -43,22 +43,184 @@
   const vault = $derived(live.vault);
   const version = $derived(live.version);
 
-  // The window starts where it was left: the map and node, if they are still
-  // there, the view and the panels (session.ts).
+  // The window starts where it was left: each pane's map and node, if they
+  // are still there, its view, the split and the panels (session.ts).
   const start = (() => {
     const saved = savedSession();
     const v = untrack(() => live.vault);
-    const map = saved.map && v.isLive(saved.map) && v.get(saved.map)!.isMap ? saved.map : null;
-    const node = map && saved.node && v.isLive(saved.node) ? saved.node : null;
-    return { ...saved, map, node };
+    const panes = saved.panes.map((p): PanePlace => {
+      const map = p.map && v.isLive(p.map) && v.get(p.map)!.isMap ? p.map : null;
+      const node = map && p.node && v.isLive(p.node) ? p.node : null;
+      return { ...p, map, node };
+    });
+    return { ...saved, panes };
   })();
 
-  // Null until a map is opened: the top of the vault.
-  let openedMap = $state<string | null>(start.map);
-  let selected = $state<string | null>(start.node ?? start.map);
-  /** The node whose title is being edited on the map. */
-  let editing = $state<string | null>(null);
-  let view = $state<"map" | "outline">(start.view);
+  // The panes of the window, each with its own map, and the one the keyboard,
+  // the header and the panels work on (PLAN.md, split view). Replaced whole
+  // when a pane is added or closed.
+  let panes = $state.raw(start.panes.map((p) => new Pane(untrack(() => live), p)));
+  let active = $state(start.active);
+  /** How the window is split, when it has two panes. */
+  let split = $state<Split | null>(start.split);
+
+  // ---- Split view ------------------------------------------------------------
+
+  /** The room the panes have: the window less the side panels. */
+  let roomWidth = $state(0);
+  let roomHeight = $state(0);
+  let room: HTMLElement;
+  /** Smaller than this, a pane is no use; the window is not split. */
+  const PANE_MIN = { width: 360, height: 280 };
+
+  /** View › Split View (⇧⌘D): splits the window, or closes the pane that is not active. */
+  function toggleSplit() {
+    if (panes.length > 1) closePane(active === 0 ? 1 : 0);
+    else splitWindow();
+  }
+
+  /**
+   * Makes a second pane on this one's map and node, the long way: beside when
+   * the room is wider than it is tall, below otherwise, or the other way when
+   * only that leaves each pane room enough. The new pane becomes active.
+   * False, and said, when the room is too small for two either way.
+   */
+  function splitWindow(): boolean {
+    const fits = (d: Split["direction"]) =>
+      d === "beside"
+        ? roomWidth / 2 >= PANE_MIN.width && roomHeight >= PANE_MIN.height
+        : roomWidth >= PANE_MIN.width && roomHeight / 2 >= PANE_MIN.height;
+    const long = roomWidth >= roomHeight ? "beside" : "below";
+    const short = long === "beside" ? "below" : "beside";
+    const direction = fits(long) ? long : fits(short) ? short : null;
+    if (!direction) {
+      tell("There is not room for two maps here. Make the window larger, or close a side panel.");
+      return false;
+    }
+    const second = new Pane(untrack(() => live), { map: pane.mapId, node: pane.selected, view: pane.view });
+    pane.editing = null;
+    panes = [...panes, second];
+    split = { direction, share: 0.5 };
+    active = panes.length - 1;
+    return true;
+  }
+
+  function closePane(i: number) {
+    if (panes.length < 2) return;
+    panes = panes.filter((_, j) => j !== i);
+    active = 0;
+    split = null;
+  }
+
+  /**
+   * Makes pane `i` the active one. Every change of pane but splitting and
+   * closing goes through here: a title being edited in the pane left is
+   * finished first, as the keys now go elsewhere.
+   */
+  function activate(i: number) {
+    if (i === active || !panes[i]) return;
+    panes[active].editing = null;
+    active = i;
+  }
+
+  /** ⌃Tab and ⌃⇧Tab: the next pane, or the one before, becomes active. */
+  function switchPane(by: 1 | -1) {
+    if (panes.length > 1) activate((active + by + panes.length) % panes.length);
+  }
+
+  // A press, a scroll or a pinch in a pane makes it active before anything in
+  // it sees the event: listened for on the way down, by the room the panes are in.
+  $effect(() => {
+    const el = room;
+    const types = ["pointerdown", "wheel", "gesturestart"];
+    const onEvent = (e: Event) => {
+      const at = (e.target as Element | null)?.closest?.<HTMLElement>("[data-pane]");
+      if (at && el.contains(at)) activate(Number(at.dataset.pane));
+    };
+    for (const type of types) el.addEventListener(type, onEvent, { capture: true, passive: true });
+    return () => types.forEach((type) => el.removeEventListener(type, onEvent, { capture: true }));
+  });
+
+  /** Opens a map in the other pane, splitting the window first if it is not; that pane becomes active. */
+  function openBeside(id: string) {
+    if (panes.length < 2) {
+      if (!splitWindow()) return;
+    } else activate(active === 0 ? 1 : 0);
+    panes[active].open(id);
+  }
+
+  /**
+   * Dragging the divider between the panes: the first pane's share of the
+   * room. The divider holds the pointer, so letting go anywhere ends it.
+   */
+  let dividing = $state(false);
+  function startDividing(e: PointerEvent) {
+    dividing = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function divide(e: PointerEvent) {
+    if (!dividing || !split) return;
+    const r = room.getBoundingClientRect();
+    const at = split.direction === "beside" ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+    split = { ...split, share: Math.min(SHARE_MAX, Math.max(SHARE_MIN, at)) };
+  }
+  function divideByKey(e: KeyboardEvent) {
+    if (!split) return;
+    const less = split.direction === "beside" ? "ArrowLeft" : "ArrowUp";
+    const more = split.direction === "beside" ? "ArrowRight" : "ArrowDown";
+    if (e.key !== less && e.key !== more) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const step = e.key === more ? 0.05 : -0.05;
+    split = { ...split, share: Math.min(SHARE_MAX, Math.max(SHARE_MIN, split.share + step)) };
+  }
+
+  /**
+   * A node dragged on pane `i`'s map, passed on to whichever other pane the
+   * pointer is over: that pane's map shows where it would land and takes it
+   * when let go, and becomes the active pane. An outline there takes nothing.
+   */
+  let dragOver: Pane | null = null;
+  function elsewhereFor(i: number): Elsewhere {
+    // The pane dragged over is the window's, not this object's: one drag goes on at a time.
+    return {
+      aim(ids, x, y) {
+        const at = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-pane]");
+        const j = at ? Number(at.dataset.pane) : -1;
+        const target = j >= 0 && j !== i ? panes[j] : null;
+        if (dragOver && dragOver !== target) dragOver.mapView?.leaveFrom();
+        dragOver = target;
+        target?.mapView?.aimFrom(ids, x, y);
+        return target !== null;
+      },
+      leave() {
+        dragOver?.mapView?.leaveFrom();
+        dragOver = null;
+      },
+      land(ids, grabbed, fromCentre) {
+        const target = dragOver;
+        dragOver = null;
+        if (!target?.mapView) return false;
+        const moved = target.mapView.landFrom(ids, grabbed, fromCentre);
+        if (moved) activate(panes.indexOf(target));
+        return moved;
+      },
+    };
+  }
+
+  /** The keys taken before anything else sees them: ⌃Tab is Tab to the outline's rows and the title editor. */
+  function onWindowKeyFirst(event: KeyboardEvent) {
+    if (event.key !== "Tab" || !event.ctrlKey || event.metaKey || event.altKey) return;
+    // Keys pressed in a dialog stay there (keys.ts); a text field in a pane is no matter.
+    if ((event.target as Element | null)?.closest?.('[role="dialog"]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    switchPane(event.shiftKey ? -1 : 1);
+  }
+  const pane = $derived(panes[active]);
+  /** The active pane's map. */
+  const mapId = $derived(pane.mapId);
   let notesOpen = $state(start.notesOpen);
   let notesSource = $state(start.notesSource);
   /** The search palette, open to go somewhere or to link the selected node. */
@@ -74,7 +236,8 @@
 
   // Remembered as it changes, for the next start.
   $effect(() => {
-    saveSession({ map: mapId, node: selected, view, sidebarOpen, sidebarTab, notesOpen, notesSource, hideDone, sidebarWidth, notesWidth });
+    const places = panes.map((p): PanePlace => ({ map: p.mapId, node: p.selected, view: p.view }));
+    saveSession({ panes: places, active, split, sidebarOpen, sidebarTab, notesOpen, notesSource, hideDone, sidebarWidth, notesWidth });
   });
 
   /** A tab's button or key: opens the sidebar on it, or closes it if it is showing. */
@@ -143,13 +306,12 @@
    * the map for a moment first.
    */
   async function picture() {
-    if (view !== "map") {
-      view = "map";
+    if (pane.view !== "map") {
+      pane.view = "map";
       await tick();
     }
-    const made = pictureOfMap(clearBackground());
-    if (!made) throw new Error("There is no map to take a picture of.");
-    return made;
+    if (!pane.mapView) throw new Error("There is no map to take a picture of.");
+    return pane.mapView.picture(clearBackground());
   }
 
   async function exportPicture(kind: "svg" | "png") {
@@ -179,12 +341,12 @@
       if (text === null) return;
       const outlines = readOutlines(text);
       if (outlines.length === 0) return tell("The file holds no outline to bring in.", true);
-      const parent = selected && vault.isLive(selected) ? selected : mapId;
+      const parent = pane.selected && vault.isLive(pane.selected) ? pane.selected : mapId;
       const target = vault.get(parent)!;
       // Under a map shown as a portal, it goes in, and the map opens.
       const made = importInto(vault, parent, outlines, target.isMap ? parent : mapId);
       if (target.isMap && parent !== mapId) open(parent);
-      selected = made[0].id;
+      pane.selected = made[0].id;
       tell(`Brought in ${made.length === 1 ? `“${made[0].title || "Untitled"}”` : `${made.length} branches`}. ⌘Z takes it out again.`);
     } catch (error) {
       tell(`Not brought in: ${reason(error)}`, true);
@@ -208,16 +370,6 @@
     { label: "Settings", run: () => (settingsOpen = true), hint: "⌘," },
   ]);
 
-  /** The map on screen: the one opened, or the nearest map above it if an edit took it away. */
-  const mapId = $derived.by(() => {
-    void version;
-    let node = vault.get(openedMap ?? vault.rootId);
-    while (node) {
-      if (node.isMap && vault.isLive(node.id)) return node.id;
-      node = node.parentId === null ? undefined : vault.get(node.parentId);
-    }
-    return vault.rootId;
-  });
   /** How the open map is drawn. */
   const mapLayout = $derived.by(() => {
     void version;
@@ -227,7 +379,7 @@
   /** Draws the open map this way, or as a mind map again; it shows on the map, not in the outline. */
   function toggleLayout(layout: MapLayout) {
     vault.update(mapId, { layout: mapLayout === layout ? null : layout });
-    view = "map";
+    pane.view = "map";
   }
 
   const breadcrumbs = $derived.by(() => {
@@ -247,54 +399,13 @@
   );
   let foldOpen = $state(false);
 
-  // Back and forward (⌘← ⌘→, or ⌘[ ⌘]) go through the maps visited.
-  const history = new History();
-  /** Goes up with each step through the history, for the buttons to know. */
-  let historyVersion = $state(0);
-
-  /** Opens `map` with `node` selected, remembering where this was for going back. */
-  function moveTo(map: string, node: string) {
-    editing = null;
-    if (map !== mapId) {
-      history.leave({ map: mapId, node: selected });
-      historyVersion++;
-      // Maps opened often come first in search.
-      usage.visit(map);
-      saveUsage();
-    }
-    openedMap = map;
-    selected = node;
-  }
-
-  function open(id: string) {
-    // Coming back out selects the portal that was gone in by.
-    moveTo(id, vault.portalToward(id, mapId) ?? id);
-  }
-
-  function step(direction: "back" | "forward") {
-    const here: Place = { map: mapId, node: selected };
-    const exists = (p: Place) => vault.isLive(p.map) && vault.get(p.map)!.isMap;
-    const to = direction === "back" ? history.back(here, exists) : history.forward(here, exists);
-    historyVersion++;
-    if (!to) return;
-    editing = null;
-    openedMap = to.map;
-    selected = to.node && vault.isLive(to.node) ? to.node : to.map;
-  }
-
-  const canGoBack = $derived.by(() => {
-    void historyVersion;
-    return history.canGoBack;
-  });
-  const canGoForward = $derived.by(() => {
-    void historyVersion;
-    return history.canGoForward;
-  });
-
-  /**
-   * Goes to a node found by searching: a map opens; any other node is
-   * selected in the map it is in, with the branches above it unfolded.
-   */
+  // Back and forward (⌘← ⌘→, or ⌘[ ⌘]), going into maps and to nodes are the active pane's.
+  /** Opens a map in the active pane, or with ⌥ in the other one. */
+  const open = (id: string, beside = false) => (beside ? openBeside(id) : pane.open(id));
+  const step = (direction: "back" | "forward") => pane.step(direction);
+  const up = () => pane.up();
+  const canGoBack = $derived(pane.canGoBack);
+  const canGoForward = $derived(pane.canGoForward);
   /** Moves how far the open map is shared with agents on: not at all, to read, to edit, and round. */
   function shareWithAgents() {
     const next = ({ none: "read", read: "write", write: "none" } as const)[agents.level(mapId)];
@@ -305,40 +416,41 @@
 
   /** Moves the selected node's mark on: none, attention, critical, OK, and round. */
   function flagSelected() {
-    const id = selected ?? mapId;
+    const id = pane.selected ?? mapId;
     const node = live.vault.get(id);
     if (node) live.vault.update(id, { flag: nextFlag(node.flag) });
   }
 
-  // A node left without a title is deleted once it is no longer the one selected or
+  // Every pane, shown or not, as map or outline, lets go of nodes that have
+  // gone. The map view also falls back for nodes it no longer draws, such as
+  // folded ones; this covers the outline and the panes it does not show.
+  $effect(() => {
+    void version;
+    for (const p of panes) p.repair();
+  });
+
+  /** What the panes have selected or are editing, which tidying leaves alone. */
+  function workedOn(among: readonly Pane[] = panes): string[] {
+    return among.flatMap((p) => [p.selected, p.editing]).filter((id): id is string => id !== null);
+  }
+
+  // A node left without a title is deleted once no pane has it selected or
   // being edited, so empty "Idea" nodes do not pile up however they came to be.
   let lastWorked = new Set<string>();
   $effect(() => {
-    const worked = new Set([selected, editing].filter((id): id is string => id !== null));
+    const worked = new Set(workedOn());
     const left = [...lastWorked].filter((id) => !worked.has(id));
     lastWorked = worked;
     if (left.length > 0) untrack(() => live.vault.sweepEmpty(worked, left));
   });
   // And those left from before, on opening.
   onMount(() => {
-    live.vault.sweepEmpty(new Set([selected, editing].filter((id): id is string => id !== null)));
+    live.vault.sweepEmpty(new Set(workedOn()));
   });
 
   function goTo(id: string) {
     searching = false;
-    const node = vault.get(id);
-    if (!node || !vault.isLive(id)) return;
-    if (!node.isMap) {
-      // A map is counted as it opens, in moveTo.
-      usage.visit(id);
-      saveUsage();
-    }
-    if (node.isMap) return open(id);
-    const map = vault.mapOf(id)!;
-    const above = vault.ancestors(id);
-    const foldedAbove = above.slice(above.findIndex((n) => n.id === map) + 1).filter((n) => n.collapsed);
-    if (foldedAbove.length) vault.transact(() => foldedAbove.forEach((n) => vault.update(n.id, { collapsed: false })));
-    moveTo(map, id);
+    pane.goTo(id);
   }
 
   /** Goes to a node chosen in the palette, remembering it was chosen for `query`. */
@@ -352,20 +464,23 @@
   /** Links the selected node to `id`, chosen in the palette. */
   function linkTo(id: string) {
     searching = false;
-    vault.link(selected ?? mapId, id);
-  }
-
-  /** Back out to the map this one is in. */
-  function up() {
-    const parent = vault.mapOf(mapId);
-    if (parent) open(parent);
+    vault.link(pane.selected ?? mapId, id);
   }
 
   function undo(redo = false) {
     // A title being edited is finished first; what was typed is then undone.
-    editing = null;
+    pane.editing = null;
     const changes = redo ? vault.redo() : vault.undo();
-    selected = settle(vault, changes, selected);
+    const last = settle(vault, changes, pane.selected, workedOn(panes.filter((p) => p !== pane)));
+    // Selected where it can be seen: in this pane, or else in another pane
+    // that shows its map, which becomes the active one.
+    const shows = (p: Pane) => last !== null && (last === p.mapId || vault.mapOf(last) === p.mapId);
+    const there = shows(pane) ? -1 : panes.findIndex(shows);
+    if (there === -1) pane.selected = last;
+    else {
+      activate(there);
+      panes[there].selected = last;
+    }
   }
 
   /**
@@ -387,8 +502,6 @@
   /** Help › Remove the Tour. */
   function dropTour() {
     if (!removeTour(vault)) return tell("There is no tour in the vault. Show the tour adds one.");
-    // Out of the tour, if it was open: the window falls back to the map around it.
-    if (selected && !vault.isLive(selected)) selected = mapId;
     tell("The tour is in the trash. ⌘Z brings it back.");
   }
 
@@ -414,14 +527,14 @@
       undo: () => undo(),
       redo: () => undo(true),
       search: () => {
-        editing = null;
+        pane.editing = null;
         searching = "go";
       },
       link: () => {
-        editing = null;
+        pane.editing = null;
         searching = "link";
       },
-      view: (v) => (view = v),
+      view: (v) => (pane.view = v),
       toggleLayout,
       toggleSidebar: () => (sidebarOpen = !sidebarOpen),
       showTasks: () => showTab("tasks"),
@@ -432,6 +545,8 @@
       toggleNotes: () => (notesOpen = !notesOpen),
       toggleSource: () => (notesSource = !notesSource),
       toggleHideDone: () => (hideDone = !hideDone),
+      toggleSplit,
+      closePane: () => closePane(active),
       back: () => step("back"),
       forward: () => step("forward"),
       up,
@@ -447,15 +562,16 @@
   });
   const quit = () => void getCurrentWindow().close();
   const appMenuItems = $derived(
-    menuItems(menuActions, { view, layout: mapLayout, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone }, quit),
+    menuItems(menuActions, { view: pane.view, layout: mapLayout, sidebar: sidebarOpen, notes: notesOpen, source: notesSource, hideDone, split: panes.length > 1 }, quit),
   );
   $effect(() => {
-    menuChecks?.view(view);
+    menuChecks?.view(pane.view);
     menuChecks?.layout(mapLayout);
     menuChecks?.sidebar(sidebarOpen);
     menuChecks?.notes(notesOpen);
     menuChecks?.source(notesSource);
     menuChecks?.hideDone(hideDone);
+    menuChecks?.split(panes.length > 1);
   });
 
   function onWindowKey(event: KeyboardEvent) {
@@ -483,10 +599,10 @@
     } else if (event.key === "," && !event.shiftKey) {
       settingsOpen = !settingsOpen;
     } else if (key === "k" && !event.shiftKey) {
-      editing = null;
+      pane.editing = null;
       searching = searching ? false : "go";
     } else if (key === "l" && !event.shiftKey) {
-      editing = null;
+      pane.editing = null;
       searching = searching ? false : "link";
     } else if (key === "h" && event.shiftKey) {
       hideDone = !hideDone;
@@ -498,15 +614,17 @@
       flagSelected();
     } else if (key === "b" && event.shiftKey && !event.altKey) {
       attentionOpen = !attentionOpen;
+    } else if (key === "d" && event.shiftKey && !event.altKey) {
+      toggleSplit();
     } else if (key === "n" && event.shiftKey) {
       notesOpen = !notesOpen;
     } else if (key === "e" && !event.shiftKey && !event.altKey) {
       notesSource = !notesSource;
     } else if (event.altKey && event.code === "Digit1" && !event.shiftKey) {
       // ⌥⌘1 to ⌥⌘5: ⌘1 to ⌘5 set priorities.
-      view = "map";
+      pane.view = "map";
     } else if (event.altKey && event.code === "Digit2" && !event.shiftKey) {
-      view = "outline";
+      pane.view = "outline";
     } else if (event.altKey && event.code === "Digit3" && !event.shiftKey) {
       toggleLayout("org");
     } else if (event.altKey && event.code === "Digit4" && !event.shiftKey) {
@@ -520,7 +638,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onWindowKey} />
+<svelte:window onkeydown={onWindowKey} onkeydowncapture={onWindowKeyFirst} />
 
 <div class="app">
   <!-- Clicking a button here leaves the focus where it was, so the map keeps the keyboard.
@@ -554,7 +672,7 @@
             {/if}
           </div>
         {:else}
-          <button class="crumb" class:current={crumb.id === mapId} onclick={() => open(crumb.id)} title={crumb.title || "Untitled"}>
+          <button class="crumb" class:current={crumb.id === mapId} onclick={(e) => open(crumb.id, e.altKey)} title={(crumb.title || "Untitled") + " (⌥-click: in the other pane)"}>
             {#if crumb.icon}{crumb.icon}&nbsp;{/if}{crumb.title || "Untitled"}
           </button>
         {/if}
@@ -562,8 +680,8 @@
     </nav>
     <div class="tools">
       <div class="switch" role="group" aria-label="View">
-        <button class:on={view === "map"} onclick={() => (view = "map")} title="Map (⌥⌘1)">Map</button>
-        <button class:on={view === "outline"} onclick={() => (view = "outline")} title="Outline (⌥⌘2)">Outline</button>
+        <button class:on={pane.view === "map"} onclick={() => (pane.view = "map")} title="Map (⌥⌘1)">Map</button>
+        <button class:on={pane.view === "outline"} onclick={() => (pane.view = "outline")} title="Outline (⌥⌘2)">Outline</button>
       </div>
       <button
         class="icon-button"
@@ -629,22 +747,80 @@
       />
       <Resizer width={sidebarWidth} edge="left" onResize={(w) => (sidebarWidth = w)} onClose={() => (sidebarOpen = false)} />
     {/if}
-    <main>
-      {#if view === "map"}
-        <MapView
-          {live}
-          {mapId}
-          {hideDone}
-          bind:selected
-          bind:editing
-          onOpen={open}
-          onGoTo={goTo}
-          onShowNotes={() => (notesOpen = true)}
-          onUp={up}
-        />
-      {:else}
-        <OutlineView {live} {mapId} {hideDone} bind:selected onOpen={open} onUp={up} />
-      {/if}
+    <!-- The panes: one, or two side by side or one above the other. A press or a
+         scroll in a pane makes it the active one before anything in it sees it. -->
+    <main
+      bind:this={room}
+      bind:clientWidth={roomWidth}
+      bind:clientHeight={roomHeight}
+      class:below={split?.direction === "below"}
+    >
+      {#each panes as p, i (p)}
+        {#if i > 0 && split}
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+          <div
+            class="divider"
+            class:dragging={dividing}
+            role="separator"
+            aria-orientation={split.direction === "beside" ? "vertical" : "horizontal"}
+            aria-label="Resize the panes"
+            aria-valuenow={Math.round(split.share * 100)}
+            tabindex="-1"
+            onpointerdown={startDividing}
+            onpointermove={divide}
+            onpointerup={() => (dividing = false)}
+            onpointercancel={() => (dividing = false)}
+            onlostpointercapture={() => (dividing = false)}
+            onkeydown={divideByKey}
+          ></div>
+        {/if}
+        <section
+          class="pane"
+          class:active={i === active}
+          class:split={panes.length > 1}
+          style:flex-grow={split ? (i === 0 ? split.share : 1 - split.share) : 1}
+          data-pane={i}
+          aria-label={panes.length > 1 ? (i === active ? "Active pane" : "Other pane") : undefined}
+        >
+          {#if panes.length > 1}
+            {@const title = vault.get(p.mapId)}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="strip" onmousedown={(e) => (e.target as Element).closest("button") && e.preventDefault()}>
+              <span class="strip-title">{#if title?.icon}{title.icon}&nbsp;{/if}{title?.title || "Untitled"}</span>
+              <button class="close" onclick={() => closePane(i)} title="Close this pane" aria-label="Close this pane">×</button>
+            </div>
+          {/if}
+          <div class="view">
+            {#if p.view === "map"}
+              <MapView
+                bind:this={p.mapView}
+                {live}
+                mapId={p.mapId}
+                {hideDone}
+                active={i === active}
+                pane={p.key}
+                elsewhere={panes.length > 1 ? elsewhereFor(i) : undefined}
+                bind:selected={p.selected}
+                bind:editing={p.editing}
+                onOpen={(id, beside) => (beside ? openBeside(id) : p.open(id))}
+                onGoTo={goTo}
+                onShowNotes={() => (notesOpen = true)}
+                onUp={() => p.up()}
+              />
+            {:else}
+              <OutlineView
+                {live}
+                mapId={p.mapId}
+                {hideDone}
+                active={i === active}
+                bind:selected={p.selected}
+                onOpen={(id, beside) => (beside ? openBeside(id) : p.open(id))}
+                onUp={() => p.up()}
+              />
+            {/if}
+          </div>
+        </section>
+      {/each}
     </main>
     {#if !notesOpen}
       <button
@@ -660,8 +836,8 @@
     {#if notesOpen}
       <NotesPanel
         {live}
-        nodeId={selected ?? mapId}
-        centre={(selected ?? mapId) === mapId}
+        nodeId={pane.selected ?? mapId}
+        centre={(pane.selected ?? mapId) === mapId}
         onClose={() => (notesOpen = false)}
         onGoTo={goTo}
         onCommand={run}
@@ -679,7 +855,7 @@
       {live}
       {mapId}
       purpose={searching}
-      exclude={searching === "link" ? (selected ?? mapId) : null}
+      exclude={searching === "link" ? (pane.selected ?? mapId) : null}
       onChoose={chosen}
       onClose={() => (searching = false)}
     />
@@ -891,6 +1067,94 @@
   main {
     flex: 1;
     min-width: 0;
+    display: flex;
+  }
+
+  main.below {
+    flex-direction: column;
+  }
+
+  .pane {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pane > .view {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* The active pane, when there are two: a thin line round it, over the map. */
+  .pane.split.active::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--accent);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .strip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.1rem 0.3rem 0.1rem 0.7rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+
+  .pane.active .strip {
+    color: inherit;
+  }
+
+  .strip-title {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .strip .close {
+    flex: none;
+    padding: 0 0.35rem;
+    line-height: 1.4;
+  }
+
+  /* The line between the panes, with a wider place to take hold of it. */
+  .divider {
+    position: relative;
+    flex: 0 0 1px;
+    background: var(--line);
+    cursor: col-resize;
+    touch-action: none;
+    z-index: 3;
+    outline: none;
+  }
+
+  main.below .divider {
+    cursor: row-resize;
+  }
+
+  .divider::before {
+    content: "";
+    position: absolute;
+    inset: 0 -3px;
+  }
+
+  main.below .divider::before {
+    inset: -3px 0;
+  }
+
+  .divider:hover,
+  .divider.dragging {
+    background: var(--accent);
   }
 
   footer {

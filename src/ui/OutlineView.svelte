@@ -19,6 +19,7 @@
     live,
     mapId,
     hideDone = false,
+    active = true,
     selected = $bindable(),
     onOpen,
     onUp,
@@ -27,8 +28,11 @@
     mapId: string;
     /** Done tasks left out, as on the map. */
     hideDone?: boolean;
+    /** Whether this is the pane the keyboard works on; only the active one takes the window's keys and the focus. */
+    active?: boolean;
     selected: string | null;
-    onOpen: (id: string) => void;
+    /** Opens a map; `beside`, with ⌥, in the other pane. */
+    onOpen: (id: string, beside?: boolean) => void;
     /** Back out to the map this one is in. */
     onUp: () => void;
   } = $props();
@@ -50,14 +54,16 @@
     return vault.children(id).filter((n) => !leaveOut.has(n.id));
   }
 
+  // Rows are looked for in this outline only, never in the whole page: with
+  // split view another pane can show the same map as an outline too.
   async function focusNode(id: string) {
     await tick();
-    document.getElementById(`row-${id}`)?.focus();
+    scroller?.querySelector<HTMLInputElement>(`input.title[data-row="${CSS.escape(id)}"]`)?.focus();
   }
 
   function rows(): HTMLInputElement[] {
     // The title fields only, not the checkboxes of tasks.
-    return [...document.querySelectorAll<HTMLInputElement>(".outline input:not([type='checkbox'])")];
+    return [...scroller.querySelectorAll<HTMLInputElement>(".outline input:not([type='checkbox'])")];
   }
 
   /**
@@ -110,7 +116,7 @@
       vault.toggleTask(node.id);
     } else if ((event.key === "Enter" || event.key === "ArrowDown") && mod) {
       event.preventDefault();
-      if (node.isMap && !isCentre) onOpen(node.id);
+      if (node.isMap && !isCentre) onOpen(node.id, event.altKey);
     } else if (event.key === "ArrowUp" && mod) {
       event.preventDefault();
       onUp();
@@ -138,7 +144,12 @@
       if (!vault.cancelCreation(node.id)) return;
       // Made by going into a map: come back out, to the map gone into.
       if (fromMap !== mapId && vault.isLive(fromMap)) onOpen(fromMap);
-      else focusNode(vault.isLive(from) ? from : mapId);
+      else {
+        // Selected at once, not only when the row takes the focus a moment
+        // later: the window falls back to the centre for a node that has gone.
+        selected = vault.isLive(from) ? from : mapId;
+        focusNode(selected);
+      }
     } else if (event.key === "Backspace" && node.title === "" && !isCentre) {
       event.preventDefault();
       const list = rows();
@@ -159,7 +170,9 @@
   }
 
   $effect(() => {
-    focusNode(selected ?? mapId);
+    // A pane that is not active leaves the focus where it is, even as its
+    // selection changes, and takes it back as it becomes active.
+    if (active) focusNode(selected ?? mapId);
   });
 
   /** Movement under this, in pixels, is a click on the handle, not a drag. */
@@ -235,6 +248,7 @@
   // Keys pressed with the focus elsewhere, after a click on a button say,
   // bring it back to the selected row rather than moving it around the window.
   function onWindowKey(e: KeyboardEvent) {
+    if (!active) return;
     if (dragging && e.key === "Escape") {
       // Leaves the row where it was.
       e.preventDefault();
@@ -306,7 +320,7 @@
       {#if node.flag}<span class="flag {node.flag}" title={flagName(node.flag)} role="img" aria-label={flagName(node.flag)}>{flagGlyph(node.flag)}</span>{/if}
       {#if node.icon}<span class="icon" aria-hidden="true">{node.icon}</span>{/if}
       <input
-        id="row-{node.id}"
+        data-row={node.id}
         class="title"
         class:done={node.task === "done"}
         value={node.title}
@@ -317,7 +331,7 @@
         onfocus={() => (selected = node.id)}
       />
       {#if portal}
-        <button class="open" onclick={() => onOpen(node.id)} title="Open this map (⌘↓)">Open map ›</button>
+        <button class="open" onclick={(e) => onOpen(node.id, e.altKey)} title="Open this map (⌘↓; with ⌥, in the other pane)">Open map ›</button>
       {/if}
     </div>
     {#if !portal}

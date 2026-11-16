@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+- **Two maps at once.** Press ⇧⌘D to split the window and show a second map beside the first, or below it when there is more room that way. Each side has its own map, view and back and forward; the one you last clicked, or reach with ⌃Tab, is the one the keyboard and the notes work on. ⌥-click a map in the sidebar or the breadcrumbs, or ⌥-double-click a portal (⌥⌘↓ on a Mac), to open it on the other side. Drag a node onto the other side to move it to that map. Drag the line between them to share the room differently, and close a side with its ×, or ⇧⌘D again. The commands are under View › Split View too.
+
 ## 0.8.0 — 6 November 2026
 
 - Done tasks in the Tasks tab have a group of their own for last week, between This week and Earlier. Point at a done task to see the day and time it was done.

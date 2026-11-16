@@ -18,6 +18,7 @@ export interface MenuState {
   notes: boolean;
   source: boolean;
   hideDone: boolean;
+  split: boolean;
 }
 
 const line = "line" as const;
@@ -78,6 +79,8 @@ export function menuItems(a: MenuActions, s: MenuState, quit: () => void): Item[
         { label: "Share Open Map with Agents: Read, Edit, None", run: a.shareWithAgents },
         { label: "Make Map or Undo It", run: () => press(cmd({ key: "M", shiftKey: true })), hint: "Ctrl+Shift+M" },
         { label: "Open Map", run: () => press(cmd({ key: "ArrowDown" })), hint: "Ctrl+↓" },
+        // No key named: Ctrl+Alt with an arrow turns the screen on some Windows computers.
+        { label: "Open Map in Other Pane", run: () => press(cmd({ key: "ArrowDown", altKey: true })), hint: "or Alt-click" },
         { label: "Fold or Unfold", run: () => press(cmd({ key: "/" })), hint: "Ctrl+/" },
       ],
     },
@@ -97,6 +100,10 @@ export function menuItems(a: MenuActions, s: MenuState, quit: () => void): Item[
         { label: "Notes", run: a.toggleNotes, hint: "Ctrl+Shift+N", checked: s.notes },
         { label: "Notes as Markdown Source", run: a.toggleSource, hint: "Ctrl+E", checked: s.source },
         { label: "Hide Done Tasks", run: a.toggleHideDone, hint: "Ctrl+Shift+H", checked: s.hideDone },
+        line,
+        { label: "Split View", run: a.toggleSplit, hint: "Ctrl+Shift+D", checked: s.split },
+        { label: "Close This Pane", run: a.closePane },
+        { label: "Other Pane", run: () => press({ key: "Tab", ctrlKey: true }), hint: "Ctrl+Tab" },
         line,
         { label: "Back", run: a.back, hint: "Ctrl+[" },
         { label: "Forward", run: a.forward, hint: "Ctrl+]" },

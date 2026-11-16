@@ -8,8 +8,9 @@
 // start, as a map under the top (`addTour`), to be removed when done.
 //
 // In a browser some keys belong to the browser and never reach the page:
-// ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 among them. There the hints point to the buttons
-// in the notes panel that do the same.
+// ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 among them, and ⌃Tab, which goes between its tabs.
+// There the hints point to the buttons in the notes panel, or the clicks,
+// that do the same.
 
 import { newBranch } from "../core/branches.ts";
 import type { Node, NodeFields } from "../core/node.ts";
@@ -235,6 +236,17 @@ function fill(vault: Vault, rootId: string, now: number, place: Place) {
   });
   add(finding, "Map or outline", {
     body: notes("The switch at the top shows the same map as an indented list, for writing quickly. **⌥⌘1** and **⌥⌘2** switch between them. With a map's centre selected, **Style** at the top of this panel draws it as an org chart, a timeline or a board instead, or **⌥⌘3** to **⌥⌘5**, and each map keeps its own."),
+  });
+  add(finding, "Two maps at once", {
+    body: web
+      ? notes(
+          "**⌥-click** a map in the sidebar (the **›** tab on the left edge of the map) to open it beside this one, if the window is wide enough. Click a side to work in it; drag a node across to move it to that map.",
+          "In the app, **⇧⌘D** splits the window, and **⌃Tab** goes from one side to the other.",
+        )
+      : notes(
+          "**⇧⌘D**, or View › Split View, shows a second map beside this one, or below it when there is more room that way. Click a side, or press **⌃Tab**, to work in it.",
+          "**⌥-click** a map in the sidebar or the breadcrumbs to open it on the other side, and drag a node across to move it to that map. **⇧⌘D** again, or the side's **×**, goes back to one.",
+        ),
   });
   add(finding, "Zoom and pan", {
     body: notes("Scroll to move around; pinch, or hold **⌘** and scroll, to zoom. **⌘0** shows the whole map. The minimap shows where you are."),

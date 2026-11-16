@@ -767,12 +767,13 @@ export function canAddChild(node: Node): boolean {
  * What to do once an undo or redo has made `changes`: the node to select, the
  * last it touched that is worth stopping at (not an empty one it brought
  * back), or `selected` if none; and the nodes it left without a title are
- * deleted, as when any other node is left, except the one selected.
+ * deleted, as when any other node is left, except the one selected and those
+ * in `keep`: what is selected or edited elsewhere, such as in another pane.
  */
-export function settle(vault: Vault, changes: Change[] | null, selected: string | null): string | null {
+export function settle(vault: Vault, changes: Change[] | null, selected: string | null, keep: Iterable<string> = []): string | null {
   const ids = (changes ?? []).map((c) => c.after.id).filter((id) => vault.isLive(id));
   const last = ids.filter((id) => !isUntitled(vault.get(id)!)).at(-1) ?? selected;
-  vault.sweepEmpty(new Set(last ? [last] : []), ids);
+  vault.sweepEmpty(new Set([...keep, ...(last ? [last] : [])]), ids);
   return last;
 }
 

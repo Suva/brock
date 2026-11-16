@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { dropAt, outlineDropAt, type Row } from "../src/core/drop.ts";
 import { layoutMap, type Layout } from "../src/core/layout.ts";
-import { place } from "../src/core/moves.ts";
+import { place, placeAcross } from "../src/core/moves.ts";
 import { Vault } from "../src/core/vault.ts";
 
 const SIZE = { width: 100, height: 30 };
@@ -239,4 +239,52 @@ test("on a board anywhere in a lane drops last in that column", () => {
   const p = layout.byId.get(m3.id)!;
   assert.deepEqual([dropAt(vault, layout, m2.id, p.x + 40, p.y - 3)!.beside], [{ id: m3.id, after: false }], "between cards still goes between");
   void m1;
+});
+
+// Split view: a branch dragged from the map in one pane onto the map in the other.
+function twoMaps() {
+  const { vault, layout, r1, l1, r2, a, c } = map();
+  const other = vault.addChild(vault.rootId, { title: "other", side: "left" });
+  vault.setMap(other.id, true);
+  const x = vault.addChild(other.id, { title: "x" });
+  const inner = vault.addChild(x.id, { title: "inner" });
+  vault.setMap(inner.id, true);
+  const otherLayout = () => layoutMap(vault, other.id, () => SIZE);
+  const innerLayout = () => layoutMap(vault, inner.id, () => SIZE);
+  return { vault, layout, otherLayout, innerLayout, r1, l1, r2, a, c, other, x, inner };
+}
+
+test("a branch dragged onto the other pane's map moves there, as one step", () => {
+  const { vault, otherLayout, r1, c, x } = twoMaps();
+  const drop = dropAt(vault, otherLayout(), c.id, ...middle(otherLayout(), x.id))!;
+  assert.equal(drop.onto, x.id, "nodes from another map can be aimed");
+  assert.equal(placeAcross(vault, [c.id], drop, vault.rootId, vault.get(x.id)!.parentId!), true);
+  assert.equal(vault.get(c.id)!.parentId, x.id);
+  vault.undo();
+  assert.equal(vault.get(c.id)!.parentId, r1.id, "one undo puts it back");
+});
+
+test("a branch of a centre dragged to the other map's centre gets a side and a colour there, and the branches left keep theirs", () => {
+  const { vault, otherLayout, r2, other } = twoMaps();
+  const sidesBefore = vault.children(vault.rootId).filter((n) => n.id !== r2.id).map((n) => n.side);
+  const centre = otherLayout().byId.get(other.id)!;
+  const drop = dropAt(vault, otherLayout(), r2.id, centre.x + 5, centre.y + 5)!;
+  assert.equal(drop.parentId, other.id);
+  assert.equal(placeAcross(vault, [r2.id], drop, vault.rootId, other.id), true);
+  const moved = vault.get(r2.id)!;
+  assert.equal(moved.parentId, other.id);
+  assert.ok(moved.side === "left" || moved.side === "right");
+  assert.ok(moved.color, "it is given a colour of the new centre's");
+  const left = vault.children(vault.rootId).map((n) => n.side);
+  assert.ok(left.every((side) => side !== null), "the sides of those left are pinned");
+  assert.deepEqual(left.slice(0, sidesBefore.length).filter(Boolean).length, sidesBefore.length);
+});
+
+test("a map cannot be dragged into a map inside it, though that map's layout does not show it", () => {
+  const { vault, innerLayout, other, inner } = twoMaps();
+  const centre = innerLayout().byId.get(inner.id)!;
+  const drop = dropAt(vault, innerLayout(), other.id, centre.x + 5, centre.y + 5);
+  assert.ok(drop, "the layout of the inner map alone would allow it");
+  assert.equal(placeAcross(vault, [other.id], drop!, vault.rootId, inner.id), false);
+  assert.equal(vault.get(other.id)!.parentId, vault.rootId);
 });

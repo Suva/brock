@@ -166,3 +166,24 @@ test("undoing the making of a node that ends up empty selects where it was and l
   assert.equal(settle(v, v.undo(), plan.id), plan.id);
   assert.equal(v.isLive(made.id), false);
 });
+
+test("undo leaves alone an empty node that another pane has selected", () => {
+  // An undo that empties a node sweeps it, unless it is being worked on elsewhere.
+  const world = () => {
+    const v = new Vault([]);
+    const plan = v.addChild(v.rootId, { title: "Plan" });
+    const other = v.addChild(plan.id);
+    v.update(other.id, { title: "Typed" });
+    v.forgetUndo();
+    v.update(other.id, { title: "" });
+    v.update(other.id, { title: "Typed" });
+    return { v, plan, other };
+  };
+  const alone = world();
+  settle(alone.v, alone.v.undo(), alone.plan.id);
+  assert.equal(alone.v.isLive(alone.other.id), false, "swept when no one has it");
+
+  const kept = world();
+  assert.equal(settle(kept.v, kept.v.undo(), kept.plan.id, [kept.other.id]), kept.plan.id);
+  assert.equal(kept.v.isLive(kept.other.id), true, "kept for the pane that has it selected");
+});
