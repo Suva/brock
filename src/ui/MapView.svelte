@@ -1594,6 +1594,11 @@
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    /* A layer of its own, so the map is drawn into it at full resolution.
+       Without it WebKit gives the scaled map its own layer whenever it runs
+       past the edge towards another (a long list in the sidebar scrolls in
+       one), and draws that at too low a resolution: zoomed in, it blurs. */
+    will-change: transform;
   }
 
   .layer {
