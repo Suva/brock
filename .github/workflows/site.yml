@@ -1,4 +1,4 @@
-# Builds the website and puts it on GitHub Pages (brock.clysuva.com).
+# Builds the website and puts it on GitHub Pages (getbrock.app).
 name: Website
 
 on:

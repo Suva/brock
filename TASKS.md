@@ -177,7 +177,7 @@ stolen laptop. A few days' work:
 
 ## The website
 
-The page and its demo are published at brock.clysuva.com.
+The page and its demo are published at getbrock.app.
 
 - Firefox edits titles in place only from version 136; phones and tablets
   have no pinch or on-screen keyboard editing yet. The demo was only tried

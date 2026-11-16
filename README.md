@@ -29,7 +29,7 @@ yet, so the system asks before opening the app the first time:
 
 After that, the app keeps itself up to date: when a new version is out, it
 offers it in a corner of the window, and Install and restart puts it in
-place; What's new opens [the list of changes](https://brock.clysuva.com/changes.html)
+place; What's new opens [the list of changes](https://getbrock.app/changes.html)
 in your browser. Help › Check for Updates… looks at once. On Linux, a copy installed
 from the `.deb` asks for your password to install the new one.
 

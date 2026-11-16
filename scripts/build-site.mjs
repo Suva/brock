@@ -19,7 +19,7 @@ import { changesHtml } from "./changelog.mjs";
 const OUT = "_site";
 const PORT = 4321;
 const REPOSITORY = "https://github.com/Suva/brock";
-const DOMAIN = "brock.clysuva.com";
+const DOMAIN = "getbrock.app";
 
 // The page links to the newest release that has its installers. CI says which
 // that is (SITE_VERSION): package.json is bumped before the installers are

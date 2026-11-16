@@ -416,11 +416,16 @@ download links filled in (from `package.json` locally; in CI from the newest
 published release, `SITE_VERSION`, since `package.json` is bumped before the
 installers are built), and the demo, which
 is the window built for a browser with `--mode demo`. It is published at
-brock.clysuva.com by `.github/workflows/site.yml` on GitHub Pages, on every
+getbrock.app by `.github/workflows/site.yml` on GitHub Pages, on every
 push to `main` that changes the site, the demo or `CHANGELOG.md`, and when the release
 workflow has put the installers on a release (it starts the site's build
 itself, as a release made with its own token starts nothing); the
-build writes the `CNAME` for that domain. Try it locally with `npm run site`.
+build writes the `CNAME` for that domain, though what Pages serves is the
+custom domain set in the repository's Settings › Pages. The domain's DNS is
+in Cloudflare, DNS only, so that GitHub can issue its certificate. The
+site's old address, brock.clysuva.com, is redirected there by a Cloudflare
+rule; keep it working, as copies of the app and older releases' notes link
+to it. Try it locally with `npm run site`.
 
 - **What's new waits for the downloads.** It lists the releases up to the
   one the page links to (`SITE_VERSION`), so a version tagged but still

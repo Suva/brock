@@ -44,7 +44,7 @@ test("a release takes what was not released yet, under its version and date, onc
 });
 
 test("a version's notes are its section, with a link to the page", () => {
-  assert.equal(notes(TEXT, "0.1.0"), "- First\n\n[Everything that changed in each version](https://brock.clysuva.com/changes.html)");
+  assert.equal(notes(TEXT, "0.1.0"), "- First\n\n[Everything that changed in each version](https://getbrock.app/changes.html)");
   assert.match(notes(dateRelease(TEXT, "0.3.0", "23 October 2026"), "0.3.0"), /^- \*\*New thing\.\*\* It does this, with `code`\.\n/, "an item carried on is one line");
   assert.throws(() => notes(TEXT, "9.9.9"), /no "## 9\.9\.9"/);
 });

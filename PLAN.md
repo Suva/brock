@@ -6,7 +6,7 @@ is saved as you go to a local database. It should be fast to navigate and search
 clean to look at, and give a good overview of everything in it.
 
 The app is called Brock: a brock is a badger, which digs burrows of tunnels and
-chambers. Its web address is brock.clysuva.com.
+chambers. Its web address is getbrock.app.
 
 ## Decisions so far
 
@@ -647,7 +647,7 @@ fully without a network.
   1. Read-only links: a Worker, R2 and D1, with accounts and their limits. The
      app encrypts the map and uploads it, and the share belongs to the account
      that made it, which can update or delete it. The website opens it from
-     `brock.clysuva.com/s/<id>#<key>`, with no sign-in. This also tries upload,
+     `getbrock.app/s/<id>#<key>`, with no sign-in. This also tries upload,
      limits and abuse at low risk.
   2. The sync groundwork, in the app only: device ids, logical timestamps, an id
      for each change so that applying one twice does nothing, applying changes

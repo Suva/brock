@@ -22,7 +22,7 @@ import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 export const UNRELEASED = "Not released yet";
-export const PAGE = "https://brock.clysuva.com/changes.html";
+export const PAGE = "https://getbrock.app/changes.html";
 
 /** The sections of the file under its "## " headings, in order: { title, body }. */
 function sections(text) {
