@@ -10,7 +10,7 @@ import { inTauri, TauriStore } from "../store/tauri-store.ts";
 import { watchAgents } from "./agents.svelte.ts";
 import { Live } from "./live.svelte.ts";
 import { customTitleBar } from "./chrome.ts";
-import { savedSession, saveSession } from "./session.ts";
+import { openingOn, savedSession, saveSession } from "./session.ts";
 import { welcome } from "./tour.ts";
 import { applyTheme, savedTheme } from "./theme.ts";
 import "./app.css";
@@ -34,7 +34,7 @@ async function start(target: HTMLElement) {
     // A new vault's first start opens on the tour, added as a map of its own.
     const tour = welcome(vault);
     if (tour) {
-      saveSession({ ...savedSession(), map: tour, node: tour, notesOpen: true });
+      saveSession(openingOn(savedSession(), tour, true));
       freshTour = true;
     }
   }
@@ -57,7 +57,7 @@ let freshTour = false;
 async function demoStore(): Promise<Store> {
   freshTour = localStorage.getItem(DEMO_KEY) === null;
   if (freshTour) {
-    saveSession({ ...savedSession(), map: null, node: null, notesOpen: true });
+    saveSession(openingOn(savedSession(), null, true));
   }
   return new MemoryStore((await import("../demo/tour.ts")).tour(), localStorage, DEMO_KEY);
 }

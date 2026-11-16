@@ -24,11 +24,13 @@ const REACH = 120;
 /** The share of a node's length at each end that means beside it, not onto it. */
 const EDGE = 0.25;
 
-/** `dragged`: the node dragged, or all the nodes dragged together. */
+/**
+ * `dragged`: the node dragged, or all the nodes dragged together. They need
+ * not be on this map: with split view they can come from the map in the
+ * other pane.
+ */
 export function dropAt(tree: Tree, layout: Layout, dragged: string | string[], x: number, y: number): Drop | null {
   const ids = new Set(typeof dragged === "string" ? [dragged] : dragged);
-  const draggedId = typeof dragged === "string" ? dragged : dragged[0];
-  if (!layout.byId.has(draggedId)) return null;
   const inBranch = (p: Placed) => {
     // Whether `p` is a dragged node or under one: nothing can go there.
     for (let q: Placed | undefined = p; q; q = q.node.parentId ? layout.byId.get(q.node.parentId) : undefined) {

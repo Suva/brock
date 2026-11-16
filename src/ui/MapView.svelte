@@ -16,16 +16,32 @@
   let clip: Clip | null = null;
 
   // Each map keeps where it was looked at, for coming back to it, also after
-  // a turn in the outline.
+  // a turn in the outline: in each pane, so that two panes on one map do not
+  // move each other. Keyed by `cameraKey`.
   const cameras = new Map<string, Camera>();
 
+  // Taken by the first map view made, which is the first pane's.
   let fitNextMap = false;
 
-  let pictureMaker: ((clear: boolean) => Promise<Picture>) | null = null;
+  /**
+   * With split view, a node dragged on this map can be let go on the map in
+   * the other pane. `App.svelte` knows the panes and passes the drag on.
+   */
+  export interface Elsewhere {
+    /** The pointer at (x, y) in the window, dragging `ids`: whether it is over another pane, which then shows where they would land. */
+    aim(ids: string[], x: number, y: number): boolean;
+    /** No other pane shows a landing any more. */
+    leave(): void;
+    /** Let go over another pane: whether they moved to its map. `grabbed` is the one held. */
+    land(ids: string[], grabbed: string, fromCentre: string): boolean;
+  }
 
-  /** A picture of the open map, with the page's background or a clear one; null when no map is drawn. */
-  export function pictureOfMap(clear: boolean): Promise<Picture> | null {
-    return pictureMaker?.(clear) ?? null;
+  /** What `App.svelte` reaches in a map view, through `bind:this`. */
+  export interface MapViewApi {
+    picture(clear: boolean): Promise<Picture>;
+    aimFrom(ids: string[], x: number, y: number): void;
+    leaveFrom(): void;
+    landFrom(ids: string[], grabbed: string, fromCentre: string): boolean;
   }
 
   /** Shows the next map drawn whole, as its nodes' sizes come in: the tour, when it opens by itself. */
@@ -42,7 +58,7 @@
   import { dropAt, type Drop } from "../core/drop.ts";
   import { layoutMap, SPACING, type Layout, type Placed } from "../core/layout.ts";
   import type { Node, NodeFields } from "../core/node.ts";
-  import { indent, outdent, place, placeAll, reorder, setSide, toColumn, topmost } from "../core/moves.ts";
+  import { indent, outdent, place, placeAcross, placeAll, reorder, setSide, toColumn, topmost } from "../core/moves.ts";
   import { neighbour, type Direction } from "../core/navigate.ts";
   import { doneToHide, dueLabel, progressUnder, setPriority, tickAll, toggleTasks } from "../core/tasks.ts";
   import { centreOn, fit, reveal, zoomAt } from "./camera.ts";
@@ -58,6 +74,9 @@
     live,
     mapId,
     hideDone = false,
+    active = true,
+    pane = 0,
+    elsewhere,
     selected = $bindable(),
     editing = $bindable(),
     onOpen,
@@ -69,9 +88,19 @@
     mapId: string;
     /** Done tasks left out, with what is under them, unless open work is. */
     hideDone?: boolean;
+    /**
+     * Whether this is the pane the keyboard works on. The map listens to the
+     * whole window; with two panes, only the active one may answer.
+     */
+    active?: boolean;
+    /** Which pane this is (`Pane.key`), for keeping each pane's place on each map apart. */
+    pane?: number;
+    /** The other panes, for a drag let go there; none without split view. */
+    elsewhere?: Elsewhere;
     selected: string | null;
     editing: string | null;
-    onOpen: (id: string) => void;
+    /** Opens a map; `beside`, with ⌥, in the other pane. */
+    onOpen: (id: string, beside?: boolean) => void;
     /** Goes to a node anywhere in the vault, as choosing it in search does. */
     onGoTo: (id: string) => void;
     /** Shows the selected node's notes, where its links are listed. */
@@ -388,18 +417,23 @@
     if (glide) glideTimer = setTimeout(() => (gliding = false), 260);
   }
 
+  const cameraKey = (map: string) => `${pane} ${map}`;
+  // The arrow at the end of a link, named for this view alone: with split view
+  // the page draws two maps, and an id must name one element.
+  const uid = $props.id();
+  const arrowId = `link-arrow-${uid}`;
   let cameraOf: string | null = null;
   $effect(() => {
     const id = mapId;
     if (width === 0 || height === 0) return;
     untrack(() => {
       if (cameraOf === id) return;
-      if (cameraOf !== null) cameras.set(cameraOf, camera);
+      if (cameraOf !== null) cameras.set(cameraKey(cameraOf), camera);
       cameraOf = id;
       // An org chart grows down from its centre, which starts near the top; a
       // timeline to the right of it, which starts near the left.
       const start = layout.timeline ? [width / 2 - 160, 0] : [0, layout.down ? height / 2 - 64 : 0];
-      setCamera(cameras.get(id) ?? centreOn(start[0], start[1], 1, width, height));
+      setCamera(cameras.get(cameraKey(id)) ?? centreOn(start[0], start[1], 1, width, height));
       if (entering) enter(entering);
       entering = null;
     });
@@ -436,7 +470,7 @@
 
   // Leaving for the outline keeps where this map was looked at.
   $effect(() => () => {
-    if (cameraOf !== null) cameras.set(cameraOf, untrack(() => camera));
+    if (cameraOf !== null) cameras.set(cameraKey(cameraOf), untrack(() => camera));
   });
 
   // ---- Going into a map and back out -----------------------------------------
@@ -635,8 +669,36 @@
     moved: boolean;
     /** The pointer, in the view. */
     at: { x: number; y: number };
+    /** The pointer, in the window, for the label, which can be over the other pane. */
+    client: { x: number; y: number };
+    /** Over the other pane, which shows where it would land. */
+    away: boolean;
     drop: Drop | null;
   } | null>(null);
+
+  /** Nodes dragged from the map in the other pane, and where they would land on this one. */
+  let incoming = $state<{ ids: string[]; drop: Drop | null } | null>(null);
+  /** Where a drag would land here, from this map or the other pane's. */
+  const aimed = $derived(moving?.drop ?? incoming?.drop ?? null);
+
+  export function aimFrom(ids: string[], x: number, y: number) {
+    const r = viewport.getBoundingClientRect();
+    incoming = { ids, drop: dropAt(vault, layout, ids, (x - r.left - camera.x) / camera.zoom, (y - r.top - camera.y) / camera.zoom) };
+  }
+
+  export function leaveFrom() {
+    incoming = null;
+  }
+
+  /** Lets go of nodes dragged from the other pane's map, where they were aimed; they are chosen here. */
+  export function landFrom(ids: string[], grabbed: string, fromCentre: string): boolean {
+    const drop = incoming?.drop ?? null;
+    incoming = null;
+    if (!drop || !placeAcross(vault, ids, drop, fromCentre, mapId)) return false;
+    others = new Set(ids.filter((id) => id !== grabbed));
+    selected = grabbed;
+    return true;
+  }
 
   function startMove(e: PointerEvent, node: Node) {
     if (e.button !== 0 || editing === node.id || e.shiftKey || e.metaKey || e.ctrlKey) return;
@@ -653,6 +715,8 @@
       y: e.clientY,
       moved: false,
       at: { x: 0, y: 0 },
+      client: { x: e.clientX, y: e.clientY },
+      away: false,
       drop: null,
     };
   }
@@ -667,12 +731,21 @@
     }
     const r = viewport.getBoundingClientRect();
     m.at = { x: e.clientX - r.left, y: e.clientY - r.top };
+    m.client = { x: e.clientX, y: e.clientY };
+    // Over the other pane, that pane shows where it would land, and this map stays still.
+    m.away = elsewhere?.aim(m.ids, e.clientX, e.clientY) ?? false;
+    if (m.away) {
+      m.drop = null;
+      return;
+    }
     aimDrop(m);
     followEdges();
   }
 
   /** Where the dragged nodes would land, under the pointer. */
   function aimDrop(m: NonNullable<typeof moving>) {
+    // On its own map, a node dragged is always on it; only the other pane's can come from elsewhere.
+    if (!layout.byId.has(m.id)) return void (m.drop = null);
     m.drop = dropAt(vault, layout, m.ids, (m.at.x - camera.x) / camera.zoom, (m.at.y - camera.y) / camera.zoom);
   }
 
@@ -694,7 +767,7 @@
     let last = performance.now();
     const step = (now: number) => {
       const m = moving;
-      const [px, py] = m?.moved ? edgePush(m.at) : [0, 0];
+      const [px, py] = m?.moved && !m.away ? edgePush(m.at) : [0, 0];
       if (!m || (px === 0 && py === 0)) {
         edgeFrame = 0;
         return;
@@ -719,6 +792,13 @@
       return;
     }
     viewport.releasePointerCapture(e.pointerId);
+    if (m.away) {
+      // What moved is chosen in the other pane now; here nothing is, so that
+      // a key pressed here later never acts on nodes of the other map.
+      if (elsewhere?.land(m.ids, m.id, mapId)) others = new Set();
+      return;
+    }
+    elsewhere?.leave();
     if (!m.drop) return;
     const moved = m.ids.length > 1 ? placeAll(vault, m.ids, m.drop, mapId) : place(vault, m.id, m.drop, mapId);
     if (!moved) return;
@@ -747,7 +827,7 @@
 
   /** Where the line goes when a dragged node would land beside another. */
   const dropLine = $derived.by(() => {
-    const beside = moving?.drop?.beside;
+    const beside = aimed?.beside;
     const p = beside && layout.byId.get(beside.id);
     if (!p) return null;
     const THICK = 3;
@@ -801,7 +881,9 @@
     };
     const fits =
       b.left >= view.x && b.right <= view.x + view.width && b.top >= view.y && b.bottom <= view.y + view.height;
-    return { box, scale, view, shown: !fits && width > 0 };
+    // A pane of a split window can be too small to give a corner to it.
+    const room = width >= MINIMAP.width * 2.5 && height >= MINIMAP.height * 3;
+    return { box, scale, view, shown: !fits && room };
   });
 
   function onMinimap(e: PointerEvent) {
@@ -821,11 +903,12 @@
   // ---- A picture of the map ---------------------------------------------------
 
   /**
-   * The map's shapes, read off the page. Zoomed far out the map draws bars in
+   * A picture of this view's map, with the page's background or a clear
+   * one: the map's shapes, read off the page. Zoomed far out the map draws bars in
    * place of titles, so it is drawn at its full size for a moment; any glide
    * is ended, so that nothing is caught half way.
    */
-  async function makePicture(clear: boolean): Promise<Picture> {
+  export async function picture(clear: boolean): Promise<Picture> {
     const before = camera;
     const far = camera.zoom < FAR_ZOOM;
     setCamera(far ? { ...camera, zoom: 1 } : camera);
@@ -842,13 +925,6 @@
       if (far) setCamera(before);
     }
   }
-  $effect(() => {
-    pictureMaker = makePicture;
-    return () => {
-      if (pictureMaker === makePicture) pictureMaker = null;
-    };
-  });
-
   function fitAll() {
     const b = layout.bounds;
     setCamera(fit({ x: b.left, y: b.top, width: b.right - b.left, height: b.bottom - b.top }, width, height), true);
@@ -915,7 +991,8 @@
     editing = null;
     fresh = null;
     await tick();
-    viewport?.focus();
+    // Not when the edit ended because another pane became the active one.
+    if (active) viewport?.focus();
   }
 
   /** Puts the text in a title editor, focuses it and the caret at its end. */
@@ -1120,6 +1197,7 @@
    * "before" events, cancelled, tell the system the commands can run here.
    */
   function onClipboard(e: ClipboardEvent) {
+    if (!active) return;
     // The focus is checked too: the app's webview may name the window, not the
     // notes' editor, as the target, and the notes' own paste must stay theirs.
     if (editing !== null || moving || typingIn(e.target) || typingIn(document.activeElement)) return;
@@ -1138,9 +1216,11 @@
   // The map takes the window's keys, not only its own, so that the keys work
   // wherever the focus is: Tab would otherwise move the focus between buttons.
   function onKey(e: KeyboardEvent) {
+    if (!active) return;
     if (moving && e.key === "Escape") {
       // Leaves the dragged node where it was.
       moving = null;
+      elsewhere?.leave();
       e.preventDefault();
       return;
     }
@@ -1181,7 +1261,8 @@
       const next = neighbour(layout, id, arrows[e.key]);
       if (next) selected = next;
     } else if ((e.key === "Enter" || e.key === "ArrowDown") && mod) {
-      if (portal) onOpen(id);
+      // With ⌥, in the other pane.
+      if (portal) onOpen(id, e.altKey);
     } else if (e.key === "Enter") {
       addSibling(id, e.shiftKey);
     } else if (e.key === "Tab" && !e.shiftKey && !mod) {
@@ -1220,8 +1301,9 @@
   $effect(() => {
     // Focus inside a frame scrolls the page around it to the frame, which
     // would carry the website down to its demo as it loads; the cover's
-    // click gives the demo the focus instead.
-    if (window.parent === window) viewport.focus();
+    // click gives the demo the focus instead. A pane takes the focus as it
+    // becomes the active one, and never while another is.
+    if (active && window.parent === window) untrack(() => viewport.focus());
   });
 </script>
 
@@ -1253,12 +1335,12 @@
   >
     <svg class="edges" aria-hidden="true">
       <defs>
-        <marker id="link-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
           <path d="M0,1 L9,5 L0,9 z" class="link-arrow" />
         </marker>
       </defs>
       {#each links.curves as link (link.id)}
-        <path d={link.d} class="link" marker-end="url(#link-arrow)" />
+        <path d={link.d} class="link" marker-end="url(#{arrowId})" />
       {/each}
       {#each edges as edge (edge.id)}
         <path d={edge.d} stroke={edge.colour} stroke-width={edge.width} fill="none" stroke-linecap="round" />
@@ -1284,7 +1366,7 @@
         class:down={layout.down && !layout.columns}
         class:card={layout.board && p.depth > 1}
         class:moving={movingBranch.has(node.id)}
-        class:drop-onto={moving?.drop?.onto === node.id}
+        class:drop-onto={aimed?.onto === node.id}
         data-id={node.id}
         use:measure
         style:transform="translate({Math.round(p.x)}px, {Math.round(p.y)}px){(p.depth === 0 || (p.depth === 1 && !layout.down)) && labelScale > 1
@@ -1293,7 +1375,7 @@
         style:--branch={colours.get(node.id) ?? "var(--fg)"}
         onmousedown={(e) => clickNode(e, node.id)}
         onpointerdown={(e) => startMove(e, node)}
-        ondblclick={() => (portal ? onOpen(node.id) : startEdit(node.id, node.title))}
+        ondblclick={(e) => (portal ? onOpen(node.id, e.altKey) : startEdit(node.id, node.title))}
         role="treeitem"
         aria-selected={selected === node.id}
         tabindex="-1"
@@ -1446,7 +1528,7 @@
   </div>
 
   {#if moving?.moved}
-    <div class="drag-label" style:transform="translate({moving.at.x + 12}px, {moving.at.y + 8}px)">
+    <div class="drag-label" style:transform="translate({moving.client.x + 12}px, {moving.client.y + 8}px)">
       {vault.get(moving.id)?.title || "Idea"}{moving.ids.length > 1 ? ` and ${moving.ids.length - 1} more` : ""}
     </div>
   {/if}
@@ -1698,7 +1780,9 @@
   }
 
   .drag-label {
-    position: absolute;
+    /* Placed in the window, not the map, so it follows the pointer over the other pane too. */
+    position: fixed;
+    z-index: 10;
     left: 0;
     top: 0;
     max-width: 240px;

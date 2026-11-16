@@ -38,6 +38,10 @@ export interface MenuActions {
   toggleNotes(): void;
   toggleSource(): void;
   toggleHideDone(): void;
+  /** Splits the active pane in two. */
+  splitPane(): void;
+  /** Closes the active pane, when there are more. */
+  closePane(): void;
   back(): void;
   forward(): void;
   up(): void;
@@ -167,6 +171,8 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         await item("Share Open Map with Agents: Read, Edit, None", a.shareWithAgents),
         await item("Make Map or Undo It", () => press(cmd({ key: "M", shiftKey: true })), "CmdOrCtrl+Shift+M"),
         await item(`Open Map (${mac() ? "⌘↓" : "Ctrl+↓"})`, () => press(cmd({ key: "ArrowDown" }))),
+        // Named only on a Mac: elsewhere Ctrl+Alt with an arrow turns the screen on some computers.
+        await item(mac() ? "Open Map in Other Pane (⌥⌘↓)" : "Open Map in Other Pane", () => press(cmd({ key: "ArrowDown", altKey: true }))),
         await item("Fold or Unfold", () => press(cmd({ key: "/" })), "CmdOrCtrl+/"),
       ],
     }),
@@ -186,6 +192,12 @@ export async function installMenu(a: MenuActions): Promise<MenuChecks | null> {
         notesItem,
         sourceItem,
         hideDoneItem,
+        await line(),
+        await item("Split This Pane", a.splitPane, "CmdOrCtrl+Shift+D"),
+        await item("Close This Pane", a.closePane, "CmdOrCtrl+Shift+W"),
+        // ⌃Tab is named, not taken: a key with Tab is the page's.
+        await item(`Next Pane (${mac() ? "⌃Tab" : "Ctrl+Tab"})`, () => press({ key: "Tab", ctrlKey: true })),
+        await item(`Previous Pane (${mac() ? "⌃⇧Tab" : "Ctrl+Shift+Tab"})`, () => press({ key: "Tab", ctrlKey: true, shiftKey: true })),
         await line(),
         await item("Back", a.back, "CmdOrCtrl+["),
         await item("Forward", a.forward, "CmdOrCtrl+]"),

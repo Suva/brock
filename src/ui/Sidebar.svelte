@@ -29,7 +29,8 @@
     tab: Tab;
     onTab: (tab: Tab) => void;
     onClose: () => void;
-    onOpen: (id: string) => void;
+    /** Opens a map; `beside`, with ⌥, in the other pane. */
+    onOpen: (id: string, beside?: boolean) => void;
     onGoTo: (id: string) => void;
     /** Says something in the footer. */
     onTell: (text: string) => void;

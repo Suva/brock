@@ -8,7 +8,7 @@
   import { mapTree, type MapEntry } from "../core/overview.ts";
   import type { Live } from "./live.svelte.ts";
 
-  let { live, mapId, onOpen }: { live: Live; mapId: string; onOpen: (id: string) => void } = $props();
+  let { live, mapId, onOpen }: { live: Live; mapId: string; onOpen: (id: string, beside?: boolean) => void } = $props();
 
   const tree = $derived.by(() => {
     void live.version;
@@ -60,7 +60,7 @@
         {:else}
           <span class="twisty"></span>
         {/if}
-        <button class="name" tabindex="-1" onclick={() => onOpen(entry.node.id)} title="Open this map">
+        <button class="name" tabindex="-1" onclick={(e) => onOpen(entry.node.id, e.altKey)} title="Open this map (⌥-click: in the other pane)">
           {#if entry.node.icon}{entry.node.icon}&nbsp;{/if}{entry.node.title || "Untitled"}
         </button>
         <span class="size" title="{entry.size} {entry.size === 1 ? 'node' : 'nodes'}">{entry.size}</span>

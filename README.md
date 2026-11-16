@@ -82,6 +82,10 @@ the arrow keys, then:
 | ⌘↓, ⌘↵ or a double click | Opens a map |
 | ⌘↑, or the ↑ button on a map's centre | Back out to the map this one is in, with the map you left selected |
 | ⌘← ⌘→, or ⌘[ ⌘] | Back and forward through the maps visited, as in a browser |
+| ⇧⌘D | Splits the side you are in: a second map beside it, or below it, the long way; ⌘Z straight after takes the split back |
+| ⇧⌘W | Closes the side you are in, when the window is split |
+| ⌃Tab, ⌃⇧Tab | Goes to the next side of a split window, or the one before |
+| ⌥ with a click, or ⌥⌘↓ on a Mac | Opens a map on the other side of a split window, splitting it first if it is not |
 | ⌘/ | Folds a branch away, or shows it again |
 | ⌘+, ⌘−, ⌘0 | Zooms in, out, or to the whole map |
 | ⌃⌘S | Shows or hides the sidebar on the left: every map of the vault as a tree, the tasks, or the history |
@@ -121,7 +125,8 @@ Drag a node to move it: onto another node to put it under that one (into it,
 if it is a map), or between two to put it there; near a branch on the other
 side, it crosses the centre. A line or an outline shows where it will land;
 Escape leaves it where it was. Held near an edge of the window, the map moves
-along, so a node can be taken anywhere on it.
+along, so a node can be taken anywhere on it. With the window split, drag it
+onto the map on the other side to move it to that map.
 
 Links between nodes are dashed arrows when both ends are on the open map; a
 link to somewhere else shows as ↗ on the node, which goes there.

@@ -279,6 +279,212 @@ node id, as two devices can make equal sort keys. How conflicts merge (per node,
 last writer wins, or a text merge for notes) is to be decided before the log
 gains a field that assumes either.
 
+## Maps side by side (built)
+
+Split the window into panes, each with a map of its own, so that two or more
+maps, or parts of one large map, are on screen at once and branches can be
+dragged from one to another.
+
+**One window, not several.** Each window would be a page of its own, with its
+own copy of the vault in memory and its own undo: the copies would drift apart
+unless every change were passed between them and merged, which is syncing
+between windows, and ⌘Z in one could undo what was done in the other. Panes in
+one window share the one vault, saver, undo and agent door, so a change in
+either shows in both at once (both read `live.version`) and nothing below the
+window changes. Windows of their own can come once something other than a
+window holds the vault (see syncing). Tabs alone would show one map at a time;
+they could come later on top of the same panes.
+
+### How it looks
+
+- **View › Split This Pane (⇧⌘D)** splits the active pane in two, the new
+  half on the same map and node, and active. Either half can be split again,
+  as long as there is room. **Close This Pane (⇧⌘W)**, or a pane's ×, closes
+  it: its room goes to the other side of its split, and the pane used before
+  it becomes active. (A browser keeps ⇧⌘W, so the demo has the ×.)
+- **A split goes the long way of the pane split.** A pane wider than it is
+  tall splits side by side, otherwise one above the other, so on a wide screen
+  the first split goes side by side and splitting either half goes one above
+  the other. Each split's direction is kept, also in the session, so panes do
+  not swap round as the window or a side panel is resized. Where the long way
+  would leave a pane smaller than about 360 by 280 pixels but the other way
+  would not, the split goes the other way: a nearly square pane splits one
+  above the other. Where neither fits, the command says so and does nothing;
+  that size is the only limit on how many panes there are.
+- **⌘Z straight after a split closes it**, while nothing has changed in the
+  vault since, rather than undoing an edit made before the split: a split made
+  by accident is what it would be pressed for. Once anything changes, ⌘Z is
+  the vault's undo again. Splitting is not a step of the vault's undo, as
+  opening a map is not: that history is of edits to the maps, which syncing
+  will build on. The footer says, as a pane is split, that ⌘Z or ⇧⌘W closes
+  it.
+- **One pane is active**, with a thin outline in the accent colour. A click,
+  scroll or pinch in a pane makes it active; so does ⌃Tab, and ⌃⇧Tab back, as
+  in browsers and editors. Not ⇧Tab: in the outline it moves a row out, as in
+  every outliner, so from an outline pane it could never switch back. A browser
+  keeps ⌃Tab for its own tabs, so the tour says to click a pane there. ⌃Tab
+  goes round the panes left to right and top to bottom (`order` in
+  `tiling.ts`). The keyboard, the header
+  (breadcrumbs, back and forward, Map or Outline, the map's style), the notes
+  panel, search, export, pictures, sharing with agents and the bell's going to
+  a node all work on the active pane, so none of them needs to know there are
+  more.
+- **When split, each pane has a slim strip on top** with its map's icon and
+  title, and its ×, since the header shows only the active pane's breadcrumbs.
+- **Opening in the other pane.** ⌥-click on a map in the sidebar's Maps tab, on
+  a breadcrumb or on a portal (⌥⌘↓ from the keyboard) opens it in the other
+  pane: the one used last before this one, as ⌘Tab goes to the app used
+  last, or a pane split off when there is none.
+- **Each split has a divider**, dragged like the side panels' edges, across or
+  up and down as the split goes; where it is is kept in the session, as a
+  share of the split's area so that it suits a resized window. A pane too
+  small for the minimap has none.
+- **Dragging a branch to the other pane moves it there**, into the map that
+  pane shows: one step for ⌘Z, as any move. Copy and paste between the panes
+  works anyway, as the clip is shared.
+- Hide done tasks stays one setting for all panes.
+
+### How it is built
+
+1. **A pane as an object, with no visible change** (done).
+   `src/ui/pane.svelte.ts` holds what `App.svelte` kept for its one map: `openedMap`, `selected`,
+   `editing`, `view`, the `History` and its counter, and `mapId` derived from
+   the vault; and `moveTo`, `open`, `step`, `up` and `goTo`. `App.svelte` keeps
+   a list of panes (one, for now) and which is active, and its header, keys and
+   panels read the active one. Tidying empty nodes already spares every
+   pane's selected and edited nodes.
+2. **Views that know whether they are active** (done). `MapView` and
+   `OutlineView` take an `active` prop, true unless given. Their whole-window
+   listeners (`onKey`, the clipboard events, the outline's keys) return at once
+   in a pane that is not active, and a view takes the focus only as it becomes
+   active, never while another is. The outline's whole-window pointer
+   listeners already act only on a drag that started in it. `App.svelte` draws
+   only the active pane so far; it passes `active` once it draws both.
+3. **Module-level state in `MapView.svelte`** (done). `clip` stays shared,
+   which is what makes copy and paste between panes work. `cameras` is keyed
+   by pane and map (a `pane` prop, the pane's `key`, 0 unless given), so two
+   panes on the same map do not move each other, and a pane that becomes the
+   first when the other closes keeps its own. A picture is the view's own (`picture()`,
+   reached with `bind:this`), so it is of the active pane's map.
+   `fitWhenOpened` needs nothing: the first map view made takes it, and the
+   first pane is made first.
+4. **Ids in the page** (done). Each map view names its link arrow for itself
+   (`link-arrow-` and `$props.id()`). The outline finds its rows within its
+   own element, by `data-row`, not by an id in the whole page. The notes
+   panel's ids stay, as there is one notes panel. The copy made while going
+   into a map still repeats the arrow's id for a moment; it is the same arrow.
+5. **Tidying empty nodes** (done). `sweepEmpty` spares the selected and
+   edited node of every pane (`workedOn` in `App.svelte`), and so does
+   `settle` after undo and redo (its `keep`). When `settle` lands on a node
+   in the map another pane shows, and not in the active pane's, it is selected
+   there and that pane becomes active. Tried with one pane; the other pane's
+   part waits for two to be drawn.
+6. **Changes from the other pane** (done). Every pane, shown or not, as map
+   or outline, lets go of nodes that have gone (`repair` in `pane.svelte.ts`,
+   run by `App.svelte` after every change): a selected node falls back to its
+   map's centre, and an edit of one ends. A map that has gone needs nothing:
+   `mapId` is then the map above. The map view still falls back by itself for
+   nodes it no longer draws, such as folded ones. Escape on a row just made in
+   the outline selects where it came from at once, not only once the row has
+   the focus, so the centre does not win in between.
+7. **The session** (done) keeps the panes (map, node and view of each), which
+   is active, and the split (`beside` or `below`, and the first pane's share
+   of the room, 0.2 to 0.8). `readSession` checks every field and is tested
+   under Node: a session saved before has one pane and is read as such, and
+   two panes without a sensible split come back as the active one alone. The
+   active pane's place is written in the old fields too, so a copy of the app
+   from before still starts there. A new vault's tour and the demo open on one
+   pane (`openingOn`). `App.svelte` makes every saved pane but still draws
+   only the active one.
+8. **Drawing two panes** (done). `App.svelte` draws every pane, side by side or one
+   above the other as `split` says, each its own `MapView` or `OutlineView`
+   with `active` and `pane` given, and a divider between them, dragged like
+   `Resizer`. Split View makes the second pane, choosing the direction from
+   the room the panes have (step 13 makes it split the active pane, again and
+   again, with ⇧⌘W to close one); each pane
+   gets its strip with its map's title and ×. A pointer pressed in a pane makes
+   it active, before anything else gets the press, and ⌃Tab and ⌃⇧Tab go
+   round. ⌥-click on a map in the sidebar, a breadcrumb or a portal opens it
+   in the other pane. What waited for two panes is tried here: undo landing in
+   the other pane, and deleting the map the other pane shows. ⌃Tab is caught
+   before anything else sees the key (`onkeydowncapture`), as the outline's rows
+   and the title editor would take it for Tab. Split View is ⇧⌘D for now; its
+   menu items come with the other commands. A pane keeps the map it opened
+   while that map is in the trash, so ⌘Z brings it back there. The new pane
+   starts on the map at its usual place, not where the first pane was looking.
+   Every change of the active pane but splitting and closing goes through
+   `activate`, which finishes a title being edited in the pane left; the map
+   view then leaves the focus alone. A press, a scroll or a pinch
+   (`gesturestart`, a Mac's) is caught on the way down by the room the panes
+   are in, so the pane is active before anything in it sees the event. ⌃Tab
+   does nothing in a dialog. The divider holds the pointer while dragged, so
+   letting go anywhere ends the drag. File drops are only the notes panel's,
+   and Linux's pinch goes to whatever is under it, so neither needs more.
+9. **Going into a map** (done) animates a copy of the pane's layer within the
+   pane, whose viewport clips it. Tried with the other pane beside: only the
+   pane that changes map animates, and the copy goes once it is done.
+10. **Dragging across** (done). While a node is dragged, the map asks
+   `App.svelte` (`elsewhere`, an `Elsewhere`) whether the pointer is over the
+   other pane. That pane's map works out where it would land with its own
+   layout and camera (`aimFrom`, `dropAt`, which now takes nodes that are not
+   on its map) and shows it as for its own drags, and the map dragged from
+   stays still. Let go there, the move is `placeAcross` in `moves.ts`: one
+   step, refused into a dragged node or under one anywhere in the vault (a map
+   into a map inside it, which one map's layout cannot see), the branches left
+   on the first centre pinned to their sides, and a branch landing on a centre
+   given its side and colour (`placeAll`, `place`). The pane dropped on
+   becomes active, with what moved chosen. The label follows the pointer in
+   the window (`position: fixed`), so it shows over the other pane. An outline
+   pane takes nothing; nothing stays chosen in the pane dragged from. A drag
+   within one pane still refuses a node not on its map (`aimDrop`). Tested in
+   `drop.test.ts`. Tried in the window, one node and two chosen together, with
+   pointer events sent in small steps: the browser tool's drag jumps from start
+   to end in two moves, and synthetic events cannot take a real pointer
+   capture, so the events go to the map once its drag has begun, as the
+   capture sends them. Copy in one pane and paste in the other works too.
+11. **Commands** (done) are in the menu bar (`app-menu.ts`) and Windows' ☰
+    menu (`menu-items.ts`): View › Split This Pane (⇧⌘D), Close This Pane
+    (⇧⌘W), Next Pane and Previous Pane (⌃Tab and ⌃⇧Tab, named in their text
+    and sent as the key, as Tab is kept for the page), and Node › Open Map in
+    Other Pane (⌥⌘↓,
+    sent the same way). Off the Mac that key is not named: Ctrl+Alt with an
+    arrow turns the screen on some Windows computers, so there the item runs
+    by itself, and ⌥-click does the same. Not tried in the app (`npm start`),
+    where the menu bar is.
+12. **Words** (done). The rules in AGENTS.md that speak of one map (the views listen to
+    the whole window, every change of map goes through `moveTo`, one node
+    selected) say "the active pane"; the table gets `pane.svelte.ts`. The README
+    and `CHANGELOG.md` say how to split, and the tour gets a node for it, with
+    the browser's way where a key is the browser's.
+
+13. **Several splits** (done). How the panes share the room is a tree,
+    `Tiling` in `tiling.ts`: a pane, or a split with a direction, a share and
+    two sides, each a pane or a split again. Its leaves are places in the
+    window's list of panes. Pure, and tested under Node: where each pane goes
+    (`tiles`), the lines between them (`dividers`), ⌃Tab's `order`, `split`,
+    `close` and `setShare`. Each pane is drawn in its rectangle, as a share of
+    the room, in one keyed list, so its view stays the same component however
+    the tree changes around it; the dividers go on top. The session keeps the
+    tree (`readTiling` checks that it names every pane once), and reads the
+    two panes and `split` saved before as a tree of one split. `App.svelte`
+    keeps the panes in the order they were last active, for "the other pane"
+    and for which pane is active after one closes, and the split just made,
+    with the vault's version then, for ⌘Z.
+
+`Pane` uses Svelte's state, so its tests cannot run under plain Node; anything
+in it worth testing on its own (where a settled node goes, reading an old
+session) goes in `src/core` or `session.ts`. The rest is tried in the window
+with `npm run dev`: the same map in both panes, editing in one while the other
+shows it, ⌘Z after working in each, deleting the map the other pane shows, an
+agent's edit, copy and paste across, pictures, the session coming back, and
+the outline in one pane with the map in the other.
+
+### Open questions
+
+- Whether each pane should have its own Hide done tasks.
+- Whether a new pane should start where the pane it was split from was
+  looking, rather than at the map's usual place.
+
 ## Boards that agents work (an idea, not started)
 
 A board (the map style with columns) as a workflow: drag a card to Todo and an

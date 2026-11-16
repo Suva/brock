@@ -180,6 +180,25 @@ export interface Landing extends Place {
 }
 
 /**
+ * Puts nodes dragged from one map (its centre `fromCentre`) where they were
+ * dropped on another, shown in the other pane (its centre `toCentre`), as
+ * one step. Refused when the place is one of them or under one of them
+ * anywhere in the vault, which the layout of one map cannot see: a map
+ * dropped into a map inside it. The branches left on the first map's centre
+ * keep their sides, as they would after any move.
+ */
+export function placeAcross(vault: Vault, ids: string[], to: Landing, fromCentre: string, toCentre: string): boolean {
+  if (ids.length === 0) return false;
+  const moving = new Set(ids);
+  if ([to.parentId, ...vault.ancestors(to.parentId).map((n) => n.id)].some((id) => moving.has(id))) return false;
+  if (to.beside && moving.has(to.beside.id)) return false;
+  return vault.transact(() => {
+    if (fromCentre !== toCentre && ids.some((id) => vault.get(id)?.parentId === fromCentre)) pinSides(vault, fromCentre);
+    return placeAll(vault, ids, to, toCentre);
+  });
+}
+
+/**
  * Puts several nodes where they were dropped, one after another in the
  * order given, as one step. Refused when the place is one of them or under
  * one of them. Returns whether anything moved.

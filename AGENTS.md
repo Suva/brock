@@ -66,7 +66,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/core/activity.ts` | The history read from the log: steps (what one write put there, typing joined), their wording, and taking a step back for the nodes still as it left them |
 | `src/core/attention.ts` | The marks for the person, green, orange and red: the nodes carrying one, their order and counts for the bell, going round them, setting them |
 | `src/core/agent.ts` | What an AI agent may read and change of the vault, in the maps shared with it: the requests it can make, checked, and how they are answered as text |
-| `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre, from column to column |
+| `src/core/moves.ts` | Moving a node from the keyboard: up and down, in and out, across the centre, from column to column; and where a drag lets go, on this map or on the other pane's (`placeAcross`) |
 | `src/store/store.ts` | What a store does: load everything, save changes |
 | `src/store/tauri-store.ts` | The store in the app, through Tauri commands |
 | `src/store/memory-store.ts` | The store in tests, and in a browser (`npm run dev`) |
@@ -74,7 +74,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/agents.svelte.ts` | Whether agents are allowed and which maps are shared with them, to read or to edit, kept in the window's storage; answers the requests the native side passes on |
 | `src/ui/main.ts` | Opens the store and the vault, and the window |
 | `src/ui/live.svelte.ts` | The vault and saver made reactive for Svelte |
-| `src/ui/App.svelte` | The window: breadcrumbs, the view, notes, the undo keys |
+| `src/ui/App.svelte` | The window: breadcrumbs, the panes and split view, notes, the undo keys |
+| `src/ui/tiling.ts` | How the panes share the room: a tree of splits, where each pane goes, the lines between them, splitting and closing |
+| `src/ui/pane.svelte.ts` | A pane of the window: its open map, the node selected and edited there, map or outline, back and forward; one for now, two with split view |
 | `src/ui/app-menu.ts` | The menu bar in the app: every command and its key |
 | `src/ui/MapView.svelte` | The map: measuring nodes, drawing them and their lines, panning, zooming, the minimap, editing from the keyboard |
 | `src/ui/camera.ts` | Pan and zoom maths for the map |
@@ -91,7 +93,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 | `src/ui/updates.ts` | The app's own updates: looking for one quietly, installing it and starting again; whether to look, kept in the window's storage |
 | `src/ui/UpdateOffer.svelte` | A newer version offered in a corner of the window, installed only on a click |
 | `src/ui/usage.ts` | Search's usage, kept in the window's storage |
-| `src/ui/session.ts` | Where the window was left (map, node, view, panels), to start there |
+| `src/ui/session.ts` | Where the window was left (each pane's map, node and view, the split, the panels), to start there; read back with every field checked |
 | `src/ui/theme.ts` | Light, dark or as the system, kept in the window's storage |
 | `src/ui/system-clipboard.ts` | The system's clipboard as text: Tauri's plugin in the app, the browser's elsewhere |
 | `src/ui/PriorityBadge.svelte` | A priority, 1 to 5, as a numbered circle |
@@ -165,7 +167,9 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   that Tab never moves the focus between buttons; the outline brings the
   focus back to its selected row. A new text field is left alone by both
   without anything more. Buttons in the header also leave the focus where it
-  was.
+  was. Only a view that is `active` (the active pane's) answers the window's
+  keys and clipboard events or takes the focus; a new whole-window listener
+  in a view checks it too.
 - **The centre's children keep their sides when moved.** Their sides are
   balanced by order when not set, so a move that changes the order fixes all
   their sides first (`pinSides` in `moves.ts`). A new branch is given its
@@ -176,7 +180,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   zooms the copy into the portal or away and removes it, and grows the new
   map in once its camera is set. Anything drawn on the layer is copied with
   it; nothing on it may rely on scripts or ids staying unique while the copy
-  lives (about a third of a second).
+  lives (about a third of a second). The copy (`.ghost`) is in the pane's own
+  viewport, which clips it, and holds nodes like the map's: a query for the
+  map's nodes leaves it out. A window that is not shown draws no frames, so
+  there the copy stays until it is.
 - **Zoomed out, only the drawing changes.** Bars in place of text and the
   larger branch names come from CSS and transforms; text keeps its place, so
   measured sizes, and with them the layout, stay the same at every zoom.
@@ -231,13 +238,31 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   the database and their entries from the log, and clears the undo history,
   which could otherwise bring them back. It goes through the saver
   (`purge`), in order with the changes before it.
-- **One node selected, others chosen with it.** The map keeps `selected`,
-  the node the keyboard, the notes and editing work on, and `others`, chosen
-  with it. Commands that make sense for several act on `topmost` of them
+- **One node selected, others chosen with it.** Each pane's map keeps
+  `selected`, the node the keyboard, the notes and editing work on, and
+  `others`, chosen with it; the notes show the active pane's `selected`. Commands that make sense for several act on `topmost` of them
   (from `moves.ts`), so a branch is moved or deleted with its top, and as
   one step; the rest act on `selected`. The outline has one selected row.
-- **Every change of map goes through `moveTo`** in `App.svelte`, which
-  remembers where it was for back and forward. Setting the open map any
+- **Panes, one vault.** Split view (⇧⌘D, again for each further split) shows
+  panes over the one vault, saver and undo; an edit in any shows in all. How
+  they share the room is a tree (`tiling.ts`), whose leaves are places in the
+  list of panes; each pane is drawn in its own rectangle in one keyed list, so
+  its view is never made again as the tree changes. ⌘Z straight after a split,
+  with nothing changed since, closes it (`justSplit`); splitting is otherwise
+  no step of the vault's undo. What belongs to one
+  view (the map open, the selection, back and forward, the camera) is kept on
+  its pane (`pane.svelte.ts`) or the view's own instance, never in a module's
+  state, in an id or in a query of the whole page, as another pane may show
+  the same map; the views' `pane` key, `$props.id()` and queries within the
+  view's own element keep them apart. Tidying spares what every pane has
+  selected or edits, and every pane lets go of nodes that have gone
+  (`repair`). A drag reaches the other pane through `Elsewhere` in
+  `MapView.svelte` and lands by `placeAcross` in `moves.ts`.
+- **Every change of map goes through `moveTo`** of the pane
+  (`pane.svelte.ts`), which remembers where it was for back and forward.
+  `App.svelte` works on the active pane (`pane`); every change of the active
+  pane but splitting and closing goes through `activate`, which finishes a
+  title being edited in the pane left. Setting the open map any
   other way leaves a gap in the history.
 - **On a Mac the header is the title bar.** The window has none of its own
   (`titleBarStyle: Overlay` in `tauri.conf.json`); its buttons sit over the
@@ -276,7 +301,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   shows its error. Anything that delays the first render delays the window.
 - **Keys pressed in a dialog stay there.** `typingIn` in `keys.ts` treats
   anything inside `role="dialog"` like a text field, so the views leave it
-  alone. Give every new dialog that role.
+  alone. Give every new dialog that role. ⌃Tab, which `App.svelte` takes
+  before anything else sees it, checks for a dialog itself.
 - **A new command goes in the menu bar too** (`app-menu.ts`), with its key,
   and in Windows' ☰ menu (`menu-items.ts`), which lists the same commands.
   Keys reach the page before the menu, so a menu item takes a key only
@@ -286,8 +312,8 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
   system's, for text fields; the map listens for their `copy`, `cut` and
   `paste` events, but WebKit may send none (see the rule on copy and
   paste above), so on the map they may do nothing; the keys always work.
-- **Pictures are read off the map as drawn.** `capture` in `ui/picture.ts`
-  walks the map's nodes and lines in the page and turns each box, line of
+- **Pictures are read off the map as drawn**, the active pane's
+  (`Pane.mapView`). `capture` in `ui/picture.ts` walks the map's nodes and lines in the page and turns each box, line of
   text and curve into a shape (`core/picture.ts`), so a picture matches the
   screen without a second way of drawing it. A new part of a node is drawn
   without anything more; a part that is a control, not content, is left out
@@ -370,7 +396,7 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 
 ## Testing
 
-`test/*.test.ts` covers the core, the layout, the camera and the saver with Node's test runner;
+`test/*.test.ts` covers the core, the layout, the camera, the saver, reading the session and the panes' tiling with Node's test runner;
 `src-tauri/src/db.rs` has the database's tests. Neither drives the window.
 GitHub runs the type check and both sets of tests on every push to `main`
 and every pull request (`.github/workflows/test.yml`).
@@ -420,8 +446,8 @@ build writes the `CNAME` for that domain. Try it locally with `npm run site`.
   `MapView.svelte` keeps the next map drawn whole while its nodes' sizes
   come in, and stops at the first key, click or scroll; one fit at the start
   would be off by the sizes still to come.
-- **A browser keeps some keys for itself:** ⌘T, ⌘N, ⌘W and ⌘1 to ⌘5 never
-  reach the page. The tour gives those as keys of the app and shows the way
+- **A browser keeps some keys for itself:** ⌘T, ⌘N, ⌘W, ⌘1 to ⌘5 and ⌃Tab
+  never reach the page. The tour gives those as keys of the app and shows the way
   that works in a browser.
 - **The demo sits under a cover** until it is clicked, so that scrolling the
   page over it does not move the map instead.
