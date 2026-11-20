@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+## 0.9.1 — 20 November 2026
+
 - A long title that runs onto a second line no longer leaves a wide gap beside it, which on the left of a map sat between the text and its line.
 
 ## 0.9.0 — 16 November 2026
