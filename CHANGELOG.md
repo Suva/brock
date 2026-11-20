@@ -7,6 +7,8 @@ and appear there once they are.
 
 ## Not released yet
 
+- A long title that runs onto a second line no longer leaves a wide gap beside it, which on the left of a map sat between the text and its line.
+
 ## 0.9.0 — 16 November 2026
 
 - **Maps side by side.** Press ⇧⌘D to split the window and show a second map beside the first, or below it when there is more room that way; press it again to split the side you are in, so a large screen can hold three or four maps. Each side has its own map, view and back and forward; the one you last clicked, or reach with ⌃Tab, is the one the keyboard and the notes work on. ⌥-click a map in the sidebar or the breadcrumbs, or ⌥-double-click a portal (⌥⌘↓ on a Mac), to open it on the other side. Drag a node onto another side to move it to that map, and drag the lines between them to share the room differently. ⇧⌘W, or a side's ×, closes it, and ⌘Z straight after a split takes it back. The commands are under View too.

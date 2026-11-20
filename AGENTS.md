@@ -158,7 +158,10 @@ edit in the window → Vault (src/core) → changes → Saver → Store → appl
 - **The layout does not measure.** `layoutMap` is given each node's size;
   the map measures its nodes with a ResizeObserver and lays them out again
   when a size changes. A node's look must come from CSS that its size
-  follows, never from sizes set by script.
+  follows, never from sizes set by script. The one exception is `tight` in
+  `MapView.svelte`, which narrows a title that wraps to its widest line, as
+  CSS cannot; it reads the lines again whenever the title or its room
+  changes.
 - **Clicks are not drags.** Pointer handlers ignore movement under
   `DRAG_START_PX`, and capture the pointer only once a drag starts, so that
   buttons inside the map still get their clicks.

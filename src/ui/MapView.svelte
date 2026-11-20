@@ -138,6 +138,39 @@
     return { destroy: () => observer.unobserve(el) };
   }
 
+  /**
+   * Narrows a title that wraps to its widest line. CSS keeps a box that wraps
+   * at its max-width however short the lines it ends up with, which leaves a
+   * gap beside the text: on the left of a map, between the text and its line.
+   * CSS has no way to shrink it, so the lines are read off the page. The width
+   * is cleared and read again whenever the title or the room around it
+   * changes, so it never outlives what it was read from. The title's editor
+   * has it too, so the box keeps its shape on starting to edit; each key
+   * typed changes the title, which reads the lines again before they are drawn.
+   */
+  function tight(el: HTMLElement, _title: string) {
+    const fit = () => {
+      el.style.width = "";
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+      if (rects.length < 2 || rects.every((r) => Math.abs(r.top - rects[0].top) < 1)) return;
+      // The rects are on the screen, zoomed; the width is set before zooming.
+      const scale = el.getBoundingClientRect().width / el.offsetWidth || 1;
+      const widest = (Math.max(...rects.map((r) => r.right)) - Math.min(...rects.map((r) => r.left))) / scale;
+      if (widest < el.offsetWidth - 1) el.style.width = `${Math.ceil(widest)}px`;
+    };
+    // Setting the width back as it was within one callback is no change, so
+    // this does not call itself again.
+    const watch = new ResizeObserver(fit);
+    watch.observe(el);
+    void document.fonts?.ready.then(fit);
+    return {
+      update: fit,
+      destroy: () => watch.disconnect(),
+    };
+  }
+
   /** A guess at a node's size until it has been measured, so it starts near its place. */
   function estimate(node: Node) {
     const chars = Math.max(4, node.title.length);
@@ -1427,6 +1460,7 @@
             tabindex="0"
             spellcheck="false"
             use:editor
+            use:tight={node.title}
             oninput={(e) => onEditInput(e, node.id)}
             onkeydown={(e) => onEditKey(e, node)}
             onblur={() => {
@@ -1444,7 +1478,7 @@
             }}
           ></span>
         {:else}
-          <span class="text" class:placeholder={!node.title}>{node.title || (isCentre ? "Main idea" : "Idea")}</span>
+          <span class="text" class:placeholder={!node.title} use:tight={node.title}>{node.title || (isCentre ? "Main idea" : "Idea")}</span>
         {/if}
         {#if dueLabel(node, now)}
           {@const due = dueLabel(node, now)!}
